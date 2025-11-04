@@ -39,17 +39,17 @@ const Home: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white pt-16">
+    <div className="min-h-screen bg-white pt-6">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="text-center">
-            <div className="flex items-center justify-center mb-6">
-              <div className="bg-white/6 backdrop-blur-sm p-2 rounded-2xl">
+            <div className="flex items-center justify-center mb-2">
+              <div className="bg-white/6 backdrop-blur-sm p-1 rounded-xl">
                 <img 
                   src="/logo.png" 
                   alt="ClockWise Logo" 
-                  className="h-80 w-auto object-contain"
+                  className="h-60 w-auto object-contain"
                 />
               </div>
             </div>
