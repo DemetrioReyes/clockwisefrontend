@@ -1,13 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, CheckCircle, TrendingUp, FileText, Users, DollarSign } from 'lucide-react';
+import { CheckCircle, TrendingUp, FileText, Users, DollarSign } from 'lucide-react';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
 
   const features = [
     {
-      icon: <Clock className="w-8 h-8" />,
+      icon: <img src="/logo.png" alt="Clock" className="w-8 h-8" />,
       title: 'Control de Tiempo',
       description: 'Registro automático con reconocimiento facial y cumplimiento de leyes laborales',
     },
@@ -42,16 +42,17 @@ const Home: React.FC = () => {
     <div className="min-h-screen bg-white pt-16">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <div className="flex items-center justify-center mb-6">
-              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl">
-                <Clock className="w-16 h-16 text-white" />
+              <div className="bg-white/6 backdrop-blur-sm p-2 rounded-2xl">
+                <img 
+                  src="/logo.png" 
+                  alt="ClockWise Logo" 
+                  className="h-80 w-auto object-contain"
+                />
               </div>
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              ClockWise
-            </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-4">
               Sistema Completo de Gestión de Nómina
             </p>
@@ -148,8 +149,12 @@ const Home: React.FC = () => {
       <footer className="bg-gray-900 text-gray-400 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center mb-4">
-            <Clock className="w-8 h-8 text-blue-400" />
-            <span className="ml-2 text-xl font-bold text-white">ClockWise</span>
+            <img 
+              src="/logo.png" 
+              alt="ClockWise Logo" 
+              className="h-10 w-auto mr-2"
+            />
+            <span className="text-xl font-bold text-white">ClockWise</span>
           </div>
           <p className="text-sm">
             Sistema de Gestión de Nómina y Cumplimiento Laboral

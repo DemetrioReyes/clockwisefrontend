@@ -10,7 +10,6 @@ import {
   UserPlus,
   Banknote,
   MinusCircle,
-  AlertCircle,
   FileDown,
   PenTool,
   TrendingUp,
@@ -54,8 +53,14 @@ const Sidebar: React.FC<SidebarProps> = ({ userType }) => {
   return (
     <div className="w-64 bg-gray-900 text-white min-h-screen fixed left-0 top-0">
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-blue-400">ClockWise</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <div className="flex items-center justify-center mb-2">
+          <img 
+            src="/logo.png" 
+            alt="ClockWise Logo" 
+            className="h-10 w-auto"
+          />
+        </div>
+        <p className="text-sm text-gray-400 mt-1 text-center">
           {userType === 'super_admin' ? 'Super Admin' : 'Business Portal'}
         </p>
       </div>

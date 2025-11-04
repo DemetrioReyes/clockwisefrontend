@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Building2, Clock } from 'lucide-react';
+import { Shield, Building2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const PublicHeader: React.FC = () => {
@@ -30,11 +30,14 @@ const PublicHeader: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div 
-            className="flex items-center space-x-2 cursor-pointer"
+            className="flex items-center cursor-pointer"
             onClick={() => navigate('/')}
           >
-            <Clock className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">ClockWise</span>
+            <img 
+              src="/logo.png" 
+              alt="ClockWise Logo" 
+              className="h-40 w-auto object-contain"
+            />
           </div>
 
           {/* Navigation Buttons */}
