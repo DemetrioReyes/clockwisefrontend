@@ -37,10 +37,17 @@ const BusinessDashboard: React.FC = () => {
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Último día del mes
         
+        const tenantId = (user as any)?.tenant_id;
+        
+        if (!tenantId) {
+          console.log('No hay tenant_id disponible, saltando carga de horas');
+          return;
+        }
+        
         const payrollData = await payrollService.calculatePayroll({
-          tenant_id: (user as Business).tenant_id,
+          tenant_id: tenantId,
           period_start: startOfMonth.toISOString().split('T')[0],
-          period_end: endOfMonth.toISOString().split('T')[0], // Usa último día del mes
+          period_end: endOfMonth.toISOString().split('T')[0],
           pay_frequency: 'monthly',
         });
 
