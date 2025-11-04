@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Business } from '../../types';
 
 const Header: React.FC = () => {
   const { user, logout, userType } = useAuth();

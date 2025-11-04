@@ -111,19 +111,37 @@ const TimeEntry: React.FC = () => {
     setLoading(true);
     try {
       const tenantId = (user as Business).tenant_id;
-      await employeeService.createTimeEntry({
+      console.log('Registrando tiempo:', JSON.stringify({ 
+        recordType, 
+        tenantId, 
+        imageSize: selectedImage.size, 
+        imageName: selectedImage.name 
+      }, null, 2));
+      
+      const result = await employeeService.createTimeEntry({
         face_image: selectedImage,
         tenant_id: tenantId,
         record_type: recordType,
         device_info: 'Web Browser',
       });
       
+      console.log('Respuesta del servidor:', JSON.stringify(result, null, 2));
+      console.log('Registro exitoso:', result);
+      
       showToast('Control de tiempo registrado exitosamente', 'success');
       setSelectedImage(null);
       setPreviewUrl(null);
-      loadTimeEntries();
+      
+      // Esperar un momento antes de recargar para asegurar que el backend procesó el registro
+      setTimeout(() => {
+        loadTimeEntries();
+      }, 1000);
     } catch (error: any) {
-      showToast(formatErrorMessage(error), 'error');
+      console.error('Error al registrar tiempo:', error);
+      console.error('Response data:', error.response?.data);
+      console.error('Response status:', error.response?.status);
+      const errorMessage = formatErrorMessage(error);
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }

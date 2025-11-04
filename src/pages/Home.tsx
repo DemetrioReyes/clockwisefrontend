@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Shield, Building2, CheckCircle, TrendingUp, FileText, Users, DollarSign } from 'lucide-react';
+import { Clock, CheckCircle, TrendingUp, FileText, Users, DollarSign } from 'lucide-react';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();

@@ -3,14 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import payrollService from '../../../services/payroll.service';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
+import { useToast } from '../../../components/Common/Toast';
+import { formatErrorMessage } from '../../../services/api';
 import { Printer, ArrowLeft, Building2 } from 'lucide-react';
 
 const PayrollPrintView: React.FC = () => {
   const { payrollId } = useParams<{ payrollId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [payrollData, setPayrollData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     loadPayrollData();
@@ -40,6 +44,32 @@ const PayrollPrintView: React.FC = () => {
     window.print();
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!payrollId) return;
+    
+    setUpdatingStatus(true);
+    try {
+      await payrollService.updatePayrollStatus(payrollId, newStatus as 'draft' | 'calculated' | 'approved' | 'paid');
+      showToast('Estado de nómina actualizado exitosamente', 'success');
+      // Recargar los datos
+      await loadPayrollData();
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      draft: 'bg-gray-100 text-gray-800',
+      calculated: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-blue-100 text-blue-800',
+      paid: 'bg-green-100 text-green-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -66,7 +96,24 @@ const PayrollPrintView: React.FC = () => {
   return (
     <>
       {/* Botones de acción - NO se imprimen */}
-      <div className="no-print fixed top-4 right-4 z-50 flex gap-2">
+      <div className="no-print fixed top-4 right-4 z-50 flex gap-2 items-center">
+        <div className="bg-white shadow-lg rounded-lg px-3 py-2 border border-gray-200">
+          <label className="text-xs text-gray-600 mr-2">Estado:</label>
+          {updatingStatus ? (
+            <LoadingSpinner size="sm" />
+          ) : (
+            <select
+              value={payroll.status}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={`px-3 py-1 text-xs rounded-full border-0 font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${getStatusColor(payroll.status)}`}
+            >
+              <option value="draft">Borrador</option>
+              <option value="calculated">Calculada</option>
+              <option value="approved">Aprobada</option>
+              <option value="paid">Pagada</option>
+            </select>
+          )}
+        </div>
         <button
           onClick={() => navigate(-1)}
           className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center gap-2"

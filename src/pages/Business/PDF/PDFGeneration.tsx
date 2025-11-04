@@ -5,12 +5,14 @@ import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
 import { formatErrorMessage } from '../../../services/api';
 import payrollService from '../../../services/payroll.service';
-import { Printer, Eye, FileText } from 'lucide-react';
+import { Printer, Eye, FileText, Trash2 } from 'lucide-react';
 
 const PDFGeneration = () => {
   const navigate = useNavigate();
   const [payrolls, setPayrolls] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [deletingPayrollId, setDeletingPayrollId] = useState<string | null>(null);
   const { showToast } = useToast();
   const [selectedPayrollId, setSelectedPayrollId] = useState<string>('');
 
@@ -43,6 +45,68 @@ const PDFGeneration = () => {
       return;
     }
     navigate(`/business/payroll/print/${selectedPayrollId}`);
+  };
+
+  const handleStatusChange = async (payrollId: string, newStatus: string) => {
+    setUpdatingStatus(payrollId);
+    try {
+      await payrollService.updatePayrollStatus(payrollId, newStatus as 'draft' | 'calculated' | 'approved' | 'paid');
+      showToast('Estado de nómina actualizado exitosamente', 'success');
+      // Actualizar el estado local
+      setPayrolls(prev => prev.map(p => 
+        p.id === payrollId ? { ...p, status: newStatus } : p
+      ));
+    } catch (error: any) {
+      console.error('Error actualizando estado:', error);
+      console.error('Response data:', error.response?.data);
+      console.error('Detail array:', error.response?.data?.detail);
+      if (error.response?.data?.detail && Array.isArray(error.response.data.detail)) {
+        console.error('Detalles del error:', JSON.stringify(error.response.data.detail, null, 2));
+      }
+      const errorMessage = formatErrorMessage(error);
+      showToast(errorMessage, 'error');
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      draft: 'bg-gray-100 text-gray-800',
+      calculated: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-blue-100 text-blue-800',
+      paid: 'bg-green-100 text-green-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const handleDeletePayroll = async (payrollId: string, period: string) => {
+    const confirmMessage = `¿Estás seguro de que deseas eliminar la nómina del período ${period}?\n\nEsta acción no se puede deshacer.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setDeletingPayrollId(payrollId);
+    try {
+      await payrollService.deletePayroll(payrollId);
+      showToast('Nómina eliminada exitosamente', 'success');
+      
+      // Remover de la lista local
+      setPayrolls(prev => prev.filter(p => p.id !== payrollId));
+      
+      // Si la nómina eliminada estaba seleccionada, limpiar la selección
+      if (selectedPayrollId === payrollId) {
+        setSelectedPayrollId('');
+      }
+    } catch (error: any) {
+      console.error('Error eliminando nómina:', error);
+      console.error('Response data:', error.response?.data);
+      const errorMessage = formatErrorMessage(error);
+      showToast(errorMessage, 'error');
+    } finally {
+      setDeletingPayrollId(null);
+    }
   };
 
   if (loading) {
@@ -185,22 +249,46 @@ const PDFGeneration = () => {
                           ${payroll.total_net_pay}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            payroll.status === 'paid' ? 'bg-green-100 text-green-800' :
-                            payroll.status === 'approved' ? 'bg-blue-100 text-blue-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {payroll.status}
-                          </span>
+                          {updatingStatus === payroll.id ? (
+                            <LoadingSpinner size="sm" />
+                          ) : (
+                            <select
+                              value={payroll.status}
+                              onChange={(e) => handleStatusChange(payroll.id, e.target.value)}
+                              className={`px-3 py-1 text-xs rounded-full border-0 font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${getStatusColor(payroll.status)}`}
+                            >
+                              <option value="draft">Borrador</option>
+                              <option value="calculated">Calculada</option>
+                              <option value="approved">Aprobada</option>
+                              <option value="paid">Pagada</option>
+                            </select>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => navigate(`/business/payroll/print/${payroll.id}`)}
-                            className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                          >
-                            <Printer className="w-4 h-4" />
-                            Imprimir
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => navigate(`/business/payroll/print/${payroll.id}`)}
+                              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                            >
+                              <Printer className="w-4 h-4" />
+                              Imprimir
+                            </button>
+                            <button
+                              onClick={() => handleDeletePayroll(payroll.id, `${payroll.period_start} - ${payroll.period_end}`)}
+                              disabled={deletingPayrollId === payroll.id}
+                              className="text-red-600 hover:text-red-800 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Eliminar nómina"
+                            >
+                              {deletingPayrollId === payroll.id ? (
+                                <span className="text-xs">Eliminando...</span>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-4 h-4" />
+                                  Eliminar
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

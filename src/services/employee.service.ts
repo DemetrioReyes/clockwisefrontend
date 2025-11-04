@@ -75,11 +75,24 @@ class EmployeeService {
     formData.append('record_type', data.record_type);
     if (data.device_info) formData.append('device_info', data.device_info);
 
+    // Log para debug
+    console.log('Enviando FormData:', JSON.stringify({
+      record_type: data.record_type,
+      tenant_id: data.tenant_id,
+      device_info: data.device_info,
+      has_image: !!data.face_image,
+      image_name: data.face_image.name,
+      image_size: data.face_image.size
+    }, null, 2));
+
     const response = await api.post<TimeEntry>(API_ENDPOINTS.TIME_ENTRY, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+    
+    console.log('Respuesta del servidor:', JSON.stringify(response.data, null, 2));
+    console.log('Status code:', response.status);
     return response.data;
   }
 
