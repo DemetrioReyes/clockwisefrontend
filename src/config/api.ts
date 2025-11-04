@@ -1,8 +1,5 @@
-// En producción (Vercel), usar ruta relativa que pasará por el proxy
-// En desarrollo, usar URL directa del backend
-export const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '' // Usa rutas relativas en producción (/api/...)
-  : (process.env.REACT_APP_API_BASE_URL || 'http://15.204.220.159:8000');
+// URL de ngrok (HTTPS)
+export const API_BASE_URL = 'https://ac2fe07f3596.ngrok-free.app';
 
 export const API_ENDPOINTS = {
   // Super Admin
