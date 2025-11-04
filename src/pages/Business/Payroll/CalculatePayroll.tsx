@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatErrorMessage } from '../../../services/api';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
@@ -6,9 +7,10 @@ import { useToast } from '../../../components/Common/Toast';
 import { useAuth } from '../../../contexts/AuthContext';
 import payrollService from '../../../services/payroll.service';
 import { PayrollRequest, PayrollResponse, Business } from '../../../types';
-import { DollarSign, Calendar } from 'lucide-react';
+import { DollarSign, Calendar, Printer } from 'lucide-react';
 
 const CalculatePayroll: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
@@ -151,9 +153,14 @@ const CalculatePayroll: React.FC = () => {
               )}
 
               {savedPayrollId && (
-                <div className="flex-1 bg-green-50 border-2 border-green-500 px-6 py-3 rounded-lg flex items-center justify-center">
-                  <span className="text-green-700 font-semibold">✅ Guardado! ID: {savedPayrollId.substring(0, 8)}...</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/business/payroll/print/${savedPayrollId}`)}
+                  className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                >
+                  <Printer className="w-5 h-5" />
+                  <span className="font-semibold">Ver Imprimible / Imprimir</span>
+                </button>
               )}
             </div>
           </form>

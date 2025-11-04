@@ -54,7 +54,7 @@ const CreateDeduction = () => {
       if (formData.is_percentage) {
         data.deduction_percentage = parseFloat(formData.deduction_percentage) / 100;
       } else {
-        data.deduction_amount = parseFloat(formData.deduction_amount);
+        data.deduction_fixed_amount = parseFloat(formData.deduction_amount);
       }
 
       if (formData.end_date) {

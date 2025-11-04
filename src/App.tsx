@@ -19,6 +19,7 @@ import EmployeeList from './pages/Business/Employees/EmployeeList';
 import RegisterEmployee from './pages/Business/Employees/RegisterEmployee';
 import TimeEntry from './pages/Business/TimeTracking/TimeEntry';
 import CalculatePayroll from './pages/Business/Payroll/CalculatePayroll';
+import PayrollPrintView from './pages/Business/Payroll/PayrollPrintView';
 import Reports from './pages/Business/Reports/Reports';
 import ReportTips from './pages/Business/Tips/ReportTips';
 
@@ -120,6 +121,14 @@ function App() {
               }
             />
             <Route
+              path="/business/payroll/print/:payrollId"
+              element={
+                <ProtectedRoute requiredUserType="business">
+                  <PayrollPrintView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/business/reports"
               element={
                 <ProtectedRoute requiredUserType="business">
@@ -162,12 +171,12 @@ function App() {
               }
             />
 
-            {/* Incidents Routes */}
+            {/* Incidents Routes (combinado con Tips) */}
             <Route
               path="/business/incidents"
               element={
                 <ProtectedRoute requiredUserType="business">
-                  <IncidentsList />
+                  <ReportTips />
                 </ProtectedRoute>
               }
             />

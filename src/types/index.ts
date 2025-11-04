@@ -138,8 +138,8 @@ export interface Deduction {
   tenant_id: string;
   deduction_type: DeductionType;
   deduction_name: string;
-  deduction_percentage?: number;
-  deduction_amount?: number;
+  deduction_percentage?: number | string;
+  deduction_fixed_amount?: number | string;
   is_percentage: boolean;
   effective_date: string;
   end_date?: string;
@@ -152,7 +152,7 @@ export interface DeductionCreate {
   deduction_type: DeductionType;
   deduction_name: string;
   deduction_percentage?: number;
-  deduction_amount?: number;
+  deduction_fixed_amount?: number;
   is_percentage: boolean;
   effective_date: string;
   end_date?: string;
