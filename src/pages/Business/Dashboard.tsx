@@ -29,7 +29,9 @@ const BusinessDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       const employeesData = await employeeService.listEmployees(true);
-      setEmployees(employeesData);
+      // Manejar respuesta: puede ser array directo o objeto {employees: [...]}
+      const employeesArray = Array.isArray(employeesData) ? employeesData : (employeesData as any)?.employees || [];
+      setEmployees(employeesArray);
       
       // Cargar horas del mes actual (todo el mes)
       try {
