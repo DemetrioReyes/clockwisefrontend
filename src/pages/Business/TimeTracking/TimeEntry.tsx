@@ -61,8 +61,7 @@ const TimeEntry: React.FC = () => {
       setTimeEntries(Array.isArray(data) ? data : []);
     } catch (error: any) {
       console.log('Error al cargar time entries:', error);
-      // El endpoint GET puede no estar completamente implementado en el backend
-      // No mostrar error al usuario para evitar confusión
+      // No mostrar error al usuario, simplemente mostrar lista vacía
       setTimeEntries([]);
     } finally {
       setLoading(false);
@@ -293,7 +292,7 @@ const TimeEntry: React.FC = () => {
           </div>
         </div>
 
-        {/* Resumen de Registros (alternativa temporal) */}
+        {/* Resumen de Registros */}
         {timeSummaries.length > 0 && (
           <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
             <div className="px-6 py-4 border-b border-gray-200 bg-green-50">
@@ -302,7 +301,7 @@ const TimeEntry: React.FC = () => {
                 <div>
                   <h2 className="text-lg font-semibold text-green-900">Resumen de Registros de Tiempo</h2>
                   <p className="text-sm text-green-700 mt-1">
-                    Datos del último mes (solución temporal mientras el endpoint GET se implementa completamente)
+                    Datos del último mes
                   </p>
                 </div>
               </div>
@@ -414,18 +413,39 @@ const TimeEntry: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(entry.timestamp).toLocaleString('es-ES')}
+                        {(() => {
+                          const dateTime = entry.record_time || entry.timestamp;
+                          if (!dateTime) return '-';
+                          try {
+                            const date = new Date(dateTime);
+                            if (isNaN(date.getTime())) return '-';
+                            return date.toLocaleString('es-ES', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit'
+                            });
+                          } catch {
+                            return '-';
+                          }
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {entry.confidence ? (
-                          <div className="flex items-center">
-                            <div className="text-sm text-gray-900">
-                              {(entry.confidence * 100).toFixed(1)}%
+                        {(() => {
+                          const confidence = entry.face_confidence || entry.confidence;
+                          if (confidence === undefined || confidence === null) {
+                            return <span className="text-gray-400">-</span>;
+                          }
+                          return (
+                            <div className="flex items-center">
+                              <div className="text-sm text-gray-900">
+                                {(confidence * 100).toFixed(1)}%
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {entry.device_info || '-'}

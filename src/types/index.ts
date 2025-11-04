@@ -197,11 +197,14 @@ export interface TimeEntry {
   employee_id: string;
   employee_name?: string;
   employee_code?: string;
+  position?: string;
   record_type: RecordType;
-  timestamp: string;
-  confidence?: number;
+  record_time?: string; // Campo del API GET
+  timestamp?: string; // Campo del API POST (mantener compatibilidad)
+  face_confidence?: number; // Campo del API GET
+  confidence?: number; // Campo del API POST (mantener compatibilidad)
   device_info?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface TimeEntryCreate {

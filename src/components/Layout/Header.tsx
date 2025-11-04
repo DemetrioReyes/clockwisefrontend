@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Business } from '../../types';
@@ -7,6 +7,16 @@ import { User, Business } from '../../types';
 const Header: React.FC = () => {
   const { user, logout, userType } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Solo mostrar header en rutas protegidas (dentro del layout)
+  const isPublicRoute = location.pathname === '/' || 
+                        location.pathname === '/super-admin/login' || 
+                        location.pathname === '/business/login';
+
+  if (isPublicRoute) {
+    return null;
+  }
 
   const handleLogout = () => {
     logout();

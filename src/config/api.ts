@@ -1,5 +1,5 @@
-// URL de ngrok (HTTPS)
-export const API_BASE_URL = 'https://ac2fe07f3596.ngrok-free.app';
+// URL del API desde variable de entorno
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 export const API_ENDPOINTS = {
   // Super Admin

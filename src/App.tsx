@@ -2,8 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './components/Common/Toast';
 import ProtectedRoute from './components/ProtectedRoute';
+import PublicHeader from './components/Layout/PublicHeader';
 
 // Pages
+import Home from './pages/Home';
 import LoginSelection from './pages/LoginSelection';
 
 // Super Admin Pages
@@ -47,9 +49,10 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
+          <PublicHeader />
           <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<LoginSelection />} />
+            <Route path="/" element={<Home />} />
             <Route path="/super-admin/login" element={<SuperAdminLogin />} />
             <Route path="/business/login" element={<BusinessLogin />} />
 
