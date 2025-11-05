@@ -1703,7 +1703,64 @@
 					"response": []
 				},
 				{
-					"name": "4.6 Get Employee Payroll Summary",
+					"name": "4.6 Delete Payroll",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    ",
+									"    console.log(\"✅ Nómina eliminada correctamente\");",
+									"    console.log(\"🆔 Payroll ID eliminado:\", jsonData.payroll_id);",
+									"    console.log(\"📝 Mensaje:\", jsonData.message);",
+									"    ",
+									"    // Limpiar variable si se eliminó la nómina actual",
+									"    if (pm.environment.get(\"payroll_id\") === jsonData.payroll_id) {",
+									"        pm.environment.unset(\"payroll_id\");",
+									"        console.log(\"🧹 Variable payroll_id limpiada\");",
+									"    }",
+									"} else if (pm.response.code === 404) {",
+									"    console.log(\"⚠️ Nómina no encontrada o ya fue eliminada\");",
+									"} else {",
+									"    console.log(\"❌ Error al eliminar:\", pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payroll/{{payroll_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payroll",
+								"{{payroll_id}}"
+							]
+						},
+						"description": "# Delete Payroll\n\n**⚠️ IMPORTANTE**: Esta acción NO se puede deshacer\n\n**Purpose**: Eliminar una nómina y todos sus detalles asociados de la base de datos.\n\n**Proceso**:\n1. Verifica que la nómina existe y pertenece al tenant\n2. Elimina la nómina de la tabla `payrolls`\n3. Los detalles (`payroll_details`) se eliminan automáticamente por CASCADE\n4. Retorna confirmación de eliminación\n\n**Use Cases**:\n- Eliminar nóminas de prueba\n- Corregir errores de cálculo eliminando y recalculando\n- Limpiar nóminas duplicadas\n- Eliminar nóminas canceladas\n\n**⚠️ ADVERTENCIAS**:\n- **NO se puede deshacer** - Una vez eliminada, no hay forma de recuperarla\n- **Elimina TODOS los detalles** - Todos los registros de `payroll_details` se borran\n- **Solo elimina nóminas de tu tenant** - No puedes eliminar nóminas de otros negocios\n- **Verifica antes de eliminar** - Usa GET /api/payroll/{id} para revisar antes\n\n**Response Exitosa**:\n```json\n{\n  \"success\": true,\n  \"message\": \"Nómina eliminada correctamente\",\n  \"payroll_id\": \"8dba099b-16e9-435d-b795-e4f095f90bd6\"\n}\n```\n\n**Response Error (404)**:\n```json\n{\n  \"detail\": \"Nómina no encontrada\"\n}\n```\n\n**Recomendaciones**:\n1. Exporta/guarda PDFs antes de eliminar si necesitas mantener registros\n2. Usa el endpoint de preview (`/calculate`) para verificar antes de guardar\n3. Considera cambiar status a `draft` en lugar de eliminar si necesitas correcciones\n4. Mantén backups de nóminas importantes"
+					},
+					"response": []
+				},
+				{
+					"name": "4.7 Get Employee Payroll Summary",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -1735,7 +1792,7 @@
 					"response": []
 				}
 			],
-			"description": "# Payroll Processing\n\nComplete payroll calculation with automatic tip credit compliance.\n\n**⚠️ IMPORTANT - Dos tipos de endpoints:**\n\n**1. POST /calculate (4.1)** - PREVIEW ONLY\n- Solo calcula, NO guarda\n- ID vacío en response\n- Para verificar antes de guardar\n\n**2. POST / (4.2)** - CREATE & SAVE\n- Calcula Y GUARDA en BD\n- Genera payroll_id real\n- ✅ Usar ESTE para crear nóminas\n\n**Features**:\n- Automatic tip credit calculation (usa config dinámica)\n- Shortfall compensation\n- Tax deductions\n- Overtime calculations\n- Sick leave accrual\n- Break compliance checking"
+			"description": "# Payroll Processing\n\nComplete payroll calculation with automatic tip credit compliance.\n\n**⚠️ IMPORTANT - Dos tipos de endpoints:**\n\n**1. POST /calculate (4.1)** - PREVIEW ONLY\n- Solo calcula, NO guarda\n- ID vacío en response\n- Para verificar antes de guardar\n\n**2. POST / (4.2)** - CREATE & SAVE\n- Calcula Y GUARDA en BD\n- Genera payroll_id real\n- ✅ Usar ESTE para crear nóminas\n\n**3. DELETE /{payroll_id} (4.6)** - DELETE PAYROLL\n- Elimina nómina y todos sus detalles\n- ⚠️ Acción irreversible\n- Solo nóminas del tenant autenticado\n\n**Features**:\n- Automatic tip credit calculation (usa config dinámica)\n- Shortfall compensation\n- Tax deductions\n- Overtime calculations\n- Sick leave accrual\n- Break compliance checking\n- Delete payroll functionality"
 		},
 		{
 			"name": "5. Time Tracking",

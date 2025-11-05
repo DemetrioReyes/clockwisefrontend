@@ -30,9 +30,8 @@ import CreateDeduction from './pages/Business/Deductions/CreateDeduction';
 import SetupStandardDeductions from './pages/Business/Deductions/SetupStandardDeductions';
 import CreateIncident from './pages/Business/Incidents/CreateIncident';
 
-// PDF & Signatures
+// PDF
 import PDFGeneration from './pages/Business/PDF/PDFGeneration';
-import DigitalSignatures from './pages/Business/Signatures/DigitalSignatures';
 
 // Pay Rates & Sick Leave
 import PayRatesList from './pages/Business/PayRates/PayRatesList';
@@ -190,20 +189,12 @@ function App() {
               }
             />
 
-            {/* PDF & Signatures Routes */}
+            {/* PDF Routes */}
             <Route
               path="/business/pdf-generation"
               element={
                 <ProtectedRoute requiredUserType="business">
                   <PDFGeneration />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/business/signatures"
-              element={
-                <ProtectedRoute requiredUserType="business">
-                  <DigitalSignatures />
                 </ProtectedRoute>
               }
             />

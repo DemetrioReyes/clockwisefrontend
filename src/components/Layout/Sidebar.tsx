@@ -11,7 +11,6 @@ import {
   Banknote,
   MinusCircle,
   FileDown,
-  PenTool,
   TrendingUp,
   Heart,
 } from 'lucide-react';
@@ -41,7 +40,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userType }) => {
     { path: '/business/deductions', label: 'Deducciones', icon: MinusCircle },
     { path: '/business/payroll', label: 'Nómina', icon: DollarSign },
     { path: '/business/pdf-generation', label: 'PDFs', icon: FileDown },
-    { path: '/business/signatures', label: 'Firmas Digitales', icon: PenTool },
     { path: '/business/pay-rates', label: 'Tarifas de Pago', icon: TrendingUp },
     { path: '/business/sick-leave', label: 'Sick Leave', icon: Heart },
     { path: '/business/tip-credit', label: 'Tip Credit Config', icon: DollarSign },

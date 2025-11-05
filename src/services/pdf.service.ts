@@ -22,12 +22,23 @@ export const pdfService = {
 
   getPDFHistory: async (employeeId?: string, payrollId?: string, limit?: number): Promise<any[]> => {
     const params: any = {};
-  if (employeeId) params.employee_id = employeeId;
+    if (employeeId) params.employee_id = employeeId;
     if (payrollId) params.payroll_id = payrollId;
     if (limit) params.limit = limit;
 
-  const response = await api.get(API_ENDPOINTS.PDF_HISTORY, { params });
-  return response.data;
+    const response = await api.get(API_ENDPOINTS.PDF_HISTORY, { params });
+    const data = response.data;
+    
+    // Asegurar que siempre devolvamos un array
+    if (Array.isArray(data)) {
+      return data;
+    }
+    // Si es un objeto, intentar extraer el array
+    if (data && typeof data === 'object') {
+      return data.items || data.data || data.results || [];
+    }
+    // Si no es array ni objeto, devolver array vacío
+    return [];
   },
 
   downloadPDFBlob: (blob: Blob, filename: string): void => {

@@ -5,7 +5,9 @@ import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
 import { formatErrorMessage } from '../../../services/api';
 import payrollService from '../../../services/payroll.service';
-import { Printer, Eye, FileText, Trash2 } from 'lucide-react';
+import { pdfService } from '../../../services/pdf.service';
+import { signaturesService } from '../../../services/signatures.service';
+import { Printer, Eye, FileText, Trash2, AlertCircle } from 'lucide-react';
 
 const PDFGeneration = () => {
   const navigate = useNavigate();
@@ -15,6 +17,8 @@ const PDFGeneration = () => {
   const [deletingPayrollId, setDeletingPayrollId] = useState<string | null>(null);
   const { showToast } = useToast();
   const [selectedPayrollId, setSelectedPayrollId] = useState<string>('');
+  const [checkingSignatures, setCheckingSignatures] = useState(false);
+  const [hasSignatures, setHasSignatures] = useState<boolean | null>(null);
 
   useEffect(() => {
     loadData();
@@ -39,11 +43,86 @@ const PDFGeneration = () => {
     }
   };
 
+  const checkPayrollSignatures = async (payrollId: string) => {
+    setCheckingSignatures(true);
+    setHasSignatures(null);
+    
+    try {
+      // Obtener todos los PDFs de esta nómina
+      const pdfData = await pdfService.getPDFHistory(undefined, payrollId, 100);
+      let pdfArray: any[] = [];
+      if (Array.isArray(pdfData)) {
+        pdfArray = pdfData;
+      } else if (pdfData && typeof pdfData === 'object') {
+        const pdfObj = pdfData as any;
+        pdfArray = pdfObj.items || pdfObj.data || pdfObj.results || [];
+      }
+
+      if (pdfArray.length === 0) {
+        setHasSignatures(false);
+        return false;
+      }
+
+      // Verificar si al menos un PDF tiene firma
+      let hasAnySignature = false;
+      for (const pdf of pdfArray) {
+        try {
+          if (pdf.pdf_filename) {
+            await signaturesService.getPDFSignature(pdf.pdf_filename);
+            hasAnySignature = true;
+            break; // Si encontramos al menos una firma, no necesitamos seguir
+          }
+        } catch (error: any) {
+          // Si el error es 404, significa que no hay firma para este PDF
+          if (error.response?.status === 404) {
+            continue;
+          }
+          // Otros errores los ignoramos y continuamos
+        }
+      }
+
+      setHasSignatures(hasAnySignature);
+      return hasAnySignature;
+    } catch (error: any) {
+      console.error('Error verificando firmas:', error);
+      setHasSignatures(false);
+      return false;
+    } finally {
+      setCheckingSignatures(false);
+    }
+  };
+
+  const handlePayrollSelect = async (payrollId: string) => {
+    setSelectedPayrollId(payrollId);
+    if (payrollId) {
+      await checkPayrollSignatures(payrollId);
+    } else {
+      setHasSignatures(null);
+    }
+  };
+
   const handleViewPrintable = () => {
     if (!selectedPayrollId) {
       showToast('Por favor seleccione una nómina', 'error');
       return;
     }
+    
+    // Permitir ver la nómina siempre, incluso sin firmas (para que la firmen)
+    navigate(`/business/payroll/print/${selectedPayrollId}`);
+  };
+
+  const handlePrintOrSave = () => {
+    if (!selectedPayrollId) {
+      showToast('Por favor seleccione una nómina', 'error');
+      return;
+    }
+    
+    // Solo bloquear imprimir/guardar si no tiene firmas
+    if (!hasSignatures) {
+      showToast('Esta nómina no tiene firmas. Las nóminas deben ser firmadas digitalmente antes de imprimir o guardar. Puede ver la nómina para que los empleados la firmen primero.', 'error');
+      return;
+    }
+    
     navigate(`/business/payroll/print/${selectedPayrollId}`);
   };
 
@@ -159,7 +238,7 @@ const PDFGeneration = () => {
                 <select
                   id="payroll_select"
                   value={selectedPayrollId}
-                  onChange={(e) => setSelectedPayrollId(e.target.value)}
+                  onChange={(e) => handlePayrollSelect(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
                 >
                   <option value="">-- Seleccione una nómina --</option>
@@ -178,28 +257,59 @@ const PDFGeneration = () => {
                 <button
                   type="button"
                   onClick={handleViewPrintable}
-                  disabled={!selectedPayrollId}
+                  disabled={!selectedPayrollId || checkingSignatures}
                   className="flex-1 bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg font-semibold"
+                  title="Ver nómina para que los empleados la firmen"
                 >
                   <Eye className="w-6 h-6" />
-                  Ver Imprimible
+                  Ver para Firmar
                 </button>
                 <button
                   type="button"
-                  onClick={handleViewPrintable}
-                  disabled={!selectedPayrollId}
+                  onClick={handlePrintOrSave}
+                  disabled={!selectedPayrollId || checkingSignatures || !hasSignatures}
                   className="flex-1 bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg font-semibold"
+                  title={!hasSignatures && selectedPayrollId ? 'Esta nómina no tiene firmas. Debe ser firmada antes de imprimir o guardar.' : ''}
                 >
                   <Printer className="w-6 h-6" />
                   Imprimir / Guardar PDF
                 </button>
               </div>
 
-              {selectedPayrollId && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
-                  <p className="text-green-800 text-sm">
-                    ✅ Nómina seleccionada. Click en cualquiera de los botones para continuar.
+              {checkingSignatures && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4 flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  <p className="text-blue-800 text-sm">
+                    Verificando firmas digitales...
                   </p>
+                </div>
+              )}
+
+              {selectedPayrollId && !checkingSignatures && hasSignatures === true && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4 flex items-center gap-2">
+                  <span className="text-green-600">✅</span>
+                  <p className="text-green-800 text-sm">
+                    Nómina firmada. Puede proceder a imprimir o guardar.
+                  </p>
+                </div>
+              )}
+
+              {selectedPayrollId && !checkingSignatures && hasSignatures === false && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-medium text-yellow-800">
+                        ⚠️ Nómina sin firmas
+                      </h4>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        Esta nómina no ha sido firmada por los empleados. Puede ver la nómina usando el botón "Ver para Firmar" para que los empleados la firmen.
+                      </p>
+                      <p className="text-sm text-yellow-700 mt-2">
+                        <strong>Las nóminas deben ser firmadas digitalmente antes de poder imprimir o guardar.</strong> Una vez que todos los empleados hayan firmado, podrá usar el botón "Imprimir / Guardar PDF".
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -267,11 +377,15 @@ const PDFGeneration = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-3">
                             <button
-                              onClick={() => navigate(`/business/payroll/print/${payroll.id}`)}
+                              onClick={() => {
+                                // Siempre permitir ver la nómina (para que la firmen)
+                                navigate(`/business/payroll/print/${payroll.id}`);
+                              }}
                               className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                              title="Ver nómina para que los empleados la firmen"
                             >
-                              <Printer className="w-4 h-4" />
-                              Imprimir
+                              <Eye className="w-4 h-4" />
+                              Ver
                             </button>
                             <button
                               onClick={() => handleDeletePayroll(payroll.id, `${payroll.period_start} - ${payroll.period_end}`)}
