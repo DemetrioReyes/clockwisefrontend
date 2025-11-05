@@ -484,13 +484,17 @@ export interface SickLeaveReport {
 export interface BreakComplianceAlert {
   id: string;
   employee_id: string;
+  employee_code?: string;
   employee_name: string;
-  date: string;
-  hours_worked: number;
-  break_taken: boolean;
-  break_duration_minutes?: number;
+  tenant_id?: string;
+  violation_date: string;
+  deficit_minutes: number;
+  severity: 'high' | 'medium' | 'low';
   status: 'pending' | 'resolved';
-  resolution_notes?: string;
+  resolved_by?: string | null;
+  resolution_notes?: string | null;
+  resolved_at?: string | null;
+  created_at: string;
 }
 
 export interface BreakComplianceResponse {

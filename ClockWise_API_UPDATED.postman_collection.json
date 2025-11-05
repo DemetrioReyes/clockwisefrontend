@@ -1523,7 +1523,7 @@
 								"calculate"
 							]
 						},
-						"description": "# Calculate Payroll - PREVIEW ONLY\n\n**⚠️ IMPORTANTE: Este endpoint SOLO CALCULA, NO GUARDA en la base de datos**\n\n**Use Cases:**\n- Preview de cálculo antes de guardar\n- Verificar montos\n- Revisar tip credit shortfall\n- Auditar antes de aprobar\n\n**Para GUARDAR la nómina use:** `POST /api/payroll/` (endpoint 4.2)\n\n---\n\n**🎯 CÁLCULO COMPLETO DE PAYROLL CON TIP CREDIT**\n\nThis endpoint performs complete payroll calculation including:\n\n**Automatic Process**:\n1. Gets all time records for period\n2. Calculates regular hours and overtime\n3. Applies tip credit for eligible employees\n4. Reports tips and calculates shortfall\n5. Applies all deductions (taxes, benefits)\n6. Calculates net pay\n7. Generates sick leave accrual\n8. Checks break compliance\n\n**Tip Credit Calculation**:\n```\nFor employees with has_tip_credit=true:\n\n1. Calculate hours worked\n2. Cash wage payment = hours × $10/hr\n3. Tips required = hours × $5/hr\n4. Compare tips_reported vs tips_required\n5. If tips_reported < tips_required:\n   → Shortfall = tips_required - tips_reported\n   → Employer must compensate shortfall\n6. Gross pay = cash wage + shortfall + bonuses - penalties\n7. Apply deductions\n8. Net pay = gross pay - deductions\n```\n\n**Request Fields**:\n- `tenant_id` (required) - Your tenant ID\n- `period_start` (required) - YYYY-MM-DD\n- `period_end` (required) - YYYY-MM-DD\n- `pay_frequency` (required) - weekly/biweekly/monthly\n\n**Response Structure**:\n```json\n{\n  \"payroll\": {\n    \"id\": \"\",  // ⚠️ VACÍO - No se guarda\n    \"status\": \"draft\",\n  \"period_start\": \"2024-01-01\",\n  \"period_end\": \"2024-01-07\",\n  \"calculations\": [\n    {\n      \"employee_id\": \"uuid\",\n      \"employee_name\": \"Maria Garcia\",\n      \"regular_hours\": 40,\n      \"overtime_hours\": 0,\n      \"regular_pay\": 400.00,\n      \"overtime_pay\": 0.00,\n      \"tip_credit_info\": {\n        \"applicable\": true,\n        \"cash_wage_rate\": 10.00,\n        \"tip_credit_amount\": 5.00,\n        \"tips_required\": 200.00,\n        \"tips_reported\": 150.00,\n        \"tip_credit_shortfall\": 50.00\n      },\n      \"total_deductions\": 95.40,\n      \"gross_pay\": 450.00,\n      \"net_pay\": 354.60\n    }\n  ],\n  \"summary\": {\n    \"total_employees\": 4,\n    \"total_hours\": 160,\n    \"total_gross_pay\": 1650.00,\n    \"total_deductions\": 360.75,\n    \"total_net_pay\": 1289.25\n  }\n}\n```\n\n**Auto-saved**: `payroll_id`"
+						"description": "# Calculate Payroll - PREVIEW ONLY\n\n**⚠️ IMPORTANTE: Este endpoint SOLO CALCULA, NO GUARDA en la base de datos**\n\n**Use Cases:**\n- Preview de cálculo antes de guardar\n- Verificar montos\n- Revisar tip credit shortfall\n- Auditar antes de aprobar\n\n**Para GUARDAR la nómina use:** `POST /api/payroll/` (endpoint 4.2)\n\n---\n\n**🎯 CÁLCULO COMPLETO DE PAYROLL CON TIP CREDIT**\n\nThis endpoint performs complete payroll calculation including:\n\n**Automatic Process**:\n1. Gets all time records for period\n2. Calculates regular hours and overtime\n3. Applies tip credit for eligible employees\n4. Reports tips and calculates shortfall\n5. Applies all deductions (taxes, benefits)\n6. Calculates net pay\n7. **✅ Calculates and saves sick leave automatically** (1hr per 30hrs worked)\n8. Checks break compliance\n\n**Sick Leave**: Se calcula y guarda automáticamente en `sick_leave_accumulation_log` por período. No necesitas hacer nada extra.\n\n**Tip Credit Calculation**:\n```\nFor employees with has_tip_credit=true:\n\n1. Calculate hours worked\n2. Cash wage payment = hours × $10/hr\n3. Tips required = hours × $5/hr\n4. Compare tips_reported vs tips_required\n5. If tips_reported < tips_required:\n   → Shortfall = tips_required - tips_reported\n   → Employer must compensate shortfall\n6. Gross pay = cash wage + shortfall + bonuses - penalties\n7. Apply deductions\n8. Net pay = gross pay - deductions\n```\n\n**Request Fields**:\n- `tenant_id` (required) - Your tenant ID\n- `period_start` (required) - YYYY-MM-DD\n- `period_end` (required) - YYYY-MM-DD\n- `pay_frequency` (required) - weekly/biweekly/monthly\n\n**Response Structure**:\n```json\n{\n  \"payroll\": {\n    \"id\": \"\",  // ⚠️ VACÍO - No se guarda\n    \"status\": \"draft\",\n  \"period_start\": \"2024-01-01\",\n  \"period_end\": \"2024-01-07\",\n  \"calculations\": [\n    {\n      \"employee_id\": \"uuid\",\n      \"employee_name\": \"Maria Garcia\",\n      \"regular_hours\": 40,\n      \"overtime_hours\": 0,\n      \"regular_pay\": 400.00,\n      \"overtime_pay\": 0.00,\n      \"tip_credit_info\": {\n        \"applicable\": true,\n        \"cash_wage_rate\": 10.00,\n        \"tip_credit_amount\": 5.00,\n        \"tips_required\": 200.00,\n        \"tips_reported\": 150.00,\n        \"tip_credit_shortfall\": 50.00\n      },\n      \"total_deductions\": 95.40,\n      \"gross_pay\": 450.00,\n      \"net_pay\": 354.60\n    }\n  ],\n  \"summary\": {\n    \"total_employees\": 4,\n    \"total_hours\": 160,\n    \"total_gross_pay\": 1650.00,\n    \"total_deductions\": 360.75,\n    \"total_net_pay\": 1289.25\n  }\n}\n```\n\n**Auto-saved**: `payroll_id`"
 					},
 					"response": []
 				},
@@ -2953,7 +2953,7 @@
 								}
 							]
 						},
-						"description": "# Get Sick Leave Summary (NY State Compliance)\n\n**NY State Law**:\n- Employees accrue 1 hour of sick leave per 30 hours worked\n- Maximum 40 hours per year\n- Must be tracked\n\n**Summary Shows**:\n- Hours accrued\n- Hours used\n- Hours remaining\n- Accrual rate\n- Year-to-date totals"
+						"description": "# Get Sick Leave Summary (NY State Compliance)\n\n**Purpose**: Obtener el resumen completo de sick leave de un empleado.\n\n**✅ AUTOMÁTICO**: El sick leave se calcula automáticamente al generar la nómina. Este endpoint solo consulta los datos.\n\n**NY State Law**:\n- Employees accrue 1 hour of sick leave per 30 hours worked\n- Maximum 40 hours per year\n- Must be tracked and stored\n\n**Summary Shows**:\n- Hours accrued (ganadas)\n- Hours used (usadas)\n- Hours available (disponibles)\n- Accrual rate (tasa de acumulación)\n- Year-to-date totals\n- Recent usage history\n- Accumulation log by period\n\n**Query Parameters**:\n- `year` (optional) - Year to query, defaults to current year\n\n**Response**:\n```json\n{\n  \"employee_sick_leave\": {\n    \"hours_earned\": 5.33,\n    \"hours_used\": 2.0,\n    \"hours_available\": 3.33\n  },\n  \"recent_usage\": [...],\n  \"accumulation_log\": [...],\n  \"total_hours_worked_this_year\": 160.0,\n  \"next_accumulation_hours\": 10.0\n}\n```\n\n**Note**: Los datos se actualizan automáticamente cada vez que se genera una nómina."
 					},
 					"response": []
 				},
@@ -3064,12 +3064,88 @@
 								"approve"
 							]
 						},
-						"description": "Approve sick leave request."
+						"description": "# Approve Sick Leave Request\n\n**Purpose**: Aprobar o rechazar una solicitud de uso de sick leave.\n\n**Endpoint**: `PUT /api/sick-leave/usage/{usage_id}/approve`\n\n**Fields**:\n- `approved_by` (optional) - Código del empleado que aprueba\n- `approval_notes` (optional) - Notas de aprobación\n\n**Process**:\n1. Verifica que hay horas disponibles\n2. Si se aprueba: descuenta horas del balance\n3. Si se rechaza: restaura horas si ya se habían descontado\n4. Actualiza el estado de la solicitud\n\n**Response**:\n```json\n{\n  \"id\": \"usage_id\",\n  \"employee_code\": \"EMP0001\",\n  \"usage_date\": \"2024-01-15\",\n  \"hours_used\": 8.0,\n  \"status\": \"approved\",\n  \"approved_by\": \"manager@company.com\",\n  \"approval_notes\": \"Approved - get well soon\"\n}\n```\n\n**Alternative**: También puedes usar `PUT /api/sick-leave/usage/{usage_id}/deny` para rechazar."
 					},
 					"response": []
 				},
 				{
-					"name": "10.5 Accumulate Sick Leave (All Employees)",
+					"name": "10.5 List All Employees Sick Leave",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/sick-leave/list?year=2024",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"sick-leave",
+								"list"
+							],
+							"query": [
+								{
+									"key": "year",
+									"value": "2024",
+									"description": "Year to query (default: current year)"
+								}
+							]
+						},
+						"description": "# List All Employees Sick Leave\n\n**Purpose**: Get sick leave information for all employees.\n\n**Query Parameters**:\n- `year` (optional) - Year to query, defaults to current year\n\n**Response Shows**:\n- Employee information\n- Hours earned\n- Hours used\n- Hours available\n- Year-to-date totals\n\n**Note**: Sick leave is automatically calculated when payroll is generated. This endpoint only retrieves existing data."
+					},
+					"response": []
+				},
+				{
+					"name": "10.6 Get Employee Sick Leave Usage History",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/sick-leave/usage/employee/{{waiter_employee_code}}?year=2024",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"sick-leave",
+								"usage",
+								"employee",
+								"{{waiter_employee_code}}"
+							],
+							"query": [
+								{
+									"key": "year",
+									"value": "2024",
+									"description": "Year to query (default: current year)"
+								}
+							]
+						},
+						"description": "# Get Employee Sick Leave Usage History\n\n**Purpose**: Get complete history of sick leave usage for an employee.\n\n**Shows**:\n- All usage requests\n- Approval status\n- Dates and hours used\n- Reasons\n\n**Query Parameters**:\n- `year` (optional) - Year to query, defaults to current year"
+					},
+					"response": []
+				},
+				{
+					"name": "10.7 Accumulate Sick Leave (Single Employee) - OPTIONAL",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -3082,18 +3158,54 @@
 							]
 						},
 						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"payroll_id\": \"{{payroll_id}}\"\n}"
-						},
+						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/sick-leave/accumulate-all",
+							"raw": "{{base_url}}/api/sick-leave/accumulate/{{waiter_employee_code}}?period_start=&period_end=",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"sick-leave",
+								"accumulate",
+								"{{waiter_employee_code}}"
+							],
+							"query": [
+								{
+									"key": "period_start",
+									"value": "",
+									"description": "Optional - Start date YYYY-MM-DD. If not provided, uses payroll periods",
+									"disabled": true
+								},
+								{
+									"key": "period_end",
+									"value": "",
+									"description": "Optional - End date YYYY-MM-DD. If not provided, uses payroll periods",
+									"disabled": true
+								}
+							]
+						},
+						"description": "# Accumulate Sick Leave (Single Employee) - OPTIONAL\n\n**⚠️ IMPORTANTE**: Este endpoint es **OPCIONAL**. El sick leave se calcula **automáticamente** al generar la nómina.\n\n**Úsalo solo si necesitas**:\n- Recalcular manualmente un período específico\n- Corregir cálculos previos\n- Procesar períodos históricos\n\n**Cómo Funciona**:\n1. **Sin parámetros**: Calcula basándose en períodos de nómina ya procesados del año actual\n2. **Con períodos**: Calcula para el período específico usando horas reales trabajadas\n\n**Query Parameters** (opcionales):\n- `period_start` - Fecha inicio del período (YYYY-MM-DD)\n- `period_end` - Fecha fin del período (YYYY-MM-DD)\n\n**Si no proporcionas fechas**:\n- Busca períodos de nómina procesados del año actual\n- Calcula sick leave para cada período que no haya sido calculado\n- Retorna resultados por período\n\n**Si proporcionas fechas**:\n- Calcula horas trabajadas en ese período específico\n- Calcula sick leave basándose en esas horas\n- Verifica que no se haya calculado antes para evitar duplicados\n\n**NY State Formula**:\n- 1 hour sick leave per 30 hours worked\n- Maximum 40 hours per year\n- Calculated per payroll period\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"employee_code\": \"EMP0001\",\n  \"period_start\": \"2025-11-01\",\n  \"period_end\": \"2025-11-07\",\n  \"hours_worked\": 40.0,\n  \"hours_earned\": 1.33,\n  \"new_hours\": 1.33,\n  \"already_calculated\": false\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "10.8 Accumulate Sick Leave (All Employees) - OPTIONAL",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/sick-leave/accumulate-all?year=2024",
 							"host": [
 								"{{base_url}}"
 							],
@@ -3101,14 +3213,21 @@
 								"api",
 								"sick-leave",
 								"accumulate-all"
+							],
+							"query": [
+								{
+									"key": "year",
+									"value": "2024",
+									"description": "Year to recalculate (default: current year)"
+								}
 							]
 						},
-						"description": "# Accumulate Sick Leave for All Employees\n\nAutomatically calculates and accrues sick leave based on hours worked.\n\n**NY State Formula**:\n- 1 hour sick leave per 30 hours worked\n- Maximum 40 hours per year\n\n**Process**:\n1. Gets hours from payroll\n2. Calculates accrual (hours / 30)\n3. Updates sick leave balance\n4. Respects 40-hour annual cap"
+						"description": "# Accumulate Sick Leave (All Employees) - OPTIONAL\n\n**⚠️ IMPORTANTE**: Este endpoint es **OPCIONAL**. El sick leave se calcula **automáticamente** al generar la nómina.\n\n**Úsalo solo si necesitas**:\n- Recalcular todos los empleados para períodos históricos\n- Corregir cálculos previos\n- Procesar períodos que no se calcularon automáticamente\n\n**Cómo Funciona**:\n1. Busca todos los períodos de nómina procesados del año especificado\n2. Agrupa por empleado\n3. Calcula sick leave para cada período que no haya sido calculado\n4. Evita duplicados (no recalcula períodos ya procesados)\n\n**Query Parameters**:\n- `year` (optional) - Year to recalculate, defaults to current year\n\n**Proceso**:\n1. Obtiene todos los empleados activos\n2. Busca períodos de nómina procesados (status: calculated/approved/paid)\n3. Para cada empleado, calcula sick leave por período\n4. Solo calcula períodos que no tienen sick leave registrado\n5. Retorna resultados detallados por empleado y período\n\n**NY State Formula**:\n- 1 hour sick leave per 30 hours worked\n- Maximum 40 hours per year\n- Calculated per payroll period\n\n**Response**:\n```json\n{\n  \"year\": 2024,\n  \"total_employees\": 5,\n  \"message\": \"Sick leave calculado basándose en períodos de nómina procesados\",\n  \"note\": \"El sick leave se calcula automáticamente al generar la nómina. Este endpoint es solo para recálculos.\",\n  \"results\": [\n    {\n      \"employee_code\": \"EMP0001\",\n      \"employee_name\": \"Maria Garcia\",\n      \"total_hours_worked\": 160.0,\n      \"total_hours_earned\": 5.33,\n      \"periods\": [\n        {\n          \"period_start\": \"2024-01-01\",\n          \"period_end\": \"2024-01-07\",\n          \"hours_worked\": 40.0,\n          \"hours_earned\": 1.33,\n          \"new_hours\": 1.33,\n          \"already_calculated\": false\n        }\n      ],\n      \"success\": true\n    }\n  ]\n}\n```\n\n**⚠️ NOTA**: Si no hay períodos de nómina procesados, retornará error indicando que el sick leave se calcula automáticamente al generar la nómina."
 					},
 					"response": []
 				}
 			],
-			"description": "# Sick Leave Management\n\nNY State sick leave compliance tracking.\n\n**Features**:\n- Automatic accrual (1hr per 30hrs worked)\n- 40-hour annual cap\n- Usage tracking\n- Approval workflow\n- Compliance reporting"
+			"description": "# Sick Leave Management\n\nNY State sick leave compliance tracking with **automatic calculation**.\n\n## 🎯 Cómo Funciona:\n\n**✅ AUTOMÁTICO**: El sick leave se calcula y guarda **automáticamente** cuando generas la nómina (`POST /api/payroll/`).\n\n**No necesitas hacer nada extra** - simplemente genera la nómina y el sistema:\n1. Calcula las horas trabajadas del período\n2. Calcula sick leave (1 hora por cada 30 horas trabajadas)\n3. Guarda en la tabla `sick_leave_accumulation_log`\n4. Actualiza el balance del empleado\n\n## 📊 Endpoints Disponibles:\n\n### **GET (Consultar)**:\n- **10.1 Get Summary** - Ver resumen de sick leave de un empleado\n- **10.5 List All** - Ver sick leave de todos los empleados\n- **10.6 Usage History** - Ver historial de uso\n- **10.3 Pending Requests** - Ver solicitudes pendientes\n\n### **POST (Opcional - Solo para Recálculos)**:\n- **10.7 Accumulate (Single)** - Recalcular un empleado específico\n- **10.8 Accumulate (All)** - Recalcular todos los empleados\n\n**⚠️ IMPORTANTE**: Los endpoints POST son **opcionales** y solo para:\n- Recálculos manuales\n- Corregir períodos históricos\n- Procesar períodos que no se calcularon automáticamente\n\n## 📋 NY State Compliance:\n\n**Formula**:\n- 1 hour of sick leave per 30 hours worked\n- Maximum 40 hours per year\n- Calculated per payroll period\n- Automatically stored in database\n\n**Tracking**:\n- Hours earned (acumuladas)\n- Hours used (consumidas)\n- Hours available (disponibles)\n- Complete audit trail\n\n## 💡 Flujo Recomendado:\n\n**1. Generar Nómina (Automático)**:\n```\nPOST /api/payroll/\n→ Calcula nómina\n→ Calcula sick leave automáticamente\n→ Guarda todo en BD\n```\n\n**2. Consultar Sick Leave (GET)**:\n```\nGET /api/sick-leave/summary/EMP0001\n→ Ver balance actual\n```\n\n**3. Usar Sick Leave**:\n```\nPOST /api/sick-leave/usage\n→ Solicitar uso\n→ Aprobar con PUT /api/sick-leave/usage/{id}/approve\n```\n\n**4. Recalcular (Solo si necesario)**:\n```\nPOST /api/sick-leave/accumulate-all?year=2024\n→ Solo para períodos históricos o correcciones\n```"
 		},
 		{
 			"name": "11. Tip Credit Configuration",

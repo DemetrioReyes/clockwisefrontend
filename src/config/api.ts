@@ -68,7 +68,9 @@ export const API_ENDPOINTS = {
 
   // Sick Leave
   SICK_LEAVE_SUMMARY: '/api/sick-leave/summary',
+  SICK_LEAVE_LIST: '/api/sick-leave/list',
   SICK_LEAVE_USAGE: '/api/sick-leave/usage',
+  SICK_LEAVE_USAGE_HISTORY: '/api/sick-leave/usage/employee',
   PENDING_SICK_LEAVE: '/api/sick-leave/usage/pending',
   APPROVE_SICK_LEAVE: '/api/sick-leave/usage',
   ACCUMULATE_SICK_LEAVE: '/api/sick-leave/accumulate-all',

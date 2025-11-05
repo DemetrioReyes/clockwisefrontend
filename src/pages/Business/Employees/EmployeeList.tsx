@@ -4,18 +4,44 @@ import { Link } from 'react-router-dom';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
-import { useAuth } from '../../../contexts/AuthContext';
 import employeeService from '../../../services/employee.service';
-import { Employee, Business } from '../../../types';
-import { Users, Search, Plus, Mail, Phone } from 'lucide-react';
+import { Employee } from '../../../types';
+import { Users, Search, Plus, Mail, Phone, Edit2, X } from 'lucide-react';
+import { EmployeeType, PayFrequency, PaymentMethod, BankAccountType } from '../../../types';
 
 const EmployeeList: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editForm, setEditForm] = useState({
+    first_name: '',
+    last_name: '',
+    alias: '',
+    ssn: '',
+    date_of_birth: '',
+    email: '',
+    phone: '',
+    hire_date: '',
+    street_address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    employee_type: 'hourly_fixed' as EmployeeType,
+    position: '',
+    hourly_rate: '',
+    pay_frequency: 'weekly' as PayFrequency,
+    regular_shift: '',
+    department: '',
+    payment_method: 'transfer' as PaymentMethod,
+    bank_account_number: '',
+    bank_routing_number: '',
+    bank_account_type: 'checking' as BankAccountType,
+    state_minimum_wage: '',
+  });
+  const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
     loadEmployees();
@@ -42,6 +68,116 @@ const EmployeeList: React.FC = () => {
       showToast(formatErrorMessage(error), 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditClick = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEditForm({
+      first_name: employee.first_name || '',
+      last_name: employee.last_name || '',
+      alias: employee.alias || '',
+      ssn: employee.ssn || '',
+      date_of_birth: employee.date_of_birth ? employee.date_of_birth.split('T')[0] : '',
+      email: employee.email || '',
+      phone: employee.phone || '',
+      hire_date: employee.hire_date ? employee.hire_date.split('T')[0] : '',
+      street_address: employee.street_address || '',
+      city: employee.city || '',
+      state: employee.state || '',
+      zip_code: employee.zip_code || '',
+      employee_type: employee.employee_type || 'hourly_fixed',
+      position: employee.position || '',
+      hourly_rate: employee.hourly_rate?.toString() || '',
+      pay_frequency: employee.pay_frequency || 'weekly',
+      regular_shift: employee.regular_shift || '',
+      department: employee.department || '',
+      payment_method: employee.payment_method || 'transfer',
+      bank_account_number: employee.bank_account_number || '',
+      bank_routing_number: employee.bank_routing_number || '',
+      bank_account_type: employee.bank_account_type || 'checking',
+      state_minimum_wage: employee.state_minimum_wage?.toString() || '',
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEmployee(null);
+    setEditForm({
+      first_name: '',
+      last_name: '',
+      alias: '',
+      ssn: '',
+      date_of_birth: '',
+      email: '',
+      phone: '',
+      hire_date: '',
+      street_address: '',
+      city: '',
+      state: '',
+      zip_code: '',
+      employee_type: 'hourly_fixed',
+      position: '',
+      hourly_rate: '',
+      pay_frequency: 'weekly',
+      regular_shift: '',
+      department: '',
+      payment_method: 'transfer',
+      bank_account_number: '',
+      bank_routing_number: '',
+      bank_account_type: 'checking',
+      state_minimum_wage: '',
+    });
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setEditForm({ ...editForm, [name]: value });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEmployee) return;
+
+    setSaving(true);
+    try {
+      const updateData: any = {};
+      
+      // Solo incluir campos que han cambiado
+      if (editForm.first_name !== editingEmployee.first_name) updateData.first_name = editForm.first_name;
+      if (editForm.last_name !== editingEmployee.last_name) updateData.last_name = editForm.last_name;
+      if (editForm.alias !== (editingEmployee.alias || '')) updateData.alias = editForm.alias || null;
+      if (editForm.ssn !== (editingEmployee.ssn || '')) updateData.ssn = editForm.ssn;
+      if (editForm.date_of_birth !== (editingEmployee.date_of_birth?.split('T')[0] || '')) updateData.date_of_birth = editForm.date_of_birth;
+      if (editForm.email !== (editingEmployee.email || '')) updateData.email = editForm.email || null;
+      if (editForm.phone !== editingEmployee.phone) updateData.phone = editForm.phone;
+      if (editForm.hire_date !== (editingEmployee.hire_date?.split('T')[0] || '')) updateData.hire_date = editForm.hire_date;
+      if (editForm.street_address !== editingEmployee.street_address) updateData.street_address = editForm.street_address;
+      if (editForm.city !== editingEmployee.city) updateData.city = editForm.city;
+      if (editForm.state !== editingEmployee.state) updateData.state = editForm.state;
+      if (editForm.zip_code !== editingEmployee.zip_code) updateData.zip_code = editForm.zip_code;
+      if (editForm.employee_type !== editingEmployee.employee_type) updateData.employee_type = editForm.employee_type;
+      if (editForm.position !== editingEmployee.position) updateData.position = editForm.position;
+      if (editForm.hourly_rate !== (editingEmployee.hourly_rate?.toString() || '')) {
+        updateData.hourly_rate = editForm.hourly_rate ? parseFloat(editForm.hourly_rate) : null;
+      }
+      if (editForm.pay_frequency !== editingEmployee.pay_frequency) updateData.pay_frequency = editForm.pay_frequency;
+      if (editForm.regular_shift !== (editingEmployee.regular_shift || '')) updateData.regular_shift = editForm.regular_shift || null;
+      if (editForm.department !== (editingEmployee.department || '')) updateData.department = editForm.department || null;
+      if (editForm.payment_method !== editingEmployee.payment_method) updateData.payment_method = editForm.payment_method;
+      if (editForm.bank_account_number !== (editingEmployee.bank_account_number || '')) updateData.bank_account_number = editForm.bank_account_number || null;
+      if (editForm.bank_routing_number !== (editingEmployee.bank_routing_number || '')) updateData.bank_routing_number = editForm.bank_routing_number || null;
+      if (editForm.bank_account_type !== (editingEmployee.bank_account_type || 'checking')) updateData.bank_account_type = editForm.bank_account_type;
+      if (editForm.state_minimum_wage !== (editingEmployee.state_minimum_wage?.toString() || '')) {
+        updateData.state_minimum_wage = editForm.state_minimum_wage ? parseFloat(editForm.state_minimum_wage) : null;
+      }
+
+      await employeeService.updateEmployee(editingEmployee.id, updateData);
+      showToast('Empleado actualizado exitosamente', 'success');
+      await loadEmployees();
+      handleCancelEdit();
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -118,6 +254,9 @@ const EmployeeList: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -177,6 +316,15 @@ const EmployeeList: React.FC = () => {
                             {employee.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => handleEditClick(employee)}
+                            className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                            Edit
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -185,6 +333,360 @@ const EmployeeList: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Modal de Edición */}
+        {editingEmployee && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl z-10">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Editar Empleado
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {editingEmployee.first_name} {editingEmployee.last_name} - {editingEmployee.employee_code}
+                  </p>
+                </div>
+                <button
+                  onClick={handleCancelEdit}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Información Personal */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">Información Personal</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+                      <input
+                        type="text"
+                        name="first_name"
+                        value={editForm.first_name}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Apellido *</label>
+                      <input
+                        type="text"
+                        name="last_name"
+                        value={editForm.last_name}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Alias</label>
+                      <input
+                        type="text"
+                        name="alias"
+                        value={editForm.alias}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Mari, Juanito, etc."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">SSN *</label>
+                      <input
+                        type="text"
+                        name="ssn"
+                        value={editForm.ssn}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="XXX-XX-XXXX"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Nacimiento *</label>
+                      <input
+                        type="date"
+                        name="date_of_birth"
+                        value={editForm.date_of_birth}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono *</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={editForm.phone}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={editForm.email}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dirección */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">Dirección</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Calle *</label>
+                      <input
+                        type="text"
+                        name="street_address"
+                        value={editForm.street_address}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Ciudad *</label>
+                      <input
+                        type="text"
+                        name="city"
+                        value={editForm.city}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Estado *</label>
+                      <input
+                        type="text"
+                        name="state"
+                        value={editForm.state}
+                        onChange={handleFormChange}
+                        maxLength={2}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Código Postal *</label>
+                      <input
+                        type="text"
+                        name="zip_code"
+                        value={editForm.zip_code}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información de Empleo */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">Información de Empleo</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Empleado *</label>
+                      <select
+                        name="employee_type"
+                        value={editForm.employee_type}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="hourly_tipped_waiter">Mesero (Con Tip Credit)</option>
+                        <option value="hourly_tipped_delivery">Delivery (Con Tip Credit)</option>
+                        <option value="hourly_fixed">Por Hora (Sin Tip Credit)</option>
+                        <option value="exempt_salary">Salario Exento</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Posición *</label>
+                      <input
+                        type="text"
+                        name="position"
+                        value={editForm.position}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Tarifa por Hora *</label>
+                      <input
+                        type="number"
+                        name="hourly_rate"
+                        value={editForm.hourly_rate}
+                        onChange={handleFormChange}
+                        step="0.01"
+                        min="0"
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Frecuencia de Pago *</label>
+                      <select
+                        name="pay_frequency"
+                        value={editForm.pay_frequency}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="weekly">Semanal</option>
+                        <option value="biweekly">Quincenal</option>
+                        <option value="monthly">Mensual</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Contratación *</label>
+                      <input
+                        type="date"
+                        name="hire_date"
+                        value={editForm.hire_date}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+                      <select
+                        name="payment_method"
+                        value={editForm.payment_method}
+                        onChange={handleFormChange}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="cash">Efectivo</option>
+                        <option value="transfer">Transferencia</option>
+                        <option value="check">Cheque</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Turno Regular</label>
+                      <input
+                        type="text"
+                        name="regular_shift"
+                        value={editForm.regular_shift}
+                        onChange={handleFormChange}
+                        placeholder="10:00-18:00"
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Departamento</label>
+                      <input
+                        type="text"
+                        name="department"
+                        value={editForm.department}
+                        onChange={handleFormChange}
+                        placeholder="Service, Kitchen, Management..."
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información Bancaria */}
+                {editForm.payment_method === 'transfer' && (
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded">
+                    <h3 className="text-lg font-semibold mb-4 text-blue-900">Información Bancaria (Transferencia)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Número de Cuenta</label>
+                        <input
+                          type="text"
+                          name="bank_account_number"
+                          value={editForm.bank_account_number}
+                          onChange={handleFormChange}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Routing Number</label>
+                        <input
+                          type="text"
+                          name="bank_routing_number"
+                          value={editForm.bank_routing_number}
+                          onChange={handleFormChange}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Cuenta</label>
+                        <select
+                          name="bank_account_type"
+                          value={editForm.bank_account_type}
+                          onChange={handleFormChange}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="checking">Checking (Corriente)</option>
+                          <option value="savings">Savings (Ahorros)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Configuración de Tip Credit */}
+                {(editForm.employee_type === 'hourly_tipped_waiter' || editForm.employee_type === 'hourly_tipped_delivery') && (
+                  <div className="bg-purple-50 border-l-4 border-purple-400 p-6 rounded">
+                    <h3 className="text-lg font-semibold mb-4 text-purple-900">Configuración de Tip Credit (NY State 2025)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Salario Mínimo del Estado</label>
+                        <input
+                          type="number"
+                          name="state_minimum_wage"
+                          value={editForm.state_minimum_wage}
+                          onChange={handleFormChange}
+                          step="0.01"
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botones */}
+                <div className="flex gap-3 pt-6 border-t">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={saving}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving ? (
+                      <>
+                        <LoadingSpinner size="sm" />
+                        Guardando...
+                      </>
+                    ) : (
+                      'Guardar Cambios'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

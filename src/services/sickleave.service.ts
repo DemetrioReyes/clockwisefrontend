@@ -11,6 +11,22 @@ export const sickleaveService = {
     return response.data;
   },
 
+  getAllSickLeaves: async (year?: number): Promise<any> => {
+    const params: any = {};
+    if (year) params.year = year;
+
+    const response = await api.get(API_ENDPOINTS.SICK_LEAVE_LIST, { params });
+    return response.data;
+  },
+
+  getEmployeeUsageHistory: async (employeeId: string, year?: number): Promise<any> => {
+    const params: any = {};
+    if (year) params.year = year;
+
+    const response = await api.get(`${API_ENDPOINTS.SICK_LEAVE_USAGE_HISTORY}/${employeeId}`, { params });
+    return response.data;
+  },
+
   requestSickLeaveUsage: async (data: SickLeaveUsageCreate): Promise<SickLeaveUsage> => {
     const response = await api.post(API_ENDPOINTS.SICK_LEAVE_USAGE, data);
     return response.data;

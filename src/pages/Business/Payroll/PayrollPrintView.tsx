@@ -9,6 +9,8 @@ import { Printer, ArrowLeft, Building2, PenTool } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { signaturesService } from '../../../services/signatures.service';
 import { pdfService } from '../../../services/pdf.service';
+import employeeService from '../../../services/employee.service';
+import { Calendar } from 'lucide-react';
 
 interface EmployeeSignature {
   employeeId: string;
@@ -28,6 +30,7 @@ const PayrollPrintView: React.FC = () => {
   const [signatures, setSignatures] = useState<Record<string, EmployeeSignature>>({});
   const [signingInProgress, setSigningInProgress] = useState<string | null>(null);
   const signatureRefs = useRef<Record<string, any>>({});
+  const [employeeTimeEntries, setEmployeeTimeEntries] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     loadPayrollData();
@@ -42,11 +45,114 @@ const PayrollPrintView: React.FC = () => {
 
       // Cargar PDFs y firmas existentes
       await loadEmployeeSignatures(data.calculations);
+      
+      // Cargar time entries para cada empleado
+      if (data.calculations && data.payroll?.period_start && data.payroll?.period_end) {
+        await loadEmployeeTimeEntries(data.calculations, data.payroll.period_start, data.payroll.period_end);
+      }
     } catch (error) {
       console.error('Error cargando nómina:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadEmployeeTimeEntries = async (calculations: any[], startDate: string, endDate: string) => {
+    const timeEntriesMap: Record<string, any[]> = {};
+    
+    for (const calc of calculations) {
+      try {
+        const entries = await employeeService.listTimeEntries(calc.employee_id, startDate, endDate);
+        const entriesArray = Array.isArray(entries) ? entries : [];
+        
+        // Procesar y agrupar por día
+        const processedEntries = processTimeEntriesByDay(entriesArray);
+        timeEntriesMap[calc.employee_id] = processedEntries;
+      } catch (error) {
+        console.error(`Error cargando time entries para empleado ${calc.employee_id}:`, error);
+        timeEntriesMap[calc.employee_id] = [];
+      }
+    }
+    
+    setEmployeeTimeEntries(timeEntriesMap);
+  };
+
+  const processTimeEntriesByDay = (entries: any[]) => {
+    // Agrupar por fecha
+    const groupedByDate: Record<string, any[]> = {};
+    
+    entries.forEach((entry) => {
+      const dateKey = entry.record_time ? entry.record_time.split('T')[0] : entry.timestamp?.split('T')[0];
+      if (dateKey) {
+        if (!groupedByDate[dateKey]) {
+          groupedByDate[dateKey] = [];
+        }
+        groupedByDate[dateKey].push(entry);
+      }
+    });
+
+    // Procesar cada día
+    const dailySummary = Object.entries(groupedByDate).map(([date, dayEntries]) => {
+      // Ordenar por hora
+      const sorted = dayEntries.sort((a, b) => {
+        const timeA = a.record_time || a.timestamp || '';
+        const timeB = b.record_time || b.timestamp || '';
+        return timeA.localeCompare(timeB);
+      });
+
+      // Identificar check-in, check-out y breaks
+      let checkIn = '';
+      let checkOut = '';
+      const breaks: string[] = [];
+      let breakStart = '';
+
+      sorted.forEach((entry) => {
+        const time = entry.record_time || entry.timestamp || '';
+        const timeStr = time.split('T')[1]?.substring(0, 5) || '';
+        
+        if (entry.record_type === 'check_in') {
+          checkIn = timeStr;
+        } else if (entry.record_type === 'check_out') {
+          checkOut = timeStr;
+        } else if (entry.record_type === 'break_start') {
+          breakStart = timeStr;
+        } else if (entry.record_type === 'break_end' && breakStart) {
+          breaks.push(`${breakStart} - ${timeStr}`);
+          breakStart = '';
+        }
+      });
+
+      // Calcular horas trabajadas
+      let hoursWorked = 0;
+      if (checkIn && checkOut) {
+        const start = new Date(`${date}T${checkIn}`);
+        let end = new Date(`${date}T${checkOut}`);
+        
+        // Si check-out es antes que check-in, asumir que es al día siguiente
+        if (end <= start) {
+          end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+        }
+        
+        const diffMs = end.getTime() - start.getTime();
+        hoursWorked = diffMs / (1000 * 60 * 60);
+        
+        // Restar tiempo de breaks (asumir 30 min por break si no hay info detallada)
+        const breakMinutes = breaks.length * 30;
+        hoursWorked -= breakMinutes / 60;
+        hoursWorked = Math.max(0, hoursWorked);
+      }
+
+      return {
+        date,
+        checkIn,
+        checkOut,
+        breaks: breaks.length > 0 ? breaks.join(', ') : (breakStart ? `${breakStart} - ...` : ''),
+        hoursWorked: hoursWorked.toFixed(2),
+      };
+    });
+
+    // Ordenar por fecha
+    return dailySummary.sort((a, b) => a.date.localeCompare(b.date));
   };
 
   const loadEmployeeSignatures = async (calculations: any[]) => {
@@ -445,7 +551,7 @@ const PayrollPrintView: React.FC = () => {
               {/* Horas trabajadas */}
               <div className="mb-4">
                 <h4 className="font-semibold text-lg mb-2 border-b pb-1">Horas Trabajadas</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-4 mb-4">
                   <div>
                     <p className="text-sm text-gray-600">Regulares</p>
                     <p className="text-lg font-bold">{calc.regular_hours}h</p>
@@ -459,6 +565,66 @@ const PayrollPrintView: React.FC = () => {
                     <p className="text-lg font-bold">{calc.break_hours}h</p>
                   </div>
                 </div>
+
+                {/* Desglose por Día */}
+                {employeeTimeEntries[calc.employee_id] && employeeTimeEntries[calc.employee_id].length > 0 && (
+                  <div className="mt-4">
+                    <h5 className="font-semibold text-base mb-3 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Desglose por Día
+                    </h5>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse desglose-dia-table">
+                        <thead>
+                          <tr className="bg-gray-100 border-b">
+                            <th className="text-left py-2 px-2 font-semibold text-gray-700">Fecha</th>
+                            <th className="text-left py-2 px-2 font-semibold text-gray-700">Entrada</th>
+                            <th className="text-left py-2 px-2 font-semibold text-gray-700">Break</th>
+                            <th className="text-left py-2 px-2 font-semibold text-gray-700">Salida</th>
+                            <th className="text-right py-2 px-2 font-semibold text-gray-700">Horas</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {employeeTimeEntries[calc.employee_id].map((dayEntry: any, idx: number) => (
+                            <tr key={idx} className="border-b border-gray-200">
+                              <td className="py-2 px-2">
+                                {new Date(dayEntry.date).toLocaleDateString('es-ES', {
+                                  weekday: 'short',
+                                  day: 'numeric',
+                                  month: 'short'
+                                })}
+                              </td>
+                              <td className="py-2 px-2">
+                                {dayEntry.checkIn ? (
+                                  <span className="text-green-700 font-medium">{dayEntry.checkIn}</span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-2">
+                                {dayEntry.breaks ? (
+                                  <span className="text-orange-600 text-xs">{dayEntry.breaks}</span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-2">
+                                {dayEntry.checkOut ? (
+                                  <span className="text-red-700 font-medium">{dayEntry.checkOut}</span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-2 text-right">
+                                <span className="text-blue-700 font-bold">{dayEntry.hoursWorked}h</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Ingresos */}
@@ -646,8 +812,8 @@ const PayrollPrintView: React.FC = () => {
           </div>
         ))}
 
-        {/* Footer */}
-        <div className="mt-8 pt-6 border-t-2 border-gray-300">
+        {/* Footer - Oculto en impresión */}
+        <div className="mt-8 pt-6 border-t-2 border-gray-300 no-print">
           <div className="grid grid-cols-2 gap-8 text-sm">
             <div>
               <p className="font-bold text-gray-900 mb-2">{companyName}</p>
@@ -673,8 +839,11 @@ const PayrollPrintView: React.FC = () => {
       {/* Estilos para impresión */}
       <style>{`
         @media print {
-          .no-print {
+          /* Ocultar elementos marcados como no-print */
+          .no-print,
+          .no-print * {
             display: none !important;
+            visibility: hidden !important;
           }
 
           .page-break {
@@ -900,6 +1069,35 @@ const PayrollPrintView: React.FC = () => {
             border-color: #4ade80 !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+          }
+
+          /* Estilos para la tabla de desglose diario */
+          table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          thead {
+            display: table-header-group !important;
+          }
+
+          tbody {
+            display: table-row-group !important;
+          }
+
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          .desglose-dia-table {
+            font-size: 9px !important;
+          }
+
+          .desglose-dia-table th,
+          .desglose-dia-table td {
+            padding: 4px 2px !important;
+            font-size: 9px !important;
           }
         }
 

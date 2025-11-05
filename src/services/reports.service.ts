@@ -1,6 +1,6 @@
 import api from './api';
 import { API_ENDPOINTS } from '../config/api';
-import { AttendanceReport, PayrollReport, SickLeaveReport, BreakComplianceAlert, QuickStats } from '../types';
+import { AttendanceReport, PayrollReport, SickLeaveReport, QuickStats } from '../types';
 
 export const reportsService = {
   getAttendanceReport: async (

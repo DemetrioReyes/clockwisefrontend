@@ -15,6 +15,7 @@ const PayRatesList = () => {
 
   useEffect(() => {
     loadPayRates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadPayRates = async () => {

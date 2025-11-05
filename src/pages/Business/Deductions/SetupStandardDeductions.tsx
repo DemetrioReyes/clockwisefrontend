@@ -21,6 +21,7 @@ const SetupStandardDeductions = () => {
 
   useEffect(() => {
     loadEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadEmployees = async () => {

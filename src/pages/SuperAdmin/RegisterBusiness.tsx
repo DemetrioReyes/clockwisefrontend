@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatErrorMessage } from '../../services/api';
 import Layout from '../../components/Layout/Layout';
-import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import { useToast } from '../../components/Common/Toast';
 import businessService from '../../services/business.service';
 import { BusinessRegisterData } from '../../types';

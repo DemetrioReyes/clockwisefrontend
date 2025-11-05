@@ -8,12 +8,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import employeeService from '../../services/employee.service';
 import payrollService from '../../services/payroll.service';
 import { reportsService } from '../../services/reports.service';
-import { Employee, QuickStats, Business } from '../../types';
+import { Employee } from '../../types';
 import { Users, Clock, DollarSign, TrendingUp, UserPlus } from 'lucide-react';
 
 const BusinessDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [stats, setStats] = useState<QuickStats | null>(null);
   const [weeklyHours, setWeeklyHours] = useState<{ total: number; overtime: number }>({ total: 0, overtime: 0 });
   const [payrollCount, setPayrollCount] = useState<number>(0);
   const [employeeStats, setEmployeeStats] = useState<any[]>([]);
@@ -98,8 +97,7 @@ const BusinessDashboard: React.FC = () => {
 
       // Intentar cargar stats, pero no fallar si no está disponible
       try {
-        const statsData = await reportsService.getQuickStats();
-        setStats(statsData);
+        await reportsService.getQuickStats();
       } catch (statsError) {
         console.log('Stats no disponibles:', statsError);
       }
