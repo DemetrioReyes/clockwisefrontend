@@ -4,6 +4,7 @@ import { formatErrorMessage } from '../../../services/api';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import payrollService from '../../../services/payroll.service';
 import { PayrollRequest, PayrollResponse, Business } from '../../../types';
@@ -14,6 +15,7 @@ const CalculatePayroll: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [result, setResult] = useState<PayrollResponse | null>(null);
   const [savedPayrollId, setSavedPayrollId] = useState<string | null>(null);
@@ -32,7 +34,7 @@ const CalculatePayroll: React.FC = () => {
     try {
       const data = await payrollService.calculatePayroll(formData);
       setResult(data);
-      showToast('Preview de nómina calculado exitosamente!', 'success');
+      showToast(t('preview_calculated_successfully'), 'success');
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
     } finally {
@@ -42,7 +44,7 @@ const CalculatePayroll: React.FC = () => {
 
   const handleSave = async () => {
     if (!result) {
-      showToast('Primero debe calcular el preview de la nómina', 'error');
+      showToast(t('must_calculate_preview_first'), 'error');
       return;
     }
 
@@ -51,10 +53,14 @@ const CalculatePayroll: React.FC = () => {
     try {
       const data = await payrollService.createPayroll({
         ...formData,
-        description: `Nómina ${formData.pay_frequency} - ${formData.period_start} al ${formData.period_end}`,
+        description: t('payroll_description_template', { 
+          frequency: formData.pay_frequency, 
+          start: formData.period_start, 
+          end: formData.period_end 
+        }),
       });
       setSavedPayrollId(data.id);
-      showToast(`Nómina guardada exitosamente! ID: ${data.id}`, 'success');
+      showToast(t('payroll_saved_successfully', { id: data.id }), 'success');
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
     } finally {
@@ -66,18 +72,18 @@ const CalculatePayroll: React.FC = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Calcular Nómina</h1>
-          <p className="text-gray-600 mt-2">Calcule la nómina para un período específico</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('calculate_payroll')}</h1>
+          <p className="text-gray-600 mt-2">{t('calculate_payroll_description')}</p>
         </div>
 
         <div className="bg-white shadow rounded-lg p-6">
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
             <div className="flex">
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">💡 Flujo de Trabajo</h3>
+                <h3 className="text-sm font-medium text-yellow-800">{t('workflow_info')}</h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>1. <strong>Preview</strong> - Calcular nómina sin guardar (verificar montos)</p>
-                  <p>2. <strong>Guardar</strong> - Guardar en base de datos (genera payroll_id)</p>
+                  <p>{t('workflow_step1')}</p>
+                  <p>{t('workflow_step2')}</p>
                 </div>
               </div>
             </div>
@@ -88,7 +94,7 @@ const CalculatePayroll: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="inline w-4 h-4 mr-1" />
-                  Fecha Inicio del Período *
+                  {t('period_start')} *
                 </label>
                 <input
                   type="date"
@@ -102,7 +108,7 @@ const CalculatePayroll: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="inline w-4 h-4 mr-1" />
-                  Fecha Fin del Período *
+                  {t('period_end')} *
                 </label>
                 <input
                   type="date"
@@ -115,7 +121,7 @@ const CalculatePayroll: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Frecuencia de Pago *
+                  {t('pay_frequency_label')} *
                 </label>
                 <select
                   value={formData.pay_frequency}
@@ -123,9 +129,9 @@ const CalculatePayroll: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                   required
                 >
-                  <option value="weekly">Semanal</option>
-                  <option value="biweekly">Quincenal</option>
-                  <option value="monthly">Mensual</option>
+                  <option value="weekly">{t('weekly')}</option>
+                  <option value="biweekly">{t('biweekly')}</option>
+                  <option value="monthly">{t('monthly')}</option>
                 </select>
               </div>
             </div>
@@ -136,8 +142,8 @@ const CalculatePayroll: React.FC = () => {
                 disabled={loading}
                 className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
               >
-                {loading ? <LoadingSpinner /> : null}
-                {loading ? 'Calculando Preview...' : '👁️ Preview (No Guarda)'}
+                {loading ? <LoadingSpinner size="sm" /> : null}
+                {loading ? t('calculating_preview') : t('preview_not_save')}
               </button>
 
               {result && !savedPayrollId && (
@@ -147,8 +153,8 @@ const CalculatePayroll: React.FC = () => {
                   disabled={saving}
                   className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center"
                 >
-                  {saving ? <LoadingSpinner /> : null}
-                  {saving ? 'Guardando...' : '💾 Guardar Nómina'}
+                  {saving ? <LoadingSpinner size="sm" /> : null}
+                  {saving ? t('saving_payroll') : t('save_payroll')}
                 </button>
               )}
 
@@ -159,7 +165,7 @@ const CalculatePayroll: React.FC = () => {
                   className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
                 >
                   <Printer className="w-5 h-5" />
-                  <span className="font-semibold">Ver Imprimible / Imprimir</span>
+                  <span className="font-semibold">{t('view_printable')}</span>
                 </button>
               )}
             </div>
@@ -168,7 +174,7 @@ const CalculatePayroll: React.FC = () => {
 
         {loading && (
           <div className="flex justify-center py-12">
-            <LoadingSpinner size="lg" text="Calculando nómina..." />
+            <LoadingSpinner size="lg" text={t('calculating_payroll')} />
           </div>
         )}
 
@@ -180,23 +186,23 @@ const CalculatePayroll: React.FC = () => {
                   <DollarSign className="h-5 w-5 text-blue-400" />
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">Resumen de Nómina</h3>
+                  <h3 className="text-sm font-medium text-blue-800">{t('payroll_summary')}</h3>
                   <div className="mt-2 text-sm text-blue-700">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
                       <div>
-                        <p className="font-semibold">Empleados</p>
+                        <p className="font-semibold">{t('total_employees_label')}</p>
                         <p className="text-lg">{result.payroll.total_employees || 0}</p>
                       </div>
                       <div>
-                        <p className="font-semibold">Pago Bruto Total</p>
+                        <p className="font-semibold">{t('total_gross_pay_label')}</p>
                         <p className="text-lg">${result.payroll.total_gross_pay || '0.00'}</p>
                       </div>
                       <div>
-                        <p className="font-semibold">Deducciones Totales</p>
+                        <p className="font-semibold">{t('total_deductions_label')}</p>
                         <p className="text-lg">${result.payroll.total_deductions || '0.00'}</p>
                       </div>
                       <div>
-                        <p className="font-semibold">Pago Neto Total</p>
+                        <p className="font-semibold">{t('total_net_pay_label')}</p>
                         <p className="text-lg font-bold text-green-700">${result.payroll.total_net_pay || '0.00'}</p>
                       </div>
                     </div>
@@ -209,13 +215,13 @@ const CalculatePayroll: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pago Regular</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Overtime</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tip Credit</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deducciones</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pago Neto</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('employee_col')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('hours_col')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('regular_pay_col')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('overtime_col')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('tip_credit_col')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('deductions_col')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('net_pay_col')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -227,9 +233,9 @@ const CalculatePayroll: React.FC = () => {
                         <div className="text-xs text-gray-400">{calc.employee_type}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        <div>Reg: {parseFloat(calc.regular_hours).toFixed(2)}</div>
+                        <div>{t('regular_hours_label')}: {parseFloat(calc.regular_hours).toFixed(2)}</div>
                         {parseFloat(calc.overtime_hours) > 0 && (
-                          <div className="text-orange-600">OT: {parseFloat(calc.overtime_hours).toFixed(2)}</div>
+                          <div className="text-orange-600">{t('overtime_hours_label')}: {parseFloat(calc.overtime_hours).toFixed(2)}</div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -241,32 +247,32 @@ const CalculatePayroll: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {calc.employee_type.includes('tipped') ? (
                           <div className="text-purple-600">
-                            <div className="text-xs">Tips: ${calc.tips_reported}</div>
+                            <div className="text-xs">{t('tips_reported_payroll')}: ${calc.tips_reported}</div>
                             {parseFloat(calc.spread_hours_pay) > 0 && (
-                              <div className="text-xs text-green-600">Spread: ${calc.spread_hours_pay}</div>
+                              <div className="text-xs text-green-600">{t('spread_hours_pay')}: ${calc.spread_hours_pay}</div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-gray-400">N/A</span>
+                          <span className="text-gray-400">{t('not_applicable')}</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
                         -${calc.total_deductions}
                         <div className="text-xs text-gray-500">
-                          Fed: ${calc.federal_tax} | SS: ${calc.social_security}
+                          {t('federal_tax_label_payroll')}: ${calc.federal_tax} | {t('social_security_label_payroll')}: ${calc.social_security}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
                         ${calc.net_pay}
                         <div className="text-xs text-gray-500 font-normal">
-                          Bruto: ${calc.gross_pay}
+                          {t('gross_pay_label')}: ${calc.gross_pay}
                         </div>
                       </td>
                     </tr>
                   )) : (
                     <tr>
                       <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                        No hay cálculos de nómina disponibles
+                        {t('no_calculations_available')}
                       </td>
                     </tr>
                   )}

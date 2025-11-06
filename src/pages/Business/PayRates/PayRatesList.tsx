@@ -6,12 +6,14 @@ import { useToast } from '../../../components/Common/Toast';
 import { formatErrorMessage } from '../../../services/api';
 import { payratesService } from '../../../services/payrates.service';
 import { PayRate } from '../../../types';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 const PayRatesList = () => {
   const [payRates, setPayRates] = useState<PayRate[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadPayRates();
@@ -36,7 +38,7 @@ const PayRatesList = () => {
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-              Tarifas de Pago
+              {t('pay_rates_list_title')}
             </h2>
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4">
@@ -47,7 +49,7 @@ const PayRatesList = () => {
               <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Nueva Tarifa
+              {t('new_pay_rate_button')}
             </button>
           </div>
         </div>
@@ -58,29 +60,29 @@ const PayRatesList = () => {
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             {payRates.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-500">No hay tarifas de pago configuradas</p>
+                <p className="text-gray-500">{t('no_pay_rates_configured')}</p>
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tarifa Regular
+                      {t('regular_rate_table')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tarifa Overtime
+                      {t('overtime_rate_table')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Umbral Overtime
+                      {t('overtime_threshold_table')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Spread Hours
+                      {t('spread_hours_table')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha Efectiva
+                      {t('effective_date_table')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado
+                      {t('status_table_payrate')}
                     </th>
                   </tr>
                 </thead>
@@ -97,7 +99,7 @@ const PayRatesList = () => {
                         {rate.overtime_threshold} hrs
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {rate.spread_hours_enabled ? `Sí (${rate.spread_hours_threshold}hrs)` : 'No'}
+                        {rate.spread_hours_enabled ? t('yes_with_hours', { hours: rate.spread_hours_threshold }) : t('no_label')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(rate.effective_date).toLocaleDateString()}
@@ -108,7 +110,7 @@ const PayRatesList = () => {
                             rate.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}
                         >
-                          {rate.is_active ? 'Activo' : 'Inactivo'}
+                          {rate.is_active ? t('active_status') : t('inactive_status')}
                         </span>
                       </td>
                     </tr>

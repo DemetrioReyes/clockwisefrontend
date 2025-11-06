@@ -3,41 +3,542 @@ import { formatErrorMessage } from '../../../services/api';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import { reportsService } from '../../../services/reports.service';
-import { SickLeaveReport, BreakComplianceAlert } from '../../../types';
-import { FileText, CheckCircle, XCircle, CheckCircle2, X } from 'lucide-react';
+import { BreakComplianceAlert, TimeEntry, Employee } from '../../../types';
+import { CheckCircle, XCircle, CheckCircle2, X, Calendar, DollarSign, Clock } from 'lucide-react';
+import employeeService from '../../../services/employee.service';
+import payrollService from '../../../services/payroll.service';
+
+type ReportTab = 'attendance' | 'payroll' | 'time-summary' | 'break-compliance';
+
+interface AttendanceReportItem {
+  employee_id: string;
+  employee_name: string;
+  employee_code: string;
+  date: string;
+  check_in: string;
+  check_out: string;
+  total_hours: number;
+  late_arrival: boolean;
+  early_departure: boolean;
+}
+
+interface PayrollSummaryReport {
+  period_start: string;
+  period_end: string;
+  total_employees: number;
+  total_gross_pay: number;
+  total_net_pay: number;
+  total_hours: number;
+  total_deductions: number;
+  payrolls: any[];
+}
+
+interface TimeSummaryItem {
+  group_key: string;
+  employee_name?: string;
+  date?: string;
+  week?: string;
+  department?: string;
+  total_hours: number;
+  regular_hours: number;
+  overtime_hours: number;
+}
 
 const Reports: React.FC = () => {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'sick-leave' | 'break-compliance'>('sick-leave');
-  const [sickLeaveData, setSickLeaveData] = useState<SickLeaveReport[]>([]);
+  const [activeTab, setActiveTab] = useState<ReportTab>('attendance');
+  
+  // Attendance Report State
+  const [attendanceData, setAttendanceData] = useState<AttendanceReportItem[]>([]);
+  const [attendanceStartDate, setAttendanceStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 7); // Last 7 days
+    return date.toISOString().split('T')[0];
+  });
+  const [attendanceEndDate, setAttendanceEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+
+  // Payroll Report State
+  const [payrollData, setPayrollData] = useState<PayrollSummaryReport | null>(null);
+  const [payrollStartDate, setPayrollStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30); // Last 30 days
+    return date.toISOString().split('T')[0];
+  });
+  const [payrollEndDate, setPayrollEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+
+  // Time Summary Report State
+  const [timeSummaryData, setTimeSummaryData] = useState<TimeSummaryItem[]>([]);
+  const [timeSummaryStartDate, setTimeSummaryStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 7);
+    return date.toISOString().split('T')[0];
+  });
+  const [timeSummaryEndDate, setTimeSummaryEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [timeSummaryGroupBy, setTimeSummaryGroupBy] = useState<'employee' | 'day' | 'week' | 'department'>('employee');
+
+  // Break Compliance State
   const [breakComplianceData, setBreakComplianceData] = useState<BreakComplianceAlert[]>([]);
   const [breakComplianceStatus, setBreakComplianceStatus] = useState<'pending' | 'resolved' | 'all'>('pending');
   const [breakComplianceTotal, setBreakComplianceTotal] = useState<number>(0);
-  const [year, setYear] = useState(new Date().getFullYear());
   const [resolvingAlert, setResolvingAlert] = useState<BreakComplianceAlert | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState(false);
 
-  const handleLoadSickLeave = async () => {
+  // Helper function to load employees
+  const loadEmployees = async (): Promise<Record<string, Employee>> => {
+    try {
+      const employees = await employeeService.listEmployees(true);
+      const employeesMap: Record<string, Employee> = {};
+      employees.forEach((emp: Employee) => {
+        employeesMap[emp.id] = emp;
+      });
+      return employeesMap;
+    } catch (error) {
+      console.error('Error loading employees:', error);
+      return {};
+    }
+  };
+
+  // Attendance Report Handlers - Generate from time entries
+  const handleLoadAttendance = async () => {
+    if (!attendanceStartDate || !attendanceEndDate) {
+      showToast(t('please_select_start_and_end_dates') || 'Please select start and end dates', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
-      const data = await reportsService.getSickLeaveReport(year);
-      setSickLeaveData(data);
-      showToast('Reporte de sick leave cargado exitosamente!', 'success');
+      // Load all employees
+      const employeesMap = await loadEmployees();
+      
+      // Load time entries for all employees in the date range
+      const allTimeEntries: TimeEntry[] = [];
+      const employeeIds = Object.keys(employeesMap);
+      
+      for (const employeeId of employeeIds) {
+        try {
+          const entries = await employeeService.listTimeEntries(employeeId, attendanceStartDate, attendanceEndDate);
+          if (Array.isArray(entries)) {
+            allTimeEntries.push(...entries);
+          }
+        } catch (error) {
+          console.error(`Error loading time entries for employee ${employeeId}:`, error);
+        }
+      }
+
+      // Process time entries to create attendance report
+      const attendanceMap: Record<string, AttendanceReportItem> = {};
+      
+      // Group entries by employee and date
+      allTimeEntries.forEach((entry) => {
+        if (!entry.employee_id || !entry.record_time) return;
+        
+        const entryDate = new Date(entry.record_time).toISOString().split('T')[0];
+        const key = `${entry.employee_id}-${entryDate}`;
+        const employee = employeesMap[entry.employee_id];
+        
+        if (!employee) return;
+        
+        if (!attendanceMap[key]) {
+          attendanceMap[key] = {
+            employee_id: entry.employee_id,
+            employee_name: `${employee.first_name} ${employee.last_name}`,
+            employee_code: employee.employee_code,
+            date: entryDate,
+            check_in: '',
+            check_out: '',
+            total_hours: 0,
+            late_arrival: false,
+            early_departure: false,
+          };
+        }
+        
+        const timeStr = new Date(entry.record_time).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        });
+        
+        if (entry.record_type === 'check_in') {
+          attendanceMap[key].check_in = timeStr;
+          // Check for late arrival (after 9:00 AM)
+          const entryHour = new Date(entry.record_time).getHours();
+          if (entryHour >= 9) {
+            attendanceMap[key].late_arrival = true;
+          }
+        } else if (entry.record_type === 'check_out') {
+          attendanceMap[key].check_out = timeStr;
+          // Check for early departure (before 5:00 PM)
+          const entryHour = new Date(entry.record_time).getHours();
+          if (entryHour < 17) {
+            attendanceMap[key].early_departure = true;
+          }
+        }
+      });
+
+      // Calculate hours worked for each day
+      Object.keys(attendanceMap).forEach((key) => {
+        const item = attendanceMap[key];
+        const dayEntries = allTimeEntries.filter(
+          (e) => e.employee_id === item.employee_id && 
+          e.record_time && 
+          new Date(e.record_time).toISOString().split('T')[0] === item.date
+        );
+        
+        // Find check-in and check-out times
+        const checkIn = dayEntries.find((e) => e.record_type === 'check_in' && e.record_time);
+        const checkOut = dayEntries.find((e) => e.record_type === 'check_out' && e.record_time);
+        
+        if (checkIn && checkOut && checkIn.record_time && checkOut.record_time) {
+          const startTime = new Date(checkIn.record_time).getTime();
+          const endTime = new Date(checkOut.record_time).getTime();
+          const hours = (endTime - startTime) / (1000 * 60 * 60);
+          item.total_hours = Math.max(0, hours);
+        }
+      });
+
+      const attendanceReport = Object.values(attendanceMap)
+        .filter((item) => item.check_in || item.check_out)
+        .sort((a, b) => {
+          if (a.date !== b.date) return a.date.localeCompare(b.date);
+          return a.employee_name.localeCompare(b.employee_name);
+        });
+
+      setAttendanceData(attendanceReport);
+      showToast(t('report_loaded_successfully'), 'success');
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
+      setAttendanceData([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Payroll Report Handlers - Generate from saved payrolls
+  const handleLoadPayroll = async () => {
+    if (!payrollStartDate || !payrollEndDate) {
+      showToast(t('please_select_start_and_end_dates') || 'Please select start and end dates', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Load all payrolls
+      const payrollsResponse = await payrollService.listPayrolls(undefined, 1000);
+      const payrollsList = Array.isArray(payrollsResponse) 
+        ? payrollsResponse 
+        : ((payrollsResponse as any)?.payrolls || (payrollsResponse as any)?.items || []);
+
+      // Filter payrolls by date range
+      const filteredPayrolls = payrollsList.filter((payroll: any) => {
+        if (!payroll.period_start || !payroll.period_end) return false;
+        const startDate = new Date(payroll.period_start);
+        const endDate = new Date(payroll.period_end);
+        const filterStart = new Date(payrollStartDate);
+        const filterEnd = new Date(payrollEndDate);
+        
+        // Check if payroll period overlaps with filter period
+        return (startDate <= filterEnd && endDate >= filterStart);
+      });
+
+      // Load detailed payroll data for each payroll
+      const payrollDetails: any[] = [];
+      for (const payroll of filteredPayrolls) {
+        try {
+          const detail = await payrollService.getPayrollById(payroll.id);
+          payrollDetails.push(detail);
+        } catch (error) {
+          console.error(`Error loading payroll ${payroll.id}:`, error);
+        }
+      }
+
+      // Calculate summary
+      let totalEmployees = 0;
+      let totalGrossPay = 0;
+      let totalNetPay = 0;
+      let totalHours = 0;
+      let totalDeductions = 0;
+      const employeeSet = new Set<string>();
+
+      payrollDetails.forEach((detail) => {
+        // Use payroll totals if available (from PayrollResponse.payroll object)
+        if (detail.payroll) {
+          const grossPay = parseFloat(String(detail.payroll.total_gross_pay || '0')) || 0;
+          const netPay = parseFloat(String(detail.payroll.total_net_pay || '0')) || 0;
+          const deductions = parseFloat(String(detail.payroll.total_deductions || '0')) || 0;
+          
+          totalGrossPay += isNaN(grossPay) ? 0 : grossPay;
+          totalNetPay += isNaN(netPay) ? 0 : netPay;
+          totalDeductions += isNaN(deductions) ? 0 : deductions;
+          totalEmployees = Math.max(totalEmployees, detail.payroll.total_employees || 0);
+        }
+        
+        // Count unique employees from calculations
+        if (detail.calculations && Array.isArray(detail.calculations)) {
+          detail.calculations.forEach((calc: any) => {
+            if (calc.employee_id) {
+              employeeSet.add(calc.employee_id);
+            }
+          });
+        }
+        
+        // Calculate hours from time summaries if available
+        if (detail.time_summaries && Array.isArray(detail.time_summaries)) {
+          detail.time_summaries.forEach((ts: any) => {
+            const hours = parseFloat(String(ts.hours_worked || '0')) || 0;
+            if (!isNaN(hours)) {
+              totalHours += hours;
+            }
+          });
+        }
+      });
+
+      // Use employee count from set if we have it, otherwise use the max from payrolls
+      if (employeeSet.size > 0) {
+        totalEmployees = employeeSet.size;
+      }
+
+      const summary: PayrollSummaryReport = {
+        period_start: payrollStartDate,
+        period_end: payrollEndDate,
+        total_employees: totalEmployees,
+        total_gross_pay: totalGrossPay,
+        total_net_pay: totalNetPay,
+        total_hours: totalHours,
+        total_deductions: totalDeductions,
+        payrolls: filteredPayrolls,
+      };
+
+      setPayrollData(summary);
+      showToast(t('report_loaded_successfully'), 'success');
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+      setPayrollData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Time Summary Report Handlers - Generate from time entries
+  const handleLoadTimeSummary = async () => {
+    if (!timeSummaryStartDate || !timeSummaryEndDate) {
+      showToast(t('please_select_start_and_end_dates') || 'Please select start and end dates', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Load all employees
+      const employeesMap = await loadEmployees();
+      const employees = Object.values(employeesMap);
+      
+      // Load time entries for all employees
+      const allTimeEntries: TimeEntry[] = [];
+      
+      for (const employee of employees) {
+        try {
+          const entries = await employeeService.listTimeEntries(employee.id, timeSummaryStartDate, timeSummaryEndDate);
+          if (Array.isArray(entries)) {
+            allTimeEntries.push(...entries);
+          }
+        } catch (error) {
+          console.error(`Error loading time entries for employee ${employee.id}:`, error);
+        }
+      }
+
+      // Process based on group by
+      const summaryMap: Record<string, TimeSummaryItem> = {};
+
+      if (timeSummaryGroupBy === 'employee') {
+        employees.forEach((employee) => {
+          const employeeEntries = allTimeEntries.filter((e) => e.employee_id === employee.id);
+          const { totalHours, regularHours, overtimeHours } = calculateHoursFromEntries(employeeEntries);
+          
+          summaryMap[employee.id] = {
+            group_key: `${employee.first_name} ${employee.last_name}`,
+            employee_name: `${employee.first_name} ${employee.last_name}`,
+            total_hours: totalHours,
+            regular_hours: regularHours,
+            overtime_hours: overtimeHours,
+          };
+        });
+      } else if (timeSummaryGroupBy === 'day') {
+        // Group by date
+        const dateMap: Record<string, TimeEntry[]> = {};
+        allTimeEntries.forEach((entry) => {
+          if (!entry.record_time) return;
+          const date = new Date(entry.record_time).toISOString().split('T')[0];
+          if (!dateMap[date]) dateMap[date] = [];
+          dateMap[date].push(entry);
+        });
+
+        Object.keys(dateMap).forEach((date) => {
+          const { totalHours, regularHours, overtimeHours } = calculateHoursFromEntries(dateMap[date]);
+          summaryMap[date] = {
+            group_key: date,
+            date: date,
+            total_hours: totalHours,
+            regular_hours: regularHours,
+            overtime_hours: overtimeHours,
+          };
+        });
+      } else if (timeSummaryGroupBy === 'week') {
+        // Group by week
+        const weekMap: Record<string, TimeEntry[]> = {};
+        allTimeEntries.forEach((entry) => {
+          if (!entry.record_time) return;
+          const date = new Date(entry.record_time);
+          const weekStart = getWeekStart(date);
+          const weekKey = weekStart.toISOString().split('T')[0];
+          if (!weekMap[weekKey]) weekMap[weekKey] = [];
+          weekMap[weekKey].push(entry);
+        });
+
+        Object.keys(weekMap).forEach((weekKey) => {
+          const weekStart = new Date(weekKey);
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekEnd.getDate() + 6);
+          const weekLabel = `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+          
+          const { totalHours, regularHours, overtimeHours } = calculateHoursFromEntries(weekMap[weekKey]);
+          summaryMap[weekKey] = {
+            group_key: weekLabel,
+            week: weekLabel,
+            total_hours: totalHours,
+            regular_hours: regularHours,
+            overtime_hours: overtimeHours,
+          };
+        });
+      } else if (timeSummaryGroupBy === 'department') {
+        // Group by department
+        const departmentMap: Record<string, TimeEntry[]> = {};
+        allTimeEntries.forEach((entry) => {
+          const employee = employeesMap[entry.employee_id || ''];
+          const dept = employee?.department || 'No Department';
+          if (!departmentMap[dept]) departmentMap[dept] = [];
+          departmentMap[dept].push(entry);
+        });
+
+        Object.keys(departmentMap).forEach((dept) => {
+          const { totalHours, regularHours, overtimeHours } = calculateHoursFromEntries(departmentMap[dept]);
+          summaryMap[dept] = {
+            group_key: dept,
+            department: dept,
+            total_hours: totalHours,
+            regular_hours: regularHours,
+            overtime_hours: overtimeHours,
+          };
+        });
+      }
+
+      const summaryArray = Object.values(summaryMap).sort((a, b) => {
+        if (a.group_key && b.group_key) {
+          return a.group_key.localeCompare(b.group_key);
+        }
+        return 0;
+      });
+
+      setTimeSummaryData(summaryArray);
+      showToast(t('report_loaded_successfully'), 'success');
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+      setTimeSummaryData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to calculate hours from time entries
+  const calculateHoursFromEntries = (entries: TimeEntry[]): { totalHours: number; regularHours: number; overtimeHours: number } => {
+    // Filter and sort entries by time
+    const validEntries = entries
+      .filter((e) => e.record_time && (e.record_type === 'check_in' || e.record_type === 'check_out'))
+      .sort((a, b) => {
+        if (!a.record_time || !b.record_time) return 0;
+        return new Date(a.record_time).getTime() - new Date(b.record_time).getTime();
+      });
+
+    let totalHours = 0;
+    let regularHours = 0;
+    let overtimeHours = 0;
+
+    // Group by employee and date, then process chronologically
+    const employeeDateMap: Record<string, TimeEntry[]> = {};
+    
+    validEntries.forEach((entry) => {
+      if (!entry.employee_id || !entry.record_time) return;
+      const date = new Date(entry.record_time).toISOString().split('T')[0];
+      const key = `${entry.employee_id}-${date}`;
+      
+      if (!employeeDateMap[key]) {
+        employeeDateMap[key] = [];
+      }
+      employeeDateMap[key].push(entry);
+    });
+
+    // Process each day, pairing check-ins with check-outs
+    Object.values(employeeDateMap).forEach((dayEntries) => {
+      // Sort by time
+      dayEntries.sort((a, b) => {
+        if (!a.record_time || !b.record_time) return 0;
+        return new Date(a.record_time).getTime() - new Date(b.record_time).getTime();
+      });
+
+      let pendingCheckIn: Date | null = null;
+
+      dayEntries.forEach((entry) => {
+        if (!entry.record_time) return;
+        
+        if (entry.record_type === 'check_in') {
+          // If there's a pending check-in, we found a new shift
+          // (previous check-out was already processed or there was no check-out)
+          pendingCheckIn = new Date(entry.record_time);
+        } else if (entry.record_type === 'check_out' && pendingCheckIn) {
+          // Pair check-out with pending check-in
+          const checkOutTime = new Date(entry.record_time);
+          const hours = (checkOutTime.getTime() - pendingCheckIn.getTime()) / (1000 * 60 * 60);
+          
+          // Only count positive hours (check-out should be after check-in)
+          if (hours > 0 && hours < 24) { // Reasonable work shift (less than 24 hours)
+            totalHours += hours;
+            if (hours > 8) {
+              regularHours += 8;
+              overtimeHours += hours - 8;
+            } else {
+              regularHours += hours;
+            }
+          }
+          pendingCheckIn = null; // Reset after pairing
+        }
+      });
+    });
+
+    return { totalHours, regularHours, overtimeHours };
+  };
+
+  // Helper function to get week start (Monday)
+  const getWeekStart = (date: Date): Date => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    return new Date(d.setDate(diff));
+  };
+
+  // Break Compliance Handlers
   const handleLoadBreakCompliance = async () => {
     setLoading(true);
     try {
       const data = await reportsService.getBreakComplianceAlerts(breakComplianceStatus);
-      // El backend puede devolver un objeto con { alerts: [], total_alerts: number } o directamente un array
       if (Array.isArray(data)) {
         setBreakComplianceData(data);
         setBreakComplianceTotal(data.length);
@@ -45,7 +546,7 @@ const Reports: React.FC = () => {
         setBreakComplianceData(data.alerts || []);
         setBreakComplianceTotal(data.total_alerts || data.alerts?.length || 0);
       }
-      showToast('Reporte de compliance cargado exitosamente!', 'success');
+      showToast(t('compliance_report_loaded'), 'success');
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
     } finally {
@@ -65,16 +566,15 @@ const Reports: React.FC = () => {
 
   const handleResolveAlert = async () => {
     if (!resolvingAlert || !resolutionNotes.trim()) {
-      showToast('Por favor, ingrese las notas de resolución', 'error');
+      showToast(t('enter_resolution_notes'), 'error');
       return;
     }
 
     setResolving(true);
     try {
       await reportsService.resolveBreakComplianceAlert(resolvingAlert.id, resolutionNotes);
-      showToast('Alerta resuelta exitosamente', 'success');
+      showToast(t('alert_resolved_successfully'), 'success');
       handleCloseResolveModal();
-      // Recargar las alertas
       await handleLoadBreakCompliance();
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
@@ -83,103 +583,163 @@ const Reports: React.FC = () => {
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reportes</h1>
-          <p className="text-gray-600 mt-2">Reportes de cumplimiento y sick leave</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('reports_title')}</h1>
+          <p className="text-gray-600 mt-2">{t('compliance_reports')}</p>
         </div>
 
-        <div className="flex space-x-4 border-b">
+        <div className="flex space-x-4 border-b overflow-x-auto">
           <button
-            onClick={() => setActiveTab('sick-leave')}
-            className={`px-4 py-2 font-medium ${
-              activeTab === 'sick-leave'
+            onClick={() => setActiveTab('attendance')}
+            className={`px-4 py-2 font-medium whitespace-nowrap ${
+              activeTab === 'attendance'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <FileText className="inline w-5 h-5 mr-2" />
-            Sick Leave
+            <Calendar className="inline w-5 h-5 mr-2" />
+            {t('attendance_report')}
+          </button>
+          <button
+            onClick={() => setActiveTab('payroll')}
+            className={`px-4 py-2 font-medium whitespace-nowrap ${
+              activeTab === 'payroll'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <DollarSign className="inline w-5 h-5 mr-2" />
+            {t('payroll_report')}
+          </button>
+          <button
+            onClick={() => setActiveTab('time-summary')}
+            className={`px-4 py-2 font-medium whitespace-nowrap ${
+              activeTab === 'time-summary'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Clock className="inline w-5 h-5 mr-2" />
+            {t('time_summary_report')}
           </button>
           <button
             onClick={() => setActiveTab('break-compliance')}
-            className={`px-4 py-2 font-medium ${
+            className={`px-4 py-2 font-medium whitespace-nowrap ${
               activeTab === 'break-compliance'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <CheckCircle className="inline w-5 h-5 mr-2" />
-            Break Compliance
+            {t('break_compliance')}
           </button>
         </div>
 
-        {activeTab === 'sick-leave' && (
+        {/* Attendance Report Tab */}
+        {activeTab === 'attendance' && (
           <div className="space-y-4">
             <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex items-center space-x-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Año</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('start_date')}</label>
                   <input
-                    type="number"
-                    value={year}
-                    onChange={(e) => setYear(parseInt(e.target.value))}
+                    type="date"
+                    value={attendanceStartDate}
+                    onChange={(e) => setAttendanceStartDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('end_date')}</label>
+                  <input
+                    type="date"
+                    value={attendanceEndDate}
+                    onChange={(e) => setAttendanceEndDate(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
                 <button
-                  onClick={handleLoadSickLeave}
+                  onClick={handleLoadAttendance}
                   disabled={loading}
-                  className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Cargando...' : 'Cargar Reporte'}
+                  {loading ? t('loading') : t('load_report')}
                 </button>
               </div>
             </div>
 
             {loading ? (
               <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" text="Cargando reporte..." />
+                <LoadingSpinner size="lg" text={t('loading')} />
               </div>
-            ) : sickLeaveData.length > 0 ? (
+            ) : attendanceData.length > 0 ? (
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas Acumuladas</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas Usadas</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Horas Restantes</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('employee')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('date')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('check_in_time')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('check_out_time')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('hours_worked')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('status')}</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sickLeaveData.map((item) => (
-                      <tr key={item.employee_id} className="hover:bg-gray-50">
+                    {attendanceData.map((item, index) => (
+                      <tr key={`${item.employee_id}-${item.date}-${index}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{item.employee_name}</div>
+                          <div className="text-xs text-gray-500">{item.employee_code}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-600">{item.hours_accrued.toFixed(2)}</div>
+                          <div className="text-sm text-gray-600">{formatDate(item.date)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-600">{item.hours_used.toFixed(2)}</div>
+                          <div className="text-sm text-gray-600">{item.check_in || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{item.hours_remaining.toFixed(2)}</div>
+                          <div className="text-sm text-gray-600">{item.check_out || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              item.compliance_status === 'compliant'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {item.compliance_status}
-                          </span>
+                          <div className="text-sm text-gray-900">{item.total_hours.toFixed(2)} {t('hrs')}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col gap-1">
+                            {item.late_arrival && (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                {t('late_arrival')}
+                              </span>
+                            )}
+                            {item.early_departure && (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                {t('early_departure')}
+                              </span>
+                            )}
+                            {!item.late_arrival && !item.early_departure && (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                {t('on_time')}
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -188,79 +748,300 @@ const Reports: React.FC = () => {
               </div>
             ) : (
               <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
-                No hay datos disponibles. Haga clic en "Cargar Reporte" para obtener los datos.
+                {t('no_data_available')}. {t('click_load_report') || 'Click "Load Report" to get data'}
               </div>
             )}
           </div>
         )}
 
-        {activeTab === 'break-compliance' && (
+        {/* Payroll Report Tab */}
+        {activeTab === 'payroll' && (
           <div className="space-y-4">
-            {/* Información sobre Break Compliance */}
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg">
-              <h3 className="text-sm font-medium text-blue-800 mb-1">Break Compliance</h3>
-              <p className="text-sm text-blue-700">
-                Requiere 30 minutos de break para turnos de 8+ horas. Las alertas identifican cuando un empleado trabajó 8+ horas sin tomar el break requerido.
-              </p>
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('start_date')}</label>
+                  <input
+                    type="date"
+                    value={payrollStartDate}
+                    onChange={(e) => setPayrollStartDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('end_date')}</label>
+                  <input
+                    type="date"
+                    value={payrollEndDate}
+                    onChange={(e) => setPayrollEndDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <button
+                  onClick={handleLoadPayroll}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? t('loading') : t('load_report')}
+                </button>
+              </div>
             </div>
 
-            {/* Controles de filtro */}
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" text={t('loading')} />
+              </div>
+            ) : payrollData ? (
+              <div className="space-y-4">
+                <div className="bg-white shadow rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('payroll_summary')}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">{t('period')}</p>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {formatDate(payrollData.period_start)} - {formatDate(payrollData.period_end)}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">{t('total_employees_label')}</p>
+                      <p className="text-lg font-semibold text-gray-900">{payrollData.total_employees}</p>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">{t('total_gross_pay_label')}</p>
+                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(payrollData.total_gross_pay)}</p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">{t('total_net_pay_label')}</p>
+                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(payrollData.total_net_pay)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">{t('total_hours')}</p>
+                      <p className="text-lg font-semibold text-gray-900">{payrollData.total_hours.toFixed(2)} {t('hrs')}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">{t('total_deductions_label')}</p>
+                      <p className="text-lg font-semibold text-red-600">{formatCurrency(payrollData.total_deductions)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">{t('total_payrolls') || 'Total Payrolls'}</p>
+                      <p className="text-lg font-semibold text-gray-900">{payrollData.payrolls.length}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payrolls List */}
+                {payrollData.payrolls.length > 0 && (
+                  <div className="bg-white shadow rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('payrolls_list') || 'Payrolls List'}</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('period')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('status')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('created_at')}</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {payrollData.payrolls.map((payroll: any) => (
+                            <tr key={payroll.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {payroll.period_start && payroll.period_end 
+                                    ? `${formatDate(payroll.period_start)} - ${formatDate(payroll.period_end)}`
+                                    : '-'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                  payroll.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                  payroll.status === 'paid' ? 'bg-blue-100 text-blue-800' :
+                                  payroll.status === 'calculated' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {payroll.status || 'draft'}
+                          </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-600">
+                                  {payroll.created_at ? formatDate(payroll.created_at) : '-'}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
+                {t('no_data_available')}. {t('click_load_report') || 'Click "Load Report" to get data'}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Time Summary Report Tab */}
+        {activeTab === 'time-summary' && (
+          <div className="space-y-4">
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('start_date')}</label>
+                  <input
+                    type="date"
+                    value={timeSummaryStartDate}
+                    onChange={(e) => setTimeSummaryStartDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('end_date')}</label>
+                  <input
+                    type="date"
+                    value={timeSummaryEndDate}
+                    onChange={(e) => setTimeSummaryEndDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('group_by')}</label>
+                  <select
+                    value={timeSummaryGroupBy}
+                    onChange={(e) => setTimeSummaryGroupBy(e.target.value as 'employee' | 'day' | 'week' | 'department')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="employee">{t('employee')}</option>
+                    <option value="day">{t('day')}</option>
+                    <option value="week">{t('week')}</option>
+                    <option value="department">{t('department')}</option>
+                  </select>
+                </div>
+                <button
+                  onClick={handleLoadTimeSummary}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? t('loading') : t('load_report')}
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" text={t('loading')} />
+              </div>
+            ) : timeSummaryData.length > 0 ? (
+              <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('group_by')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('total_hours')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('regular_hours') || 'Regular Hours'}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('overtime_hours') || 'Overtime Hours'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {timeSummaryData.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {item.group_key || item.employee_name || item.date || item.week || item.department || '-'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {item.total_hours.toFixed(2)} {t('hrs')}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-600">
+                            {item.regular_hours.toFixed(2)} {t('hrs')}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-600">
+                            {item.overtime_hours.toFixed(2)} {t('hrs')}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
+                {t('no_data_available')}. {t('click_load_report') || 'Click "Load Report" to get data'}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Break Compliance Tab */}
+        {activeTab === 'break-compliance' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-blue-800 mb-1">{t('break_compliance')}</h3>
+              <p className="text-sm text-blue-700">{t('break_compliance_description')}</p>
+            </div>
+
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado de las Alertas
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('alert_status')}</label>
                   <select
                     value={breakComplianceStatus}
                     onChange={(e) => setBreakComplianceStatus(e.target.value as 'pending' | 'resolved' | 'all')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="pending">Pendientes</option>
-                    <option value="resolved">Resueltas</option>
-                    <option value="all">Todas</option>
+                    <option value="pending">{t('pending')}</option>
+                    <option value="resolved">{t('resolved')}</option>
+                    <option value="all">{t('all')}</option>
                   </select>
                 </div>
-                <button
-                  onClick={handleLoadBreakCompliance}
-                  disabled={loading}
+              <button
+                onClick={handleLoadBreakCompliance}
+                disabled={loading}
                   className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
                 >
                   {loading ? (
                     <>
                       <LoadingSpinner />
-                      <span className="ml-2">Cargando...</span>
+                      <span className="ml-2">{t('loading')}</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle className="w-5 h-5 mr-2" />
-                      Cargar Alertas
+                      {t('load_alerts')}
                     </>
                   )}
-                </button>
+              </button>
               </div>
             </div>
 
-            {/* Resumen de alertas */}
             {breakComplianceTotal > 0 && (
               <div className="bg-white shadow rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">
-                    Total de Alertas: <span className="text-blue-600 font-bold">{breakComplianceTotal}</span>
+                    {t('total_alerts')}: <span className="text-blue-600 font-bold">{breakComplianceTotal}</span>
                   </span>
                   <span className="text-xs text-gray-500">
-                    {breakComplianceStatus === 'pending' && 'Pendientes de resolución'}
-                    {breakComplianceStatus === 'resolved' && 'Ya resueltas'}
-                    {breakComplianceStatus === 'all' && 'Todas las alertas'}
+                    {breakComplianceStatus === 'pending' && t('pending_resolution')}
+                    {breakComplianceStatus === 'resolved' && t('already_resolved')}
+                    {breakComplianceStatus === 'all' && t('all_alerts')}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Tabla de alertas */}
             {loading ? (
               <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" text="Cargando alertas..." />
+                <LoadingSpinner size="lg" text={t('loading')} />
               </div>
             ) : breakComplianceData.length > 0 ? (
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">
@@ -268,22 +1049,25 @@ const Reports: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Empleado
+                        {t('employee')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Fecha de Violación
+                        {t('violation_date')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Déficit de Break
+                        {t('deficit')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Severidad
+                        {t('severity')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Estado
+                        {t('status')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Resuelto Por
+                        {t('resolved_by')}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('actions')}
                       </th>
                     </tr>
                   </thead>
@@ -296,29 +1080,12 @@ const Reports: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {item.violation_date ? (
-                              new Date(item.violation_date).toLocaleDateString('es-ES', {
-                                weekday: 'short',
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })
-                            ) : (
-                              <span className="text-red-600">Fecha inválida</span>
-                            )}
+                            {item.violation_date ? formatDate(item.violation_date) : <span className="text-red-600">{t('invalid_date')}</span>}
                           </div>
-                          {item.created_at && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Creado: {new Date(item.created_at).toLocaleDateString('es-ES')}
-                            </div>
-                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-semibold text-red-700">
-                            {item.deficit_minutes ?? 0} minutos
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Faltan {item.deficit_minutes ?? 0} min de break requerido
+                            {item.deficit_minutes ?? 0} {t('minutes')}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -331,7 +1098,7 @@ const Reports: React.FC = () => {
                                 : 'bg-blue-100 text-blue-800'
                             }`}
                           >
-                            {item.severity === 'high' ? 'Alta' : item.severity === 'medium' ? 'Media' : 'Baja'}
+                            {item.severity === 'high' ? t('high') : item.severity === 'medium' ? t('medium') : t('low')}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -342,18 +1109,8 @@ const Reports: React.FC = () => {
                                 : 'bg-green-100 text-green-800'
                             }`}
                           >
-                            {item.status === 'pending' ? 'Pendiente' : 'Resuelta'}
+                            {item.status === 'pending' ? t('pending') : t('resolved')}
                           </span>
-                          {item.resolved_at && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Resuelto: {new Date(item.resolved_at).toLocaleDateString('es-ES')}
-                            </div>
-                          )}
-                          {item.resolution_notes && (
-                            <div className="text-xs text-gray-500 mt-1 max-w-xs truncate" title={item.resolution_notes}>
-                              {item.resolution_notes}
-                            </div>
-                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {item.resolved_by ? (
@@ -366,10 +1123,10 @@ const Reports: React.FC = () => {
                           {item.status === 'pending' && (
                             <button
                               onClick={() => handleOpenResolveModal(item)}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                             >
                               <CheckCircle2 className="w-4 h-4 mr-1" />
-                              Resolver
+                              {t('resolve')}
                             </button>
                           )}
                         </td>
@@ -381,12 +1138,8 @@ const Reports: React.FC = () => {
             ) : (
               <div className="bg-white shadow rounded-lg p-12 text-center">
                 <XCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 font-medium">
-                  No hay alertas {breakComplianceStatus === 'pending' ? 'pendientes' : breakComplianceStatus === 'resolved' ? 'resueltas' : 'disponibles'}.
-                </p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Haga clic en "Cargar Alertas" para obtener los datos más recientes.
-                </p>
+                <p className="text-gray-500 font-medium">{t('no_alerts_available', { status: '' })}</p>
+                <p className="text-sm text-gray-400 mt-2">{t('click_load_alerts')}</p>
               </div>
             )}
           </div>
@@ -397,11 +1150,8 @@ const Reports: React.FC = () => {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Resolver Alerta de Break Compliance</h3>
-                <button
-                  onClick={handleCloseResolveModal}
-                  className="text-gray-400 hover:text-gray-600"
-                >
+                <h3 className="text-lg font-medium text-gray-900">{t('resolve_alert_title')}</h3>
+                <button onClick={handleCloseResolveModal} className="text-gray-400 hover:text-gray-600">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -409,55 +1159,54 @@ const Reports: React.FC = () => {
               <div className="mb-4">
                 <div className="bg-gray-50 p-3 rounded-md mb-4">
                   <p className="text-sm text-gray-600 mb-1">
-                    <span className="font-medium">Empleado:</span> {resolvingAlert.employee_name}
+                    <span className="font-medium">{t('employee')}:</span> {resolvingAlert.employee_name}
                   </p>
                   <p className="text-sm text-gray-600 mb-1">
-                    <span className="font-medium">Fecha:</span> {resolvingAlert.violation_date ? new Date(resolvingAlert.violation_date).toLocaleDateString('es-ES') : 'N/A'}
+                    <span className="font-medium">{t('date')}:</span>{' '}
+                    {resolvingAlert.violation_date ? formatDate(resolvingAlert.violation_date) : 'N/A'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">Déficit:</span> {resolvingAlert.deficit_minutes ?? 0} minutos
+                    <span className="font-medium">{t('deficit')}:</span> {resolvingAlert.deficit_minutes ?? 0} {t('minutes')}
                   </p>
                 </div>
 
                 <label htmlFor="resolution_notes" className="block text-sm font-medium text-gray-700 mb-2">
-                  Notas de Resolución *
+                  {t('resolution_notes')} *
                 </label>
                 <textarea
                   id="resolution_notes"
                   rows={4}
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
-                  placeholder="Ej: Empleado tomó descanso pero no lo registró. Se corrigió en el sistema y se le recordó la importancia de registrar los breaks."
+                  placeholder={t('resolution_notes_placeholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
                   required
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Describe la acción tomada para resolver esta alerta de cumplimiento.
-                </p>
+                <p className="mt-1 text-xs text-gray-500">{t('describe_action')}</p>
               </div>
 
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={handleCloseResolveModal}
                   disabled={resolving}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Cancelar
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleResolveAlert}
                   disabled={resolving || !resolutionNotes.trim()}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
                 >
                   {resolving ? (
                     <>
                       <LoadingSpinner />
-                      <span className="ml-2">Resolviendo...</span>
+                      <span className="ml-2">{t('resolving')}</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Marcar como Resuelto
+                      {t('mark_as_resolved')}
                     </>
                   )}
                 </button>

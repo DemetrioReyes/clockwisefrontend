@@ -5,6 +5,7 @@ import { formatErrorMessage } from '../../services/api';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import { useToast } from '../../components/Common/Toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import employeeService from '../../services/employee.service';
 import payrollService from '../../services/payroll.service';
 import { reportsService } from '../../services/reports.service';
@@ -22,6 +23,7 @@ const BusinessDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadDashboardData();
@@ -138,11 +140,11 @@ const BusinessDashboard: React.FC = () => {
   return (
     <Layout>
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">{t('dashboard')}</h1>
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <LoadingSpinner size="lg" text="Cargando dashboard..." />
+            <LoadingSpinner size="lg" text={t('loading')} />
           </div>
         ) : (
           <>
@@ -154,11 +156,11 @@ const BusinessDashboard: React.FC = () => {
                     <Users className="h-8 w-8 text-blue-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Empleados Activos</p>
+                    <p className="text-sm font-medium text-gray-600">{t('active_employees')}</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {activeEmployees.length}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">Total: {employees.length}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('total')}: {employees.length}</p>
                   </div>
                 </div>
               </div>
@@ -169,7 +171,7 @@ const BusinessDashboard: React.FC = () => {
                     <TrendingUp className="h-8 w-8 text-purple-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Con Tip Credit</p>
+                    <p className="text-sm font-medium text-gray-600">{t('with_tip_credit')}</p>
                     <p className="text-2xl font-bold text-gray-900">{tippedEmployees.length}</p>
                   </div>
                 </div>
@@ -181,12 +183,12 @@ const BusinessDashboard: React.FC = () => {
                     <Clock className="h-8 w-8 text-green-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Horas Este Mes</p>
+                    <p className="text-sm font-medium text-gray-600">{t('hours_this_month')}</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {weeklyHours.total > 0 ? weeklyHours.total.toFixed(0) : '0'}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Overtime: {weeklyHours.overtime > 0 ? weeklyHours.overtime.toFixed(0) : '0'}h
+                      {t('overtime')}: {weeklyHours.overtime > 0 ? weeklyHours.overtime.toFixed(0) : '0'}h
                     </p>
                   </div>
                 </div>
@@ -198,11 +200,11 @@ const BusinessDashboard: React.FC = () => {
                     <DollarSign className="h-8 w-8 text-orange-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Nóminas</p>
+                    <p className="text-sm font-medium text-gray-600">{t('payrolls')}</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {payrollCount}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">Total procesadas</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('total_processed')}</p>
                   </div>
                 </div>
               </div>
@@ -213,12 +215,12 @@ const BusinessDashboard: React.FC = () => {
                     <AlertTriangle className={`h-8 w-8 ${breakComplianceTotal > 0 ? 'text-red-600' : 'text-green-600'}`} />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Break Compliance</p>
+                    <p className="text-sm font-medium text-gray-600">{t('break_compliance')}</p>
                     <p className={`text-2xl font-bold ${breakComplianceTotal > 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {loadingBreakCompliance ? '...' : breakComplianceTotal}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {breakComplianceTotal > 0 ? 'Alertas pendientes' : 'Todo en orden'}
+                      {breakComplianceTotal > 0 ? t('pending_alerts') : t('all_clear')}
                     </p>
                   </div>
                 </div>
@@ -233,8 +235,8 @@ const BusinessDashboard: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold">Registrar Empleado</h3>
-                    <p className="text-sm text-blue-100 mt-1">Agregar nuevo empleado al sistema</p>
+                    <h3 className="text-lg font-semibold">{t('register_employee')}</h3>
+                    <p className="text-sm text-blue-100 mt-1">{t('add_new_employee')}</p>
                   </div>
                   <UserPlus className="h-8 w-8" />
                 </div>
@@ -246,8 +248,8 @@ const BusinessDashboard: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold">Control de Tiempo</h3>
-                    <p className="text-sm text-green-100 mt-1">Registro con reconocimiento facial</p>
+                    <h3 className="text-lg font-semibold">{t('time_control')}</h3>
+                    <p className="text-sm text-green-100 mt-1">{t('facial_recognition')}</p>
                   </div>
                   <Clock className="h-8 w-8" />
                 </div>
@@ -259,8 +261,8 @@ const BusinessDashboard: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold">Calcular Nómina</h3>
-                    <p className="text-sm text-purple-100 mt-1">Procesar pagos con tip credit</p>
+                    <h3 className="text-lg font-semibold">{t('calculate_payroll')}</h3>
+                    <p className="text-sm text-purple-100 mt-1">{t('process_payments')}</p>
                   </div>
                   <DollarSign className="h-8 w-8" />
                 </div>
@@ -273,25 +275,25 @@ const BusinessDashboard: React.FC = () => {
                 <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-red-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Alertas de Break Compliance</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">{t('break_compliance_alerts')}</h2>
                     <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full">
-                      {breakComplianceTotal} {breakComplianceTotal === 1 ? 'pendiente' : 'pendientes'}
+                      {breakComplianceTotal} {breakComplianceTotal === 1 ? t('pending') : t('pending_alerts')}
                     </span>
                   </div>
                   <Link
                     to="/business/reports"
                     className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                   >
-                    Ver todas →
+                    {t('view_all')} →
                   </Link>
                 </div>
                 {loadingBreakCompliance ? (
                   <div className="p-6 text-center">
-                    <LoadingSpinner size="sm" text="Cargando alertas..." />
+                    <LoadingSpinner size="sm" text={t('loading')} />
                   </div>
                 ) : breakComplianceAlerts.length === 0 ? (
                   <div className="p-6 text-center text-gray-500">
-                    No hay alertas pendientes
+                    {t('pending')} {t('break_compliance_alerts').toLowerCase()}
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -299,19 +301,19 @@ const BusinessDashboard: React.FC = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Empleado
+                            {t('employee')}
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Código
+                            {t('code')}
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Fecha Violación
+                            {t('violation_date')}
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Déficit
+                            {t('deficit')}
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Severidad
+                            {t('severity')}
                           </th>
                         </tr>
                       </thead>
@@ -323,9 +325,9 @@ const BusinessDashboard: React.FC = () => {
                             low: 'bg-blue-100 text-blue-800',
                           };
                           const severityLabels: { [key: string]: string } = {
-                            high: 'Alta',
-                            medium: 'Media',
-                            low: 'Baja',
+                            high: t('high'),
+                            medium: t('medium'),
+                            low: t('low'),
                           };
                           return (
                             <tr key={alert.id} className="hover:bg-gray-50">
@@ -355,14 +357,14 @@ const BusinessDashboard: React.FC = () => {
                                   {alert.deficit_minutes || 0} min
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  Break requerido no tomado
+                                  {t('break_required_not_taken')}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                   severityColors[alert.severity] || severityColors.low
                                 }`}>
-                                  {severityLabels[alert.severity] || 'Baja'}
+                                  {severityLabels[alert.severity] || t('low')}
                                 </span>
                               </td>
                             </tr>
@@ -376,7 +378,7 @@ const BusinessDashboard: React.FC = () => {
                           to="/business/reports"
                           className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                         >
-                          Ver {breakComplianceAlerts.length - 5} alertas más →
+                          {t('view_more_alerts', { count: breakComplianceAlerts.length - 5 })} →
                         </Link>
                       </div>
                     )}
@@ -388,24 +390,24 @@ const BusinessDashboard: React.FC = () => {
             {/* Recent Employees */}
             <div className="bg-white shadow rounded-lg">
               <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Empleados Recientes</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('recent_employees')}</h2>
                 <Link
                   to="/business/employees"
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  Ver todos →
+                  {t('view_all')} →
                 </Link>
               </div>
               {activeEmployees.length === 0 ? (
                 <div className="p-12 text-center">
                   <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No hay empleados registrados</p>
+                  <p className="text-gray-500">{t('no_employees_registered')}</p>
                   <Link
                     to="/business/employees/register"
                     className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                   >
                     <UserPlus className="h-5 w-5 mr-2" />
-                    Registrar Primer Empleado
+                    {t('register_first_employee')}
                   </Link>
                 </div>
               ) : (
@@ -414,25 +416,25 @@ const BusinessDashboard: React.FC = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Empleado
+                          {t('employee')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Código
+                          {t('code')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Posición
+                          {t('position')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Horas Mes
+                          {t('hours_month')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Propinas
+                          {t('tips')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Asistencia
+                          {t('attendance')}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Estado
+                          {t('status')}
                         </th>
                       </tr>
                     </thead>
@@ -482,17 +484,17 @@ const BusinessDashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-green-600 font-medium">
-                              {empStats?.check_in_count || 0} entradas
+                              {empStats?.check_in_count || 0} {t('check_ins')}
                             </div>
                             <div className="text-xs text-red-600">
-                              {empStats?.check_out_count || 0} salidas
+                              {empStats?.check_out_count || 0} {t('check_outs')}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               employee.has_tip_credit ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                             }`}>
-                              {employee.has_tip_credit ? 'Tipped' : 'Activo'}
+                              {employee.has_tip_credit ? 'Tipped' : t('active')}
                             </span>
                           </td>
                         </tr>

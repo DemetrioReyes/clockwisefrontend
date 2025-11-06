@@ -7,12 +7,14 @@ import { formatErrorMessage } from '../../../services/api';
 import { payratesService } from '../../../services/payrates.service';
 import { getEmployees } from '../../../services/employee.service';
 import { Employee } from '../../../types';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 const CreatePayRate = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const [formData, setFormData] = useState({
     employee_id: '',
@@ -62,7 +64,7 @@ const CreatePayRate = () => {
         required_break_minutes: parseFloat(submitData.required_break_minutes),
         effective_date: submitData.effective_date,
       });
-      showToast('Tarifa de pago creada exitosamente', 'success');
+      showToast(t('pay_rate_created_successfully'), 'success');
       navigate('/business/pay-rates');
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
@@ -76,17 +78,17 @@ const CreatePayRate = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
-            Nueva Tarifa de Pago
+            {t('pay_rate_title')}
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Configure tarifas personalizadas y opciones de cumplimiento laboral
+            {t('pay_rate_description')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-6">
           <div>
             <label htmlFor="employee_id" className="block text-sm font-medium text-gray-700">
-              Empleado *
+              {t('employee_label_required')}
             </label>
             <select
               id="employee_id"
@@ -95,7 +97,7 @@ const CreatePayRate = () => {
               onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
-              <option value="">Seleccione un empleado</option>
+              <option value="">{t('select_employee_placeholder_payrate')}</option>
               {employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {employee.first_name} {employee.last_name} - {employee.employee_code}
@@ -106,12 +108,12 @@ const CreatePayRate = () => {
 
           {/* Tarifa de Pago */}
           <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg mb-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Tarifa de Pago</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">{t('pay_rate_section')}</h3>
             
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label htmlFor="regular_rate" className="block text-sm font-medium text-gray-700">
-                  Tarifa por Hora ($/hr) *
+                  {t('regular_rate_label')}
                 </label>
                 <input
                   type="number"
@@ -131,13 +133,13 @@ const CreatePayRate = () => {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Tarifa base por hora. Para empleados con tip credit, use el cash wage ($10/hr)
+                  {t('base_rate_info')}
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Overtime (Horas Extra)
+                  {t('overtime_label')}
                 </label>
                 <div className="mt-1 p-3 bg-white border-2 border-gray-300 rounded-md">
                   <div className="flex items-center justify-between">
@@ -146,27 +148,27 @@ const CreatePayRate = () => {
                         ${(parseFloat(formData.regular_rate) * 1.5).toFixed(2)}/hr
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Después de {formData.overtime_threshold} horas/semana
+                        {t('after_hours_week', { hours: formData.overtime_threshold })}
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Auto (1.5x)
+                        {t('auto_1_5x')}
                       </span>
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    ✓ Calculado automáticamente: {formData.regular_rate} × 1.5 = ${(parseFloat(formData.regular_rate) * 1.5).toFixed(2)}
+                    {t('automatically_calculated', { rate: formData.regular_rate, result: `$${(parseFloat(formData.regular_rate) * 1.5).toFixed(2)}` })}
                   </p>
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  Requiere pago de 1.5x después de 40 horas/semana
+                  {t('requires_overtime_pay')}
                 </p>
               </div>
 
               <div>
                 <label htmlFor="overtime_threshold" className="block text-sm font-medium text-gray-700">
-                  Horas para Overtime (por semana)
+                  {t('overtime_threshold_label')}
                 </label>
                 <input
                   type="number"
@@ -178,7 +180,7 @@ const CreatePayRate = () => {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Por defecto: 40 horas por semana
+                  {t('default_overtime_threshold')}
                 </p>
               </div>
             </div>
@@ -186,7 +188,7 @@ const CreatePayRate = () => {
 
           {/* Configuración de Cumplimiento */}
           <div className="border-t pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Configuración de Cumplimiento</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">{t('compliance_configuration')}</h3>
             
             <div className="space-y-4">
               {/* Spread of Hours */}
@@ -203,28 +205,28 @@ const CreatePayRate = () => {
                   </div>
                   <div className="ml-3 flex-1">
                     <label htmlFor="spread_hours_enabled" className="font-medium text-gray-700">
-                      Spread of Hours (Extensión de Horas)
+                      {t('spread_hours_label')}
                     </label>
                     <p className="text-sm text-gray-600 mt-1">
-                      Si el empleado trabaja 10+ horas en un día, recibe 1 hora adicional de pago
+                      {t('spread_hours_description')}
                     </p>
                     {formData.spread_hours_enabled && (
                       <div className="mt-3 p-3 bg-white border border-green-200 rounded-md">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-semibold text-gray-700">
-                              Umbral: {formData.spread_hours_threshold} horas/día
+                              {t('spread_hours_threshold_display', { hours: formData.spread_hours_threshold })}
                             </p>
                             <p className="text-sm font-semibold text-gray-700 mt-1">
-                              Pago adicional: 1 hora × ${formData.spread_hours_rate}/hr
+                              {t('additional_pay_display', { rate: `$${formData.spread_hours_rate}` })}
                             </p>
                           </div>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Auto
+                            {t('auto_label')}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500 mt-2">
-                          ✓ Configurado automáticamente: 10 horas/día, tarifa a salario mínimo
+                          {t('automatically_configured_spread')}
                         </p>
                       </div>
                     )}
@@ -246,28 +248,28 @@ const CreatePayRate = () => {
                   </div>
                   <div className="ml-3 flex-1">
                     <label htmlFor="break_compliance_enabled" className="font-medium text-gray-700">
-                      Break Compliance (Cumplimiento de Descansos)
+                      {t('break_compliance_label_payrate')}
                     </label>
                     <p className="text-sm text-gray-600 mt-1">
-                      Requiere 30 minutos de break para turnos de 8+ horas
+                      {t('break_compliance_description_payrate')}
                     </p>
                     {formData.break_compliance_enabled && (
                       <div className="mt-3 p-3 bg-white border border-purple-200 rounded-md">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-semibold text-gray-700">
-                              Umbral: {formData.break_threshold_hours} horas
+                              {t('break_threshold_display', { hours: formData.break_threshold_hours })}
                             </p>
                             <p className="text-sm font-semibold text-gray-700 mt-1">
-                              Break requerido: {formData.required_break_minutes} minutos
+                              {t('break_required_display', { minutes: formData.required_break_minutes })}
                             </p>
                           </div>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            Auto
+                            {t('auto_label')}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500 mt-2">
-                          ✓ Configurado automáticamente: 8 horas = 30 minutos de break
+                          {t('automatically_configured_break')}
                         </p>
                       </div>
                     )}
@@ -279,7 +281,7 @@ const CreatePayRate = () => {
 
           <div>
             <label htmlFor="effective_date" className="block text-sm font-medium text-gray-700">
-              Fecha Efectiva *
+              {t('effective_date_label')}
             </label>
             <input
               type="date"
@@ -297,15 +299,15 @@ const CreatePayRate = () => {
               onClick={() => navigate('/business/pay-rates')}
               className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading && <LoadingSpinner />}
-              {loading ? 'Creando...' : 'Crear Tarifa'}
+              {loading && <LoadingSpinner size="sm" />}
+              {loading ? t('creating_rate') : t('create_rate')}
             </button>
           </div>
         </form>

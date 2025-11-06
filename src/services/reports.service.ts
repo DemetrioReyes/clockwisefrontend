@@ -30,10 +30,18 @@ export const reportsService = {
   },
 
   getSickLeaveReport: async (year: number, employeeId?: string): Promise<SickLeaveReport[]> => {
-    const response = await api.post(API_ENDPOINTS.SICK_LEAVE_REPORT, {
-      year,
-      employee_id: employeeId,
-    });
+    // Asegurar que el año sea un número válido
+    const validYear = year && !isNaN(year) && year > 0 ? year : new Date().getFullYear();
+    
+    const requestBody: any = {
+      year: validYear,
+    };
+    
+    if (employeeId) {
+      requestBody.employee_id = employeeId;
+    }
+    
+    const response = await api.post(API_ENDPOINTS.SICK_LEAVE_REPORT, requestBody);
     return response.data;
   },
 

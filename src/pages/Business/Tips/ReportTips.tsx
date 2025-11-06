@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import { getEmployees } from '../../../services/employee.service';
 import { deductionsService } from '../../../services/deductions.service';
 import { formatErrorMessage } from '../../../services/api';
@@ -18,6 +19,7 @@ const ReportTips: React.FC = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadEmployees();
@@ -60,7 +62,7 @@ const ReportTips: React.FC = () => {
     e.preventDefault();
 
     if (!selectedEmployee || !amount) {
-      showToast('Por favor complete todos los campos requeridos', 'error');
+      showToast(t('please_complete_all_fields'), 'error');
       return;
     }
 
@@ -69,17 +71,17 @@ const ReportTips: React.FC = () => {
     try {
       if (incidentType === 'tip') {
         await deductionsService.reportTips(selectedEmployee, parseFloat(amount), date, date, description);
-        showToast('¡Propinas reportadas exitosamente!', 'success');
+        showToast(t('tips_reported_successfully'), 'success');
       } else {
         await deductionsService.createIncident({
           employee_id: selectedEmployee,
           incident_type: 'bonus',
-          incident_name: 'Bonus payment',
+          incident_name: t('bonus_label'),
           amount: parseFloat(amount),
-          description: description || 'Bonus payment',
+          description: description || t('bonus_label'),
           incident_date: date,
         });
-        showToast('¡Bono agregado exitosamente!', 'success');
+        showToast(t('bonus_added_successfully'), 'success');
       }
 
       // Reset form
@@ -98,12 +100,12 @@ const ReportTips: React.FC = () => {
 
   const getIncidentTypeLabel = (type: string): string => {
     const labels: { [key: string]: string } = {
-      bonus: 'Bono',
-      penalty: 'Penalización',
-      tips_reported: 'Propinas Reportadas',
-      warning: 'Advertencia',
-      advance: 'Adelanto',
-      other: 'Otro',
+      bonus: t('bonus_label'),
+      penalty: t('penalty_label'),
+      tips_reported: t('tips_reported_label'),
+      warning: t('warning_label'),
+      advance: t('advance_label'),
+      other: t('other_label'),
     };
     return labels[type] || type;
   };
@@ -128,10 +130,10 @@ const ReportTips: React.FC = () => {
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-              Propinas, Bonos e Incidentes
+              {t('tips_incidents_subtitle')}
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Registre propinas, bonos y vea el historial de incidentes
+              {t('tips_incidents_description')}
             </p>
           </div>
         </div>
@@ -139,7 +141,7 @@ const ReportTips: React.FC = () => {
         {/* Selector de Empleado Global */}
         <div className="bg-white shadow rounded-lg p-6 mb-6">
           <label htmlFor="employee" className="block text-sm font-medium text-gray-700 mb-2">
-            Empleado *
+            {t('employee')} *
           </label>
           <select
             id="employee"
@@ -148,7 +150,7 @@ const ReportTips: React.FC = () => {
             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             required
           >
-            <option value="">Seleccione un empleado...</option>
+            <option value="">{t('select_employee_placeholder_tips')}</option>
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>
                 {emp.employee_code} - {emp.first_name} {emp.last_name} ({emp.position})
@@ -157,7 +159,7 @@ const ReportTips: React.FC = () => {
           </select>
           {selectedEmployeeData?.has_tip_credit && (
             <p className="text-sm text-blue-600 mt-1">
-              Este empleado tiene tip credit habilitado
+              {t('employee_has_tip_credit')}
             </p>
           )}
         </div>
@@ -165,12 +167,12 @@ const ReportTips: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Formulario */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Reportar Nuevo</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('report_new')}</h3>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Tipo de Incidente */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo
+                  {t('type')}
                 </label>
                 <div className="flex gap-6">
                   <label className="flex items-center cursor-pointer">
@@ -181,7 +183,7 @@ const ReportTips: React.FC = () => {
                       onChange={() => setIncidentType('tip')}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                    <span className="ml-2 text-sm text-gray-700">Propinas</span>
+                    <span className="ml-2 text-sm text-gray-700">{t('tips')}</span>
                   </label>
                   <label className="flex items-center cursor-pointer">
                     <input
@@ -191,7 +193,7 @@ const ReportTips: React.FC = () => {
                       onChange={() => setIncidentType('bonus')}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                    <span className="ml-2 text-sm text-gray-700">Bono</span>
+                    <span className="ml-2 text-sm text-gray-700">{t('bonus')}</span>
                   </label>
                 </div>
               </div>
@@ -199,7 +201,7 @@ const ReportTips: React.FC = () => {
               {/* Monto */}
               <div>
                 <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Monto *
+                  {t('amount')} *
                 </label>
                 <div className="relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -222,7 +224,7 @@ const ReportTips: React.FC = () => {
               {/* Fecha */}
               <div>
                 <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha *
+                  {t('date')} *
                 </label>
                 <input
                   type="date"
@@ -237,7 +239,7 @@ const ReportTips: React.FC = () => {
               {/* Descripción */}
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                  Descripción
+                  {t('description')}
                 </label>
                 <textarea
                   id="description"
@@ -245,7 +247,7 @@ const ReportTips: React.FC = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder={incidentType === 'tip' ? 'Notas opcionales sobre las propinas' : 'Razón del bono'}
+                  placeholder={incidentType === 'tip' ? t('tips_notes_placeholder') : t('bonus_reason_placeholder')}
                 />
               </div>
 
@@ -256,18 +258,15 @@ const ReportTips: React.FC = () => {
               >
                 {loading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Guardando...
+                    <LoadingSpinner size="sm" />
+                    <span className="ml-2">{t('saving')}</span>
                   </>
                 ) : (
                   <>
                     <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Reportar {incidentType === 'tip' ? 'Propinas' : 'Bono'}
+                    {incidentType === 'tip' ? t('report_tips_label') : t('report_bonus_label')}
                   </>
                 )}
               </button>
@@ -276,12 +275,12 @@ const ReportTips: React.FC = () => {
 
           {/* Historial */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Historial de Incidentes</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('incident_history')}</h3>
             {loadingHistory ? (
               <LoadingSpinner />
             ) : incidents.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-500">No hay incidentes registrados para este empleado</p>
+                <p className="text-gray-500">{t('no_incidents_registered')}</p>
               </div>
             ) : (
               <div className="space-y-3 max-h-[600px] overflow-y-auto">

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { ToastProvider } from './components/Common/Toast';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicHeader from './components/Layout/PublicHeader';
@@ -44,10 +45,11 @@ import TipCreditCalculator from './pages/Business/TipCredit/TipCreditCalculator'
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <PublicHeader />
-          <Routes>
+      <LanguageProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <PublicHeader />
+            <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/super-admin/login" element={<SuperAdminLogin />} />
@@ -258,6 +260,7 @@ function App() {
           </Routes>
         </ToastProvider>
       </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

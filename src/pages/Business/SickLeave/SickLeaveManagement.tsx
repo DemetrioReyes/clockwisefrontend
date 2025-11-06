@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import { formatErrorMessage } from '../../../services/api';
 import { sickleaveService } from '../../../services/sickleave.service';
 import { getEmployees } from '../../../services/employee.service';
@@ -24,6 +25,7 @@ const SickLeaveManagement = () => {
   const [signing, setSigning] = useState(false);
   const signatureRef = useRef<any>(null);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const [usageForm, setUsageForm] = useState({
     employee_code: '',
@@ -121,7 +123,7 @@ const SickLeaveManagement = () => {
 
   const handleSignComprobante = async () => {
     if (!signatureRef.current || signatureRef.current.isEmpty()) {
-      showToast('Por favor, firma el comprobante antes de continuar', 'error');
+      showToast(t('please_sign_receipt'), 'error');
       return;
     }
 
@@ -148,7 +150,7 @@ const SickLeaveManagement = () => {
         },
       });
 
-      showToast('Comprobante firmado y guardado exitosamente', 'success');
+      showToast(t('receipt_signed_successfully'), 'success');
       setShowSignatureModal(false);
       setCurrentUsage(null);
       if (signatureRef.current) {
@@ -198,11 +200,11 @@ const SickLeaveManagement = () => {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-gray-900">
-                Gestión de Sick Leave
-              </h2>
+                {t('sick_leave_title')}
+          </h2>
               <p className="mt-1 text-sm text-gray-600 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
-                NY State: 1 hora de sick leave por cada 30 horas trabajadas (máximo 40 hrs/año)
+                {t('ny_state_info')}
               </p>
             </div>
           </div>
@@ -216,13 +218,13 @@ const SickLeaveManagement = () => {
                 <Users className="w-5 h-5 text-indigo-600" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Sick Leave de Todos los Empleados</h3>
-                <p className="text-sm text-gray-600 mt-1">Resumen completo del año seleccionado</p>
+                <h3 className="text-xl font-bold text-gray-900">{t('all_employees_sick_leave')}</h3>
+                <p className="text-sm text-gray-600 mt-1">{t('complete_year_summary')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <label htmlFor="year_select" className="text-sm font-semibold text-gray-700">
-                Año:
+                {t('year_label')}:
               </label>
               <select
                 id="year_select"
@@ -246,7 +248,7 @@ const SickLeaveManagement = () => {
           ) : allSickLeaves.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
               <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No hay datos de sick leave para el año {selectedYear}</p>
+              <p className="text-gray-500 font-medium">{t('no_data_for_year', { year: selectedYear })}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -254,25 +256,25 @@ const SickLeaveManagement = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Empleado
+                      {t('employee')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Código
+                      {t('code')}
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Horas Acumuladas
+                      {t('hours_earned')}
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Horas Usadas
+                      {t('hours_used')}
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Horas Restantes
+                      {t('hours_available')}
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Estado
+                      {t('status')}
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Acciones
+                      {t('actions')}
                     </th>
                   </tr>
                 </thead>
@@ -308,11 +310,11 @@ const SickLeaveManagement = () => {
                         {((sickLeaveItem.hours_available ?? sickLeaveItem.hours_remaining ?? (sickLeaveItem.hours_earned ?? sickLeaveItem.hours_accrued ?? 0) - (sickLeaveItem.hours_used ?? 0)) > 0) ? (
                           <span className="px-3 py-1 inline-flex text-xs font-semibold text-green-800 bg-green-100 rounded-full border border-green-300">
                             <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Disponible
+                            {t('available')}
                           </span>
                         ) : (
                           <span className="px-3 py-1 inline-flex text-xs font-semibold text-gray-800 bg-gray-100 rounded-full border border-gray-300">
-                            Agotado
+                            {t('exhausted')}
                           </span>
                         )}
                       </td>
@@ -321,7 +323,7 @@ const SickLeaveManagement = () => {
                           onClick={() => handleViewHistory(sickLeaveItem.employee_id)}
                           className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
                         >
-                          Ver Historial
+                          {t('view_history')}
                         </button>
                       </td>
                     </tr>
@@ -342,10 +344,10 @@ const SickLeaveManagement = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    Historial de Uso - {usageHistory.employee_code}
+                    {t('history_usage')} - {usageHistory.employee_code}
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    Año {usageHistory.year} - {usageHistory.total_usage} uso(s) registrado(s)
+                    {t('year_label')} {usageHistory.year} - {usageHistory.total_usage} {t('total_usage_count')}
                   </p>
                 </div>
               </div>
@@ -356,7 +358,7 @@ const SickLeaveManagement = () => {
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Cerrar
+                {t('close')}
               </button>
             </div>
 
@@ -367,7 +369,7 @@ const SickLeaveManagement = () => {
             ) : usageHistory.usage_history && usageHistory.usage_history.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No hay historial de uso para este empleado</p>
+                <p className="text-gray-500 font-medium">{t('no_usage_history')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -389,12 +391,12 @@ const SickLeaveManagement = () => {
                         {usage.reason && (
                           <div className="ml-7 mb-2">
                             <p className="text-sm text-gray-600">
-                              <span className="font-semibold">Razón:</span> {usage.reason}
+                              <span className="font-semibold">{t('reason')}:</span> {usage.reason}
                             </p>
                           </div>
                         )}
                         <div className="ml-7 text-xs text-gray-500">
-                          <span>Registrado: {new Date(usage.created_at).toLocaleDateString('es-ES', {
+                          <span>{t('created')}: {new Date(usage.created_at).toLocaleDateString('es-ES', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric',
@@ -405,8 +407,8 @@ const SickLeaveManagement = () => {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="bg-blue-100 px-4 py-2 rounded-lg border border-blue-300">
-                          <p className="text-xs font-semibold text-blue-700 mb-0.5">Horas Usadas</p>
-                          <p className="text-lg font-bold text-blue-900">{usage.hours_used} hrs</p>
+                          <p className="text-xs font-semibold text-blue-700 mb-0.5">{t('hours_used')}</p>
+                          <p className="text-lg font-bold text-blue-900">{usage.hours_used} {t('hrs')}</p>
                         </div>
                       </div>
                     </div>
@@ -423,14 +425,14 @@ const SickLeaveManagement = () => {
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <Plus className="w-5 h-5 text-purple-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">Solicitar Uso de Sick Leave</h3>
+                <h3 className="text-xl font-bold text-gray-900">{t('request_usage_title')}</h3>
               </div>
               
               <form onSubmit={handleRequestUsage} className="space-y-5">
                 <div>
                   <label htmlFor="employee_select" className="block text-sm font-semibold text-gray-700 mb-2">
                     <Users className="w-4 h-4 inline mr-1" />
-                    Seleccionar Empleado *
+                    {t('select_employee_label')} *
                   </label>
                   <select
                     id="employee_select"
@@ -439,19 +441,19 @@ const SickLeaveManagement = () => {
                     onChange={(e) => setSelectedEmployee(e.target.value)}
                     className="block w-full px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white font-medium"
                   >
-                    <option value="">-- Seleccione un empleado --</option>
-                    {employees.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.first_name} {employee.last_name} - {employee.employee_code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <option value="">{t('select_employee_placeholder')}</option>
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.first_name} {employee.last_name} - {employee.employee_code}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
                 <div>
                   <label htmlFor="usage_date" className="block text-sm font-semibold text-gray-700 mb-2">
                     <Calendar className="w-4 h-4 inline mr-1" />
-                    Fecha *
+                    {t('usage_date_label_form')} *
                   </label>
                   <input
                     type="date"
@@ -466,7 +468,7 @@ const SickLeaveManagement = () => {
                 <div>
                   <label htmlFor="hours_used" className="block text-sm font-semibold text-gray-700 mb-2">
                     <Clock className="w-4 h-4 inline mr-1" />
-                    Horas a Usar *
+                    {t('hours_to_use_label_form')} *
                   </label>
                   <input
                     type="number"
@@ -484,7 +486,7 @@ const SickLeaveManagement = () => {
                 <div>
                   <label htmlFor="reason" className="block text-sm font-semibold text-gray-700 mb-2">
                     <FileText className="w-4 h-4 inline mr-1" />
-                    Razón (Opcional)
+                    {t('reason_optional')}
                   </label>
                   <textarea
                     id="reason"
@@ -492,7 +494,7 @@ const SickLeaveManagement = () => {
                     value={usageForm.reason}
                     onChange={(e) => setUsageForm({ ...usageForm, reason: e.target.value })}
                     className="block w-full px-4 py-3 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-medium resize-none"
-                    placeholder="Describe la razón del uso de sick leave..."
+                    placeholder={t('describe_reason_placeholder')}
                   />
                 </div>
 
@@ -504,12 +506,12 @@ const SickLeaveManagement = () => {
                   {loading ? (
                     <>
                       <LoadingSpinner size="sm" />
-                      <span className="ml-2">Procesando...</span>
+                      <span className="ml-2">{t('processing')}</span>
                     </>
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      Solicitar Uso
+                      {t('request_usage_btn_text')}
                     </>
                   )}
                 </button>
@@ -523,7 +525,7 @@ const SickLeaveManagement = () => {
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
                 <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                   <PenTool className="w-6 h-6 text-blue-600" />
-                  Comprobante de Uso de Sick Leave
+                  {t('receipt_title')}
                 </h3>
                 <button
                   onClick={handleCloseModal}
@@ -537,21 +539,21 @@ const SickLeaveManagement = () => {
                 {/* Contenido del Comprobante */}
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
                   <div className="text-center mb-6">
-                    <h4 className="text-2xl font-bold text-gray-900 mb-2">COMPROBANTE DE USO</h4>
+                    <h4 className="text-2xl font-bold text-gray-900 mb-2">{t('usage_receipt')}</h4>
                     <h5 className="text-xl font-semibold text-gray-700">Sick Leave - NY State</h5>
-                  </div>
+          </div>
 
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="bg-white p-4 rounded-lg border border-blue-200">
-                      <p className="text-sm font-semibold text-gray-600 mb-1">Empleado</p>
+                      <p className="text-sm font-semibold text-gray-600 mb-1">{t('employee')}</p>
                       <p className="text-lg font-bold text-gray-900">{currentUsage.employee_name || currentUsage.employee_code}</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg border border-blue-200">
-                      <p className="text-sm font-semibold text-gray-600 mb-1">Código</p>
+                      <p className="text-sm font-semibold text-gray-600 mb-1">{t('code')}</p>
                       <p className="text-lg font-bold text-gray-900">{currentUsage.employee_code}</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg border border-blue-200">
-                      <p className="text-sm font-semibold text-gray-600 mb-1">Fecha de Uso</p>
+                      <p className="text-sm font-semibold text-gray-600 mb-1">{t('usage_date_receipt')}</p>
                       <p className="text-lg font-bold text-gray-900">
                         {new Date(currentUsage.usage_date).toLocaleDateString('es-ES', {
                           year: 'numeric',
@@ -561,28 +563,28 @@ const SickLeaveManagement = () => {
                       </p>
                     </div>
                     <div className="bg-white p-4 rounded-lg border border-blue-200">
-                      <p className="text-sm font-semibold text-gray-600 mb-1">Horas Usadas</p>
-                      <p className="text-2xl font-bold text-blue-700">{currentUsage.hours_used} hrs</p>
+                      <p className="text-sm font-semibold text-gray-600 mb-1">{t('hours_used_receipt')}</p>
+                      <p className="text-2xl font-bold text-blue-700">{currentUsage.hours_used} {t('hrs')}</p>
                     </div>
                   </div>
 
                   {currentUsage.reason && (
                     <div className="bg-white p-4 rounded-lg border border-blue-200 mb-6">
-                      <p className="text-sm font-semibold text-gray-600 mb-2">Razón</p>
+                      <p className="text-sm font-semibold text-gray-600 mb-2">{t('reason')}</p>
                       <p className="text-gray-700">{currentUsage.reason}</p>
                     </div>
                   )}
 
                   <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
                     <p className="text-sm text-yellow-800 font-semibold">
-                      ⚠️ Este comprobante tiene validez legal. Al firmar, confirmas que la información es correcta y has utilizado las horas de sick leave indicadas.
+                      {t('legal_validity_warning')}
                     </p>
                   </div>
 
                   {/* Área de Firma */}
                   <div className="mb-6">
                     <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Firma Digital del Empleado
+                      {t('digital_signature_employee')}
                     </label>
                     <div className="border-2 border-gray-300 rounded-lg bg-white overflow-hidden">
                       <SignatureCanvas
@@ -601,7 +603,7 @@ const SickLeaveManagement = () => {
                         onClick={() => signatureRef.current?.clear()}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                       >
-                        Limpiar Firma
+                        {t('clear_signature')}
                       </button>
                     </div>
                   </div>
@@ -613,7 +615,7 @@ const SickLeaveManagement = () => {
                       className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
                     >
                       <Printer className="w-5 h-5" />
-                      Imprimir
+                      {t('print_btn')}
                     </button>
                     <button
                       onClick={handleSignComprobante}
@@ -623,12 +625,12 @@ const SickLeaveManagement = () => {
                       {signing ? (
                         <>
                           <LoadingSpinner size="sm" />
-                          Guardando...
+                          {t('saving')}
                         </>
                       ) : (
                         <>
                           <PenTool className="w-5 h-5" />
-                          Firmar y Guardar
+                          {t('sign_and_save_btn')}
                         </>
                       )}
                     </button>

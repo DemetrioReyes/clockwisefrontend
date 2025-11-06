@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import { formatErrorMessage } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import employeeService from '../../../services/employee.service';
@@ -19,12 +20,12 @@ const getRecordTypeBadge = (type: string) => {
   return badges[type] || 'bg-gray-100 text-gray-800';
 };
 
-const getRecordTypeLabel = (type: string) => {
+const getRecordTypeLabel = (type: string, t: (key: string) => string) => {
   const labels: { [key: string]: string } = {
-    check_in: 'Entrada',
-    check_out: 'Salida',
-    break_start: 'Inicio Break',
-    break_end: 'Fin Break',
+    check_in: t('check_in'),
+    check_out: t('check_out'),
+    break_start: t('break_start'),
+    break_end: t('break_end'),
   };
   return labels[type] || type;
 };
@@ -32,6 +33,7 @@ const getRecordTypeLabel = (type: string) => {
 const TimeEntry: React.FC = () => {
   const { showToast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [recordType, setRecordType] = useState<'check_in' | 'check_out' | 'break_start' | 'break_end'>('check_in');
@@ -104,7 +106,7 @@ const TimeEntry: React.FC = () => {
     e.preventDefault();
     
     if (!selectedImage) {
-      showToast('Por favor seleccione una imagen facial', 'error');
+      showToast(t('please_select_facial_image'), 'error');
       return;
     }
 
@@ -128,7 +130,7 @@ const TimeEntry: React.FC = () => {
       console.log('Respuesta del servidor:', JSON.stringify(result, null, 2));
       console.log('Registro exitoso:', result);
       
-      showToast('Control de tiempo registrado exitosamente', 'success');
+      showToast(t('time_registered_successfully'), 'success');
       setSelectedImage(null);
       setPreviewUrl(null);
       
@@ -151,16 +153,16 @@ const TimeEntry: React.FC = () => {
     <Layout>
       <div className="max-w-7xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Control de Tiempo</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('time_tracking_title')}</h1>
           <p className="text-gray-600 mt-2">
-            Registre entrada, salida y breaks usando reconocimiento facial
+            {t('time_tracking_description')}
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Formulario de Registro */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Nuevo Registro</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('new_record')}</h2>
             
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
               <div className="flex">
@@ -169,7 +171,7 @@ const TimeEntry: React.FC = () => {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-blue-700">
-                    El sistema utiliza reconocimiento facial para identificar automáticamente al empleado.
+                    {t('facial_recognition_info')}
                   </p>
                 </div>
               </div>
@@ -178,7 +180,7 @@ const TimeEntry: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Registro *
+                  {t('record_type')} *
                 </label>
                 <select
                   value={recordType}
@@ -186,16 +188,16 @@ const TimeEntry: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
-                  <option value="check_in">Entrada (Check In)</option>
-                  <option value="check_out">Salida (Check Out)</option>
-                  <option value="break_start">Inicio de Break</option>
-                  <option value="break_end">Fin de Break</option>
+                  <option value="check_in">{t('check_in_option')}</option>
+                  <option value="check_out">{t('check_out_option')}</option>
+                  <option value="break_start">{t('break_start')}</option>
+                  <option value="break_end">{t('break_end')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Foto Facial *
+                  {t('facial_photo')} *
                 </label>
                 <div className="space-y-4">
                   {previewUrl && (
@@ -211,7 +213,7 @@ const TimeEntry: React.FC = () => {
                       <div className="text-center">
                         <Camera className="mx-auto h-12 w-12 text-gray-400" />
                         <p className="mt-2 text-sm text-gray-600">
-                          {previewUrl ? 'Cambiar Foto' : 'Tomar/Subir Foto'}
+                          {previewUrl ? t('change_photo') : t('take_upload_photo')}
                         </p>
                       </div>
                     </div>
@@ -235,14 +237,14 @@ const TimeEntry: React.FC = () => {
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
-                  Limpiar
+                  {t('clear')}
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !selectedImage}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Procesando...' : 'Registrar'}
+                  {loading ? t('processing') : t('register')}
                 </button>
               </div>
             </form>
@@ -250,13 +252,13 @@ const TimeEntry: React.FC = () => {
 
           {/* Filtros y Estadísticas */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Filtros</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('filters')}</h2>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="inline w-4 h-4 mr-1" />
-                  Fecha Inicio
+                  {t('start_date')}
                 </label>
                 <input
                   type="date"
@@ -269,7 +271,7 @@ const TimeEntry: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="inline w-4 h-4 mr-1" />
-                  Fecha Fin
+                  {t('end_date')}
                 </label>
                 <input
                   type="date"
@@ -284,7 +286,7 @@ const TimeEntry: React.FC = () => {
                 disabled={loading}
                 className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {loading ? 'Cargando...' : 'Aplicar Filtros'}
+                {loading ? t('loading') : t('apply_filters')}
               </button>
 
               <button
@@ -294,17 +296,17 @@ const TimeEntry: React.FC = () => {
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
-                Limpiar Filtros
+                {t('clear_filters')}
               </button>
             </div>
 
             <div className="mt-6 pt-6 border-t">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Información</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">{t('information')}</h3>
               <div className="space-y-2 text-xs text-gray-600">
-                <p>• <strong>Check In:</strong> Entrada al trabajo</p>
-                <p>• <strong>Check Out:</strong> Salida del trabajo</p>
-                <p>• <strong>Break Start:</strong> Inicio de descanso</p>
-                <p>• <strong>Break End:</strong> Fin de descanso</p>
+                <p>• <strong>{t('check_in')}:</strong> {t('check_in_info')}</p>
+                <p>• <strong>{t('check_out')}:</strong> {t('check_out_info')}</p>
+                <p>• <strong>{t('break_start')}:</strong> {t('break_start_info')}</p>
+                <p>• <strong>{t('break_end')}:</strong> {t('break_end_info')}</p>
               </div>
             </div>
           </div>
@@ -317,9 +319,9 @@ const TimeEntry: React.FC = () => {
               <div className="flex items-center">
                 <Users className="h-5 w-5 text-green-600 mr-2" />
                 <div>
-                  <h2 className="text-lg font-semibold text-green-900">Resumen de Registros de Tiempo</h2>
+                  <h2 className="text-lg font-semibold text-green-900">{t('time_summary')}</h2>
                   <p className="text-sm text-green-700 mt-1">
-                    Datos del último mes
+                    {t('last_month_data')}
                   </p>
                 </div>
               </div>
@@ -329,22 +331,22 @@ const TimeEntry: React.FC = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Empleado
+                      {t('employee')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Horas Regulares
+                      {t('regular_hours')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Horas Extra
+                      {t('overtime_hours')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Horas
+                      {t('total_hours')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Entradas
+                      {t('check_ins_count')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Salidas
+                      {t('check_outs_count')}
                     </th>
                   </tr>
                 </thead>
@@ -382,9 +384,9 @@ const TimeEntry: React.FC = () => {
         {timeEntries.length > 0 && (
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold">Registros de Tiempo Detallados</h2>
+            <h2 className="text-lg font-semibold">{t('detailed_time_records')}</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Total: {timeEntries.length} registros
+              {t('total_records', { count: timeEntries.length })}
             </p>
           </div>
 
@@ -398,19 +400,19 @@ const TimeEntry: React.FC = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Empleado
+                      {t('employee')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo
+                      {t('type')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha/Hora
+                      {t('date_time')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Confianza
+                      {t('confidence')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Dispositivo
+                      {t('device')}
                     </th>
                   </tr>
                 </thead>
@@ -427,7 +429,7 @@ const TimeEntry: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRecordTypeBadge(entry.record_type)}`}>
-                          {getRecordTypeLabel(entry.record_type)}
+                          {getRecordTypeLabel(entry.record_type, t)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

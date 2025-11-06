@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import employeeService from '../../../services/employee.service';
 import { Employee } from '../../../types';
 import { Users, Search, Plus, Mail, Phone, Edit2, X } from 'lucide-react';
@@ -42,6 +43,7 @@ const EmployeeList: React.FC = () => {
   });
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadEmployees();
@@ -171,7 +173,7 @@ const EmployeeList: React.FC = () => {
       }
 
       await employeeService.updateEmployee(editingEmployee.id, updateData);
-      showToast('Empleado actualizado exitosamente', 'success');
+      showToast(t('employee_updated_successfully'), 'success');
       await loadEmployees();
       handleCancelEdit();
     } catch (error: any) {
@@ -185,13 +187,13 @@ const EmployeeList: React.FC = () => {
     <Layout>
       <div>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Employees</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('employees')}</h1>
           <Link
             to="/business/employees/register"
             className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            <span>Register Employee</span>
+            <span>{t('register_new_employee')}</span>
           </Link>
         </div>
 
@@ -202,7 +204,7 @@ const EmployeeList: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by name, position, or email..."
+                placeholder={t('search_employees')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -214,20 +216,20 @@ const EmployeeList: React.FC = () => {
           <div className="p-6">
             {loading ? (
               <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" text="Loading employees..." />
+                <LoadingSpinner size="lg" text={t('loading')} />
               </div>
             ) : filteredEmployees.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600">
-                  {searchTerm ? 'No employees found matching your search' : 'No employees registered yet'}
+                  {searchTerm ? t('no_employees_found') : t('no_employees_registered')}
                 </p>
                 {!searchTerm && (
                   <Link
                     to="/business/employees/register"
                     className="text-blue-600 hover:text-blue-800 mt-2 inline-block"
                   >
-                    Register your first employee
+                    {t('register_first_employee')}
                   </Link>
                 )}
               </div>
@@ -237,25 +239,25 @@ const EmployeeList: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Employee
+                        {t('employee')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Position
+                        {t('position')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Contact
+                        {t('contact')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Hourly Rate
+                        {t('hourly_rate')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
+                        {t('type')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        {t('status')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        {t('actions')}
                       </th>
                     </tr>
                   </thead>
@@ -269,7 +271,7 @@ const EmployeeList: React.FC = () => {
                                 {employee.first_name} {employee.last_name}
                               </div>
                               <div className="text-sm text-gray-500">
-                                Hired: {new Date(employee.hire_date).toLocaleDateString()}
+                                {t('hire_date')}: {new Date(employee.hire_date).toLocaleDateString()}
                               </div>
                             </div>
                           </div>
@@ -302,7 +304,7 @@ const EmployeeList: React.FC = () => {
                                 : 'bg-gray-100 text-gray-800'
                             }`}
                           >
-                            {employee.has_tip_credit ? 'Tipped' : 'Regular'}
+                            {employee.has_tip_credit ? t('tipped') : t('regular')}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -313,7 +315,7 @@ const EmployeeList: React.FC = () => {
                                 : 'bg-red-100 text-red-800'
                             }`}
                           >
-                            {employee.is_active ? 'Active' : 'Inactive'}
+                            {employee.is_active ? t('active') : t('inactive')}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -322,7 +324,7 @@ const EmployeeList: React.FC = () => {
                             className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
                           >
                             <Edit2 className="w-4 h-4" />
-                            Edit
+                            {t('edit')}
                           </button>
                         </td>
                       </tr>
@@ -341,7 +343,7 @@ const EmployeeList: React.FC = () => {
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl z-10">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    Editar Empleado
+                    {t('edit_employee')}
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
                     {editingEmployee.first_name} {editingEmployee.last_name} - {editingEmployee.employee_code}
@@ -358,10 +360,10 @@ const EmployeeList: React.FC = () => {
               <div className="p-6 space-y-6">
                 {/* Información Personal */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900">Información Personal</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">{t('personal_info')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('first_name')} *</label>
                       <input
                         type="text"
                         name="first_name"
@@ -372,7 +374,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Apellido *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('last_name')} *</label>
                       <input
                         type="text"
                         name="last_name"
@@ -383,7 +385,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Alias</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('alias')}</label>
                       <input
                         type="text"
                         name="alias"
@@ -394,7 +396,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">SSN *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('ssn')} *</label>
                       <input
                         type="text"
                         name="ssn"
@@ -406,7 +408,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Nacimiento *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('date_of_birth')} *</label>
                       <input
                         type="date"
                         name="date_of_birth"
@@ -417,7 +419,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('phone')} *</label>
                       <input
                         type="tel"
                         name="phone"
@@ -428,7 +430,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('email')}</label>
                       <input
                         type="email"
                         name="email"
@@ -442,10 +444,10 @@ const EmployeeList: React.FC = () => {
 
                 {/* Dirección */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900">Dirección</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">{t('address')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Calle *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('street_address')} *</label>
                       <input
                         type="text"
                         name="street_address"
@@ -456,7 +458,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Ciudad *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('city')} *</label>
                       <input
                         type="text"
                         name="city"
@@ -467,7 +469,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Estado *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('state')} *</label>
                       <input
                         type="text"
                         name="state"
@@ -479,7 +481,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Código Postal *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('zip_code')} *</label>
                       <input
                         type="text"
                         name="zip_code"
@@ -494,10 +496,10 @@ const EmployeeList: React.FC = () => {
 
                 {/* Información de Empleo */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900">Información de Empleo</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900">{t('employment_info')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Empleado *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('employee_type')} *</label>
                       <select
                         name="employee_type"
                         value={editForm.employee_type}
@@ -505,14 +507,14 @@ const EmployeeList: React.FC = () => {
                         className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       >
-                        <option value="hourly_tipped_waiter">Mesero (Con Tip Credit)</option>
-                        <option value="hourly_tipped_delivery">Delivery (Con Tip Credit)</option>
-                        <option value="hourly_fixed">Por Hora (Sin Tip Credit)</option>
-                        <option value="exempt_salary">Salario Exento</option>
+                        <option value="hourly_tipped_waiter">{t('hourly_tipped_waiter')}</option>
+                        <option value="hourly_tipped_delivery">{t('hourly_tipped_delivery')}</option>
+                        <option value="hourly_fixed">{t('hourly_fixed')}</option>
+                        <option value="exempt_salary">{t('exempt_salary')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Posición *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('position')} *</label>
                       <input
                         type="text"
                         name="position"
@@ -523,7 +525,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Tarifa por Hora *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('hourly_rate')} *</label>
                       <input
                         type="number"
                         name="hourly_rate"
@@ -536,7 +538,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Frecuencia de Pago *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('pay_frequency')} *</label>
                       <select
                         name="pay_frequency"
                         value={editForm.pay_frequency}
@@ -544,13 +546,13 @@ const EmployeeList: React.FC = () => {
                         className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       >
-                        <option value="weekly">Semanal</option>
-                        <option value="biweekly">Quincenal</option>
-                        <option value="monthly">Mensual</option>
+                        <option value="weekly">{t('weekly')}</option>
+                        <option value="biweekly">{t('biweekly')}</option>
+                        <option value="monthly">{t('monthly')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Contratación *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('hire_date')} *</label>
                       <input
                         type="date"
                         name="hire_date"
@@ -561,7 +563,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('payment_method')} *</label>
                       <select
                         name="payment_method"
                         value={editForm.payment_method}
@@ -569,13 +571,13 @@ const EmployeeList: React.FC = () => {
                         className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       >
-                        <option value="cash">Efectivo</option>
-                        <option value="transfer">Transferencia</option>
-                        <option value="check">Cheque</option>
+                        <option value="cash">{t('cash')}</option>
+                        <option value="transfer">{t('transfer')}</option>
+                        <option value="check">{t('check')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Turno Regular</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('regular_shift')}</label>
                       <input
                         type="text"
                         name="regular_shift"
@@ -586,7 +588,7 @@ const EmployeeList: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Departamento</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('department')}</label>
                       <input
                         type="text"
                         name="department"
@@ -602,10 +604,10 @@ const EmployeeList: React.FC = () => {
                 {/* Información Bancaria */}
                 {editForm.payment_method === 'transfer' && (
                   <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded">
-                    <h3 className="text-lg font-semibold mb-4 text-blue-900">Información Bancaria (Transferencia)</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-blue-900">{t('banking_info')} ({t('transfer')})</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Número de Cuenta</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('bank_account_number')}</label>
                         <input
                           type="text"
                           name="bank_account_number"
@@ -615,7 +617,7 @@ const EmployeeList: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Routing Number</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('bank_routing_number')}</label>
                         <input
                           type="text"
                           name="bank_routing_number"
@@ -625,15 +627,15 @@ const EmployeeList: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Cuenta</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('bank_account_type')}</label>
                         <select
                           name="bank_account_type"
                           value={editForm.bank_account_type}
                           onChange={handleFormChange}
                           className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="checking">Checking (Corriente)</option>
-                          <option value="savings">Savings (Ahorros)</option>
+                          <option value="checking">{t('checking')}</option>
+                          <option value="savings">{t('savings')}</option>
                         </select>
                       </div>
                     </div>
@@ -643,10 +645,10 @@ const EmployeeList: React.FC = () => {
                 {/* Configuración de Tip Credit */}
                 {(editForm.employee_type === 'hourly_tipped_waiter' || editForm.employee_type === 'hourly_tipped_delivery') && (
                   <div className="bg-purple-50 border-l-4 border-purple-400 p-6 rounded">
-                    <h3 className="text-lg font-semibold mb-4 text-purple-900">Configuración de Tip Credit (NY State 2025)</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-purple-900">{t('tip_credit_config_label')}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Salario Mínimo del Estado</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('state_minimum_wage')}</label>
                         <input
                           type="number"
                           name="state_minimum_wage"
@@ -666,7 +668,7 @@ const EmployeeList: React.FC = () => {
                     onClick={handleCancelEdit}
                     className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
                   >
-                    Cancelar
+                    {t('cancel')}
                   </button>
                   <button
                     onClick={handleSaveEdit}
@@ -676,10 +678,10 @@ const EmployeeList: React.FC = () => {
                     {saving ? (
                       <>
                         <LoadingSpinner size="sm" />
-                        Guardando...
+                        {t('saving')}
                       </>
                     ) : (
-                      'Guardar Cambios'
+                      t('save')
                     )}
                   </button>
                 </div>

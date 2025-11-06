@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import {
   LayoutDashboard,
   Users,
@@ -21,29 +22,30 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ userType }) => {
   const location = useLocation();
+  const { t } = useLanguage();
 
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   const superAdminLinks = [
-    { path: '/super-admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/super-admin/businesses', label: 'Businesses', icon: Building2 },
-    { path: '/super-admin/register-business', label: 'Register Business', icon: UserPlus },
+    { path: '/super-admin/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { path: '/super-admin/businesses', label: t('businesses'), icon: Building2 },
+    { path: '/super-admin/register-business', label: t('register_business'), icon: UserPlus },
   ];
 
   const businessLinks = [
-    { path: '/business/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/business/employees', label: 'Empleados', icon: Users },
-    { path: '/business/time-entry', label: 'Control de Tiempo', icon: Clock },
-    { path: '/business/tips', label: 'Propinas e Incidentes', icon: Banknote },
-    { path: '/business/deductions', label: 'Deducciones', icon: MinusCircle },
-    { path: '/business/payroll', label: 'Nómina', icon: DollarSign },
-    { path: '/business/pdf-generation', label: 'PDFs', icon: FileDown },
-    { path: '/business/pay-rates', label: 'Tarifas de Pago', icon: TrendingUp },
-    { path: '/business/sick-leave', label: 'Sick Leave', icon: Heart },
-    { path: '/business/tip-credit', label: 'Tip Credit Config', icon: DollarSign },
-    { path: '/business/reports', label: 'Reportes', icon: FileText },
+    { path: '/business/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { path: '/business/employees', label: t('employees'), icon: Users },
+    { path: '/business/time-entry', label: t('time_tracking'), icon: Clock },
+    { path: '/business/tips', label: t('tips_incidents'), icon: Banknote },
+    { path: '/business/deductions', label: t('deductions'), icon: MinusCircle },
+    { path: '/business/payroll', label: t('payroll'), icon: DollarSign },
+    { path: '/business/pdf-generation', label: t('pdfs'), icon: FileDown },
+    { path: '/business/pay-rates', label: t('pay_rates'), icon: TrendingUp },
+    { path: '/business/sick-leave', label: t('sick_leave'), icon: Heart },
+    { path: '/business/tip-credit', label: t('tip_credit_config'), icon: DollarSign },
+    { path: '/business/reports', label: t('reports'), icon: FileText },
   ];
 
   const links = userType === 'super_admin' ? superAdminLinks : businessLinks;
@@ -59,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userType }) => {
           />
         </div>
         <p className="text-sm text-gray-400 mt-1 text-center">
-          {userType === 'super_admin' ? 'Super Admin' : 'Business Portal'}
+          {userType === 'super_admin' ? t('super_admin') : t('business_portal')}
         </p>
       </div>
 

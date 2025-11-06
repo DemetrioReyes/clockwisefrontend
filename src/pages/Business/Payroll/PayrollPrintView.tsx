@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import payrollService from '../../../services/payroll.service';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
@@ -24,6 +25,7 @@ const PayrollPrintView: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [payrollData, setPayrollData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -219,12 +221,12 @@ const PayrollPrintView: React.FC = () => {
     const sigPad = signatureRefs.current[employeeId];
 
     if (!sigPad || sigPad.isEmpty()) {
-      showToast('Por favor dibuje su firma', 'error');
+      showToast(t('please_draw_signature'), 'error');
       return;
     }
 
     if (!payrollId) {
-      showToast('Error: No se encontró el ID de la nómina', 'error');
+      showToast(t('error_no_payroll_id'), 'error');
       return;
     }
 
@@ -256,7 +258,7 @@ const PayrollPrintView: React.FC = () => {
       // Paso 2: Si no existe PDF, generarlo primero
       if (!pdfFilename) {
         try {
-          showToast('Generando PDF del recibo...', 'info');
+          showToast(t('generating_pdf_receipt'), 'info');
           const pdfResponse = await pdfService.generateDetailedPDF({
             payroll_id: payrollId,
             employee_id: employeeId,
@@ -302,9 +304,9 @@ const PayrollPrintView: React.FC = () => {
 
       // Verificar si se guardó en IndexedDB (backend no disponible)
       if (signature.id?.startsWith('local_')) {
-        showToast(`Recibo firmado y guardado localmente por ${employeeCode}`, 'success');
+        showToast(t('receipt_signed_locally', { code: employeeCode }), 'success');
       } else {
-        showToast(`Recibo firmado exitosamente por ${employeeCode}`, 'success');
+        showToast(t('receipt_signed_successfully_payroll', { code: employeeCode }), 'success');
       }
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
@@ -337,7 +339,7 @@ const PayrollPrintView: React.FC = () => {
     setUpdatingStatus(true);
     try {
       await payrollService.updatePayrollStatus(payrollId, newStatus as 'draft' | 'calculated' | 'approved' | 'paid');
-      showToast('Estado de nómina actualizado exitosamente', 'success');
+      showToast(t('payroll_status_updated'), 'success');
       // Recargar los datos
       await loadPayrollData();
     } catch (error: any) {
@@ -360,7 +362,7 @@ const PayrollPrintView: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Cargando nómina..." />
+        <LoadingSpinner size="lg" text={t('loading_payroll')} />
       </div>
     );
   }
@@ -369,9 +371,9 @@ const PayrollPrintView: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 text-xl">No se encontró la nómina</p>
+          <p className="text-red-600 text-xl">{t('payroll_not_found')}</p>
           <button onClick={() => navigate(-1)} className="mt-4 text-blue-600 hover:underline">
-            Volver
+            {t('back')}
           </button>
         </div>
       </div>
@@ -385,7 +387,7 @@ const PayrollPrintView: React.FC = () => {
       {/* Botones de acción - NO se imprimen */}
       <div className="no-print fixed top-4 right-4 z-50 flex gap-2 items-center">
         <div className="bg-white shadow-lg rounded-lg px-3 py-2 border border-gray-200">
-          <label className="text-xs text-gray-600 mr-2">Estado:</label>
+          <label className="text-xs text-gray-600 mr-2">{t('status')}:</label>
           {updatingStatus ? (
             <LoadingSpinner size="sm" />
           ) : (
@@ -394,10 +396,10 @@ const PayrollPrintView: React.FC = () => {
               onChange={(e) => handleStatusChange(e.target.value)}
               className={`px-3 py-1 text-xs rounded-full border-0 font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${getStatusColor(payroll.status)}`}
             >
-              <option value="draft">Borrador</option>
-              <option value="calculated">Calculada</option>
-              <option value="approved">Aprobada</option>
-              <option value="paid">Pagada</option>
+              <option value="draft">{t('draft')}</option>
+              <option value="calculated">{t('calculated')}</option>
+              <option value="approved">{t('approved')}</option>
+              <option value="paid">{t('paid')}</option>
             </select>
           )}
         </div>
@@ -406,14 +408,14 @@ const PayrollPrintView: React.FC = () => {
           className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          Volver
+          {t('back')}
         </button>
         <button
           onClick={handlePrint}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
         >
           <Printer className="w-4 h-4" />
-          Imprimir / Guardar PDF
+          {t('print_save_pdf')}
         </button>
       </div>
 
@@ -438,9 +440,9 @@ const PayrollPrintView: React.FC = () => {
               )}
             </div>
             <div className="text-right">
-              <h2 className="text-2xl font-bold text-blue-600 mb-2">RECIBO DE NÓMINA</h2>
+              <h2 className="text-2xl font-bold text-blue-600 mb-2">{t('payroll_receipt')}</h2>
               <p className="text-sm text-gray-500">ID: {payroll.id.substring(0, 8)}...</p>
-              <p className="text-sm text-gray-500">Creado: {new Date(payroll.created_at).toLocaleDateString('es-ES')}</p>
+              <p className="text-sm text-gray-500">{t('created')}: {new Date(payroll.created_at).toLocaleDateString('es-ES')}</p>
             </div>
           </div>
           
@@ -448,15 +450,15 @@ const PayrollPrintView: React.FC = () => {
           <div className="mt-4 bg-gray-50 p-4 rounded-lg">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <p className="text-xs text-gray-500 uppercase">Período</p>
+                <p className="text-xs text-gray-500 uppercase">{t('period')}</p>
                 <p className="font-semibold">{payroll.period_start} al {payroll.period_end}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase">Frecuencia</p>
+                <p className="text-xs text-gray-500 uppercase">{t('frequency')}</p>
                 <p className="font-semibold capitalize">{payroll.pay_frequency}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase">Status</p>
+                <p className="text-xs text-gray-500 uppercase">{t('status')}</p>
                 <p className="font-semibold capitalize">{payroll.status}</p>
               </div>
             </div>
@@ -465,22 +467,22 @@ const PayrollPrintView: React.FC = () => {
 
         {/* Resumen General - Oculto en impresión para confidencialidad */}
         <div className="mb-8 bg-blue-50 p-6 rounded-lg no-print">
-          <h2 className="text-xl font-bold mb-4">Resumen General</h2>
+          <h2 className="text-xl font-bold mb-4">{t('general_summary')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Total Empleados</p>
+              <p className="text-sm text-gray-600">{t('total_employees')}</p>
               <p className="text-2xl font-bold">{payroll.total_employees}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Pago Bruto</p>
+              <p className="text-sm text-gray-600">{t('gross_pay')}</p>
               <p className="text-2xl font-bold text-green-600">${payroll.total_gross_pay}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Deducciones</p>
+              <p className="text-sm text-gray-600">{t('deductions')}</p>
               <p className="text-2xl font-bold text-red-600">${payroll.total_deductions}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Pago Neto</p>
+              <p className="text-sm text-gray-600">{t('net_pay')}</p>
               <p className="text-2xl font-bold text-blue-600">${payroll.total_net_pay}</p>
             </div>
           </div>
@@ -508,9 +510,9 @@ const PayrollPrintView: React.FC = () => {
                   )}
                 </div>
                 <div className="text-right">
-                  <h2 className="text-2xl font-bold text-blue-600 mb-2">RECIBO DE NÓMINA</h2>
+                  <h2 className="text-2xl font-bold text-blue-600 mb-2">{t('payroll_receipt')}</h2>
                   <p className="text-sm text-gray-500">ID: {payroll.id.substring(0, 8)}...</p>
-                  <p className="text-sm text-gray-500">Creado: {new Date(payroll.created_at).toLocaleDateString('es-ES')}</p>
+                  <p className="text-sm text-gray-500">{t('created')}: {new Date(payroll.created_at).toLocaleDateString('es-ES')}</p>
                 </div>
               </div>
               
@@ -518,15 +520,15 @@ const PayrollPrintView: React.FC = () => {
               <div className="mt-4 bg-gray-50 p-4 rounded-lg">
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <p className="text-xs text-gray-500 uppercase">Período</p>
+                    <p className="text-xs text-gray-500 uppercase">{t('period')}</p>
                     <p className="font-semibold">{payroll.period_start} al {payroll.period_end}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 uppercase">Frecuencia</p>
+                    <p className="text-xs text-gray-500 uppercase">{t('frequency')}</p>
                     <p className="font-semibold capitalize">{payroll.pay_frequency}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 uppercase">Status</p>
+                    <p className="text-xs text-gray-500 uppercase">{t('status')}</p>
                     <p className="font-semibold capitalize">{payroll.status}</p>
                   </div>
                 </div>
@@ -539,10 +541,10 @@ const PayrollPrintView: React.FC = () => {
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex-1 min-w-0">
                     <h3 className="text-xl font-bold break-words">{calc.employee_name}</h3>
-                    <p className="text-gray-600 break-words">Código: {calc.employee_code} | Tipo: {calc.employee_type}</p>
+                    <p className="text-gray-600 break-words">{t('payroll_code')}: {calc.employee_code} | {t('payroll_type')}: {calc.employee_type}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm text-gray-600 whitespace-nowrap">Pago Neto</p>
+                    <p className="text-sm text-gray-600 whitespace-nowrap">{t('net_pay')}</p>
                     <p className="text-3xl font-bold text-green-600 whitespace-nowrap">${calc.net_pay}</p>
                   </div>
                 </div>
@@ -550,18 +552,18 @@ const PayrollPrintView: React.FC = () => {
 
               {/* Horas trabajadas */}
               <div className="mb-4">
-                <h4 className="font-semibold text-lg mb-2 border-b pb-1">Horas Trabajadas</h4>
+                <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('hours_worked')}</h4>
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div>
-                    <p className="text-sm text-gray-600">Regulares</p>
+                    <p className="text-sm text-gray-600">{t('regular')}</p>
                     <p className="text-lg font-bold">{calc.regular_hours}h</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Overtime</p>
+                    <p className="text-sm text-gray-600">{t('overtime')}</p>
                     <p className="text-lg font-bold">{calc.overtime_hours}h</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Break</p>
+                    <p className="text-sm text-gray-600">{t('break')}</p>
                     <p className="text-lg font-bold">{calc.break_hours}h</p>
                   </div>
                 </div>
@@ -571,17 +573,17 @@ const PayrollPrintView: React.FC = () => {
                   <div className="mt-4">
                     <h5 className="font-semibold text-base mb-3 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      Desglose por Día
+                      {t('daily_breakdown')}
                     </h5>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm border-collapse desglose-dia-table">
                         <thead>
                           <tr className="bg-gray-100 border-b">
-                            <th className="text-left py-2 px-2 font-semibold text-gray-700">Fecha</th>
-                            <th className="text-left py-2 px-2 font-semibold text-gray-700">Entrada</th>
-                            <th className="text-left py-2 px-2 font-semibold text-gray-700">Break</th>
-                            <th className="text-left py-2 px-2 font-semibold text-gray-700">Salida</th>
-                            <th className="text-right py-2 px-2 font-semibold text-gray-700">Horas</th>
+                            <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('date')}</th>
+                            <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('check_in')}</th>
+                            <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('break_time')}</th>
+                            <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('check_out')}</th>
+                            <th className="text-right py-2 px-2 font-semibold text-gray-700">{t('hours')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -629,38 +631,38 @@ const PayrollPrintView: React.FC = () => {
 
               {/* Ingresos */}
               <div className="mb-4">
-                <h4 className="font-semibold text-lg mb-2 border-b pb-1">Ingresos</h4>
+                <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('earnings')}</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Pago Regular ({calc.regular_hours}h × ${calc.hourly_rate}/h)</span>
+                    <span className="text-gray-700">{t('regular_pay_calc', { hours: calc.regular_hours, rate: `$${calc.hourly_rate}` })}</span>
                     <span className="font-semibold">${calc.regular_pay}</span>
                   </div>
                   {parseFloat(calc.overtime_hours) > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-700">Pago Overtime ({calc.overtime_hours}h × ${(parseFloat(calc.hourly_rate) * 1.5).toFixed(2)}/h)</span>
+                      <span className="text-gray-700">{t('overtime_pay_calc', { hours: calc.overtime_hours, rate: `$${(parseFloat(calc.hourly_rate) * 1.5).toFixed(2)}` })}</span>
                       <span className="font-semibold">${calc.overtime_pay}</span>
                     </div>
                   )}
                   {parseFloat(calc.spread_hours_pay) > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-700">Spread Hours Pay</span>
+                      <span className="text-gray-700">{t('spread_hours_pay')}</span>
                       <span className="font-semibold">${calc.spread_hours_pay}</span>
                     </div>
                   )}
                   {parseFloat(calc.total_bonus) > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-700">Bonos</span>
+                      <span className="text-gray-700">{t('bonuses')}</span>
                       <span className="font-semibold text-green-600">+${calc.total_bonus}</span>
                     </div>
                   )}
                   {parseFloat(calc.tips_reported) > 0 && (
                     <div className="flex justify-between bg-yellow-50 p-2 rounded">
-                      <span className="text-gray-700 font-medium">💰 Propinas Reportadas</span>
+                      <span className="text-gray-700 font-medium">{t('tips_reported_payroll')}</span>
                       <span className="font-bold text-yellow-700">${calc.tips_reported}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t-2 pt-2 mt-2">
-                    <span className="font-bold text-lg">Pago Bruto</span>
+                    <span className="font-bold text-lg">{t('gross_pay_total')}</span>
                     <span className="font-bold text-lg text-green-600">${calc.gross_pay}</span>
                   </div>
                 </div>
@@ -668,32 +670,32 @@ const PayrollPrintView: React.FC = () => {
 
               {/* Deducciones */}
               <div className="mb-4">
-                <h4 className="font-semibold text-lg mb-2 border-b pb-1">Deducciones</h4>
+                <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('deductions')}</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Impuesto Federal</span>
+                    <span className="text-gray-700">{t('federal_tax_payroll')}</span>
                     <span className="text-red-600">-${calc.federal_tax}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Impuesto Estatal (NY)</span>
+                    <span className="text-gray-700">{t('state_tax_payroll')}</span>
                     <span className="text-red-600">-${calc.state_tax}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Social Security (6.2%)</span>
+                    <span className="text-gray-700">{t('social_security_payroll')}</span>
                     <span className="text-red-600">-${calc.social_security}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Medicare (1.45%)</span>
+                    <span className="text-gray-700">{t('medicare_payroll')}</span>
                     <span className="text-red-600">-${calc.medicare}</span>
                   </div>
                   {parseFloat(calc.other_deductions) > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-700">Otras Deducciones</span>
+                      <span className="text-gray-700">{t('other_deductions')}</span>
                       <span className="text-red-600">-${calc.other_deductions}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t-2 pt-2 mt-2">
-                    <span className="font-bold text-lg">Total Deducciones</span>
+                    <span className="font-bold text-lg">{t('total_deductions')}</span>
                     <span className="font-bold text-lg text-red-600">-${calc.total_deductions}</span>
                   </div>
                 </div>
@@ -702,7 +704,7 @@ const PayrollPrintView: React.FC = () => {
               {/* Pago Neto Final */}
               <div className="bg-green-50 p-4 rounded-lg border-2 border-green-400">
                 <div className="flex justify-between items-center">
-                  <span className="text-xl font-bold">PAGO NETO A RECIBIR</span>
+                  <span className="text-xl font-bold">{t('net_pay_to_receive')}</span>
                   <span className="text-3xl font-bold text-green-700">${calc.net_pay}</span>
                 </div>
               </div>
@@ -713,11 +715,11 @@ const PayrollPrintView: React.FC = () => {
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-semibold text-lg flex items-center gap-2">
                       <PenTool className="w-5 h-5 text-blue-600" />
-                      Firma Digital del Empleado
+                      {t('employee_digital_signature')}
                     </h4>
                     {signatures[calc.employee_id]?.isSigned && (
                       <span className="text-green-600 font-semibold flex items-center gap-1">
-                        ✓ Firmado
+                        {t('signed')}
                       </span>
                     )}
                   </div>
@@ -725,7 +727,7 @@ const PayrollPrintView: React.FC = () => {
                   {signatures[calc.employee_id]?.isSigned ? (
                     // Mostrar firma existente
                     <div className="bg-white border-2 border-green-400 rounded-lg p-4">
-                      <p className="text-sm text-gray-600 mb-2">Firma del empleado {calc.employee_code}:</p>
+                      <p className="text-sm text-gray-600 mb-2">{t('employee_signature', { code: calc.employee_code })}</p>
                       <div className="flex justify-center items-center bg-gray-50 rounded border-2 border-gray-300" style={{ minHeight: '150px' }}>
                         <img
                           src={signatures[calc.employee_id].signatureData || ''}
@@ -734,18 +736,18 @@ const PayrollPrintView: React.FC = () => {
                         />
                       </div>
                       <p className="text-xs text-gray-500 mt-2 text-center">
-                        Firmado digitalmente - Este documento es legalmente vinculante
+                        {t('digitally_signed_legal')}
                       </p>
                     </div>
                   ) : (
                     // Mostrar canvas para firmar
                     <div className="no-print">
                       <p className="text-sm text-gray-700 mb-3">
-                        El empleado <strong>{calc.employee_code}</strong> debe firmar este recibo para confirmar que ha recibido y revisado la información.
+                        {t('employee_must_sign_payroll', { code: calc.employee_code })}
                       </p>
                       <div className="bg-white border-2 border-gray-300 rounded-lg p-3">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Firme aquí con su dedo o mouse:
+                          {t('sign_here_payroll')}
                         </label>
                         <div className="border-2 border-dashed border-gray-400 rounded-lg bg-white">
                           <SignatureCanvas
@@ -763,7 +765,7 @@ const PayrollPrintView: React.FC = () => {
                             onClick={() => clearSignature(calc.employee_id)}
                             className="px-4 py-2 text-sm border-2 border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium"
                           >
-                            Limpiar Firma
+                            {t('clear_signature_payroll')}
                           </button>
                           <button
                             type="button"
@@ -774,12 +776,12 @@ const PayrollPrintView: React.FC = () => {
                             {signingInProgress === calc.employee_id ? (
                               <>
                                 <LoadingSpinner size="sm" />
-                                Guardando...
+                                {t('saving_payroll')}
                               </>
                             ) : (
                               <>
                                 <PenTool className="w-4 h-4" />
-                                Firmar y Guardar
+                                {t('sign_and_save_payroll')}
                               </>
                             )}
                           </button>
@@ -787,7 +789,7 @@ const PayrollPrintView: React.FC = () => {
                       </div>
                       <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                         <p className="text-xs text-yellow-800">
-                          <strong>Importante:</strong> Al firmar este documento, confirmo que he recibido este recibo de nómina y que la información es correcta. Esta firma digital tiene validez legal.
+                          <strong>{t('info')}:</strong> {t('signature_legal_notice_payroll')}
                         </p>
                       </div>
                     </div>
@@ -798,10 +800,10 @@ const PayrollPrintView: React.FC = () => {
               {/* Información adicional */}
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="text-xs text-gray-500">
-                  <p className="font-semibold mb-1">Empleador: {companyName}</p>
+                  <p className="font-semibold mb-1">{t('employer')}: {companyName}</p>
                   {businessAddress && <p>{businessAddress}</p>}
-                  <p className="mt-2 italic">Este recibo es solo informativo. Conserve para sus registros.</p>
-                  <p className="text-right mt-2">Generado: {new Date().toLocaleDateString('es-ES', {
+                  <p className="mt-2 italic">{t('informational_receipt')}</p>
+                  <p className="text-right mt-2">{t('generated')}: {new Date().toLocaleDateString('es-ES', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
@@ -822,9 +824,9 @@ const PayrollPrintView: React.FC = () => {
               {businessEmail && <p className="text-gray-600">Email: {businessEmail}</p>}
             </div>
             <div className="text-right">
-              <p className="text-gray-500">Generado por ClockWise Payroll System</p>
-              <p className="text-gray-500">ID de Nómina: {payroll.id}</p>
-              <p className="text-gray-500">Fecha de generación: {new Date().toLocaleDateString('es-ES', { 
+              <p className="text-gray-500">{t('generated_by')}</p>
+              <p className="text-gray-500">{t('payroll_id')}: {payroll.id}</p>
+              <p className="text-gray-500">{t('generation_date')}: {new Date().toLocaleDateString('es-ES', { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric',
