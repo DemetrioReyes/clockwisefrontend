@@ -230,7 +230,7 @@ const SickLeaveManagement = () => {
                 onChange={(e) => setSelectedYear(parseInt(e.target.value))}
                 className="px-4 py-2 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white font-medium"
               >
-                {[2023, 2024, 2025, 2026].map((year) => (
+                {[2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030].map((year) => (
                   <option key={year} value={year}>
                     {year}
                   </option>

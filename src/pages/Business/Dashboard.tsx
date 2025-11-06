@@ -9,13 +9,16 @@ import employeeService from '../../services/employee.service';
 import payrollService from '../../services/payroll.service';
 import { reportsService } from '../../services/reports.service';
 import { Employee } from '../../types';
-import { Users, Clock, DollarSign, TrendingUp, UserPlus } from 'lucide-react';
+import { Users, Clock, DollarSign, TrendingUp, UserPlus, AlertTriangle } from 'lucide-react';
 
 const BusinessDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [weeklyHours, setWeeklyHours] = useState<{ total: number; overtime: number }>({ total: 0, overtime: 0 });
   const [payrollCount, setPayrollCount] = useState<number>(0);
   const [employeeStats, setEmployeeStats] = useState<any[]>([]);
+  const [breakComplianceAlerts, setBreakComplianceAlerts] = useState<any[]>([]);
+  const [breakComplianceTotal, setBreakComplianceTotal] = useState<number>(0);
+  const [loadingBreakCompliance, setLoadingBreakCompliance] = useState(false);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -108,6 +111,27 @@ const BusinessDashboard: React.FC = () => {
     }
   };
 
+  const loadBreakComplianceAlerts = async () => {
+    setLoadingBreakCompliance(true);
+    try {
+      const response = await reportsService.getBreakComplianceAlerts('pending');
+      const alerts = response.alerts || response || [];
+      setBreakComplianceAlerts(alerts);
+      setBreakComplianceTotal(response.total_alerts || alerts.length || 0);
+    } catch (error) {
+      console.log('No se pudieron cargar alertas de Break Compliance:', error);
+      setBreakComplianceAlerts([]);
+      setBreakComplianceTotal(0);
+    } finally {
+      setLoadingBreakCompliance(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBreakComplianceAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const activeEmployees = employees.filter((e) => e.is_active);
   const tippedEmployees = employees.filter((e) => e.has_tip_credit);
 
@@ -123,7 +147,7 @@ const BusinessDashboard: React.FC = () => {
         ) : (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -182,6 +206,23 @@ const BusinessDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <AlertTriangle className={`h-8 w-8 ${breakComplianceTotal > 0 ? 'text-red-600' : 'text-green-600'}`} />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Break Compliance</p>
+                    <p className={`text-2xl font-bold ${breakComplianceTotal > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {loadingBreakCompliance ? '...' : breakComplianceTotal}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {breakComplianceTotal > 0 ? 'Alertas pendientes' : 'Todo en orden'}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Quick Actions */}
@@ -225,6 +266,124 @@ const BusinessDashboard: React.FC = () => {
                 </div>
               </Link>
             </div>
+
+            {/* Break Compliance Alerts */}
+            {breakComplianceTotal > 0 && (
+              <div className="bg-white shadow rounded-lg mb-8">
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                    <h2 className="text-lg font-semibold text-gray-900">Alertas de Break Compliance</h2>
+                    <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full">
+                      {breakComplianceTotal} {breakComplianceTotal === 1 ? 'pendiente' : 'pendientes'}
+                    </span>
+                  </div>
+                  <Link
+                    to="/business/reports"
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Ver todas →
+                  </Link>
+                </div>
+                {loadingBreakCompliance ? (
+                  <div className="p-6 text-center">
+                    <LoadingSpinner size="sm" text="Cargando alertas..." />
+                  </div>
+                ) : breakComplianceAlerts.length === 0 ? (
+                  <div className="p-6 text-center text-gray-500">
+                    No hay alertas pendientes
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Empleado
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Código
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Fecha Violación
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Déficit
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Severidad
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {breakComplianceAlerts.slice(0, 5).map((alert) => {
+                          const severityColors: { [key: string]: string } = {
+                            high: 'bg-red-100 text-red-800',
+                            medium: 'bg-yellow-100 text-yellow-800',
+                            low: 'bg-blue-100 text-blue-800',
+                          };
+                          const severityLabels: { [key: string]: string } = {
+                            high: 'Alta',
+                            medium: 'Media',
+                            low: 'Baja',
+                          };
+                          return (
+                            <tr key={alert.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {alert.employee_name || 'N/A'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-mono font-semibold text-blue-600">
+                                  {alert.employee_code || 'N/A'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {alert.violation_date
+                                    ? new Date(alert.violation_date).toLocaleDateString('es-ES', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                      })
+                                    : 'N/A'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-semibold text-red-600">
+                                  {alert.deficit_minutes || 0} min
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Break requerido no tomado
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  severityColors[alert.severity] || severityColors.low
+                                }`}>
+                                  {severityLabels[alert.severity] || 'Baja'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {breakComplianceAlerts.length > 5 && (
+                      <div className="px-6 py-4 bg-gray-50 text-center border-t border-gray-200">
+                        <Link
+                          to="/business/reports"
+                          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          Ver {breakComplianceAlerts.length - 5} alertas más →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Recent Employees */}
             <div className="bg-white shadow rounded-lg">

@@ -377,9 +377,216 @@
 						"description": "Update business information (Super Admin only)."
 					},
 					"response": []
+				},
+				{
+					"name": "1.7 Disable Business Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log(\"✅ Negocio desactivado exitosamente\");",
+									"    console.log(\"🆔 Business ID:\", jsonData.business_id);",
+									"    console.log(\"⚠️ El negocio ya NO puede hacer login\");",
+									"} else {",
+									"    console.log(\"❌ Error:\", pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{super_admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/business/{{business_id}}/disable",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"business",
+								"{{business_id}}",
+								"disable"
+							]
+						},
+						"description": "# Disable Business Login (Super Admin Only)\n\n**Purpose**: Desactiva un negocio para que **NO pueda hacer login**.\n\n**Efecto**:\n- Marca `is_active = FALSE`\n- El negocio **NO puede autenticarse**\n- La data permanece en la base de datos (soft disable)\n- Puede ser reactivado después\n\n**Use Cases**:\n- Suspender cuenta temporalmente\n- Bloquear acceso por incumplimiento\n- Desactivar cuenta cancelada\n- Mantener historial de datos\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"message\": \"Negocio desactivado. Ya no puede hacer login.\",\n  \"business_id\": \"uuid\"\n}\n```\n\n**Para reactivar**: Usar el endpoint `PUT /api/business/{id}` con `is_active: true` o crear un endpoint específico.\n\n**⚠️ Diferencia con DELETE complete**:\n- Este endpoint: Desactiva (mantiene data)\n- DELETE `/complete`: Elimina TODO permanentemente"
+					},
+					"response": []
+				},
+				{
+					"name": "1.8 Reset Business Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log(\"✅ Contraseña reseteada exitosamente\");",
+									"    console.log(\"🆔 Business ID:\", jsonData.business_id);",
+									"    console.log(\"🔑 Nueva contraseña asignada\");",
+									"} else {",
+									"    console.log(\"❌ Error:\", pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{super_admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"new_password\": \"NewSecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/business/{{business_id}}/reset-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"business",
+								"{{business_id}}",
+								"reset-password"
+							]
+						},
+						"description": "# Reset Business Password (Super Admin Only)\n\n**Purpose**: Resetea la contraseña de un negocio.\n\n**⚠️ IMPORTANTE**: Solo Super Admin puede resetear contraseñas.\n\n**Use Cases**:\n- El negocio olvidó su contraseña\n- Necesitas asignar una nueva contraseña por seguridad\n- Reseteo después de incidente de seguridad\n- Asignar contraseña temporal\n\n**Body**:\n```json\n{\n  \"new_password\": \"NewSecurePass123!\"\n}\n```\n\n**Requisitos de contraseña**:\n- Mínimo 8 caracteres\n- Máximo 72 caracteres\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"message\": \"Contraseña reseteada exitosamente\",\n  \"business_id\": \"uuid\"\n}\n```\n\n**Nota**: Después de resetear, el negocio debe usar la nueva contraseña para hacer login."
+					},
+					"response": []
+				},
+				{
+					"name": "1.9 Delete Business (Soft Delete)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log(\"✅ Negocio desactivado (soft delete)\");",
+									"    console.log(\"📝 Message:\", jsonData.message);",
+									"    console.log(\"💾 Data permanece en la base de datos\");",
+									"} else {",
+									"    console.log(\"❌ Error:\", pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{super_admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/business/{{business_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"business",
+								"{{business_id}}"
+							]
+						},
+						"description": "# Delete Business (Soft Delete - Super Admin Only)\n\n**Purpose**: Desactiva un negocio (soft delete).\n\n**Efecto**:\n- Marca `is_active = FALSE`\n- El negocio NO puede hacer login\n- **La data permanece en la base de datos**\n- Puede ser reactivado después\n\n**Use Cases**:\n- Suspender cuenta temporalmente\n- Desactivar cuenta cancelada pero mantener historial\n- Archivar cuenta\n\n**Response**:\n```json\n{\n  \"message\": \"Negocio desactivado exitosamente\"\n}\n```\n\n**⚠️ Diferencia con DELETE `/complete`**:\n- Este endpoint: Soft delete (mantiene data)\n- DELETE `/complete`: Hard delete (elimina TODO permanentemente)"
+					},
+					"response": []
+				},
+				{
+					"name": "1.10 Delete Business Complete (Hard Delete)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log(\"⚠️ NEGOCIO ELIMINADO COMPLETAMENTE\");",
+									"    console.log(\"🆔 Business ID:\", jsonData.business_id);",
+									"    console.log(\"🔢 Tenant ID:\", jsonData.tenant_id);",
+									"    console.log(\"📊 Total registros eliminados:\", jsonData.total_deleted);",
+									"    console.log(\"📋 Detalles:\", JSON.stringify(jsonData.deleted_records, null, 2));",
+									"    console.log(\"⚠️ Esta acción es IRREVERSIBLE\");",
+									"} else {",
+									"    console.log(\"❌ Error:\", pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{super_admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/business/{{business_id}}/complete",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"business",
+								"{{business_id}}",
+								"complete"
+							]
+						},
+						"description": "# Delete Business Complete (Hard Delete - Super Admin Only)\n\n**⚠️ ADVERTENCIA CRÍTICA**: Esta acción es **IRREVERSIBLE**.\n\n**Elimina COMPLETAMENTE**:\n- ✅ El negocio (business)\n- ✅ Todos los empleados\n- ✅ Todos los registros de tiempo\n- ✅ Todas las nóminas y detalles\n- ✅ Todas las deducciones e incidentes\n- ✅ Todo el sick leave\n- ✅ Todas las alertas de break compliance\n- ✅ Todas las configuraciones (pay rates, tip credit)\n- ✅ Todas las firmas digitales\n- ✅ TODO lo relacionado con el tenant\n\n**Use Cases**:\n- Eliminar cuenta de prueba\n- Eliminar cuenta cancelada completamente\n- Limpieza de datos de prueba\n- Eliminación por solicitud legal\n- GDPR/Right to be forgotten\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"message\": \"Negocio y toda su data eliminados completamente\",\n  \"business_id\": \"uuid\",\n  \"tenant_id\": \"6887\",\n  \"deleted_records\": {\n    \"employees\": 5,\n    \"time_records\": 150,\n    \"payrolls\": 12,\n    \"employee_deductions\": 20,\n    \"break_compliance_alerts\": 3,\n    \"...\": \"...\"\n  },\n  \"total_deleted\": 190\n}\n```\n\n**⚠️ NO SE PUEDE DESHACER** - Asegúrate antes de ejecutar.\n\n**Recomendación**: Usar este endpoint solo después de:\n1. Verificar que es el negocio correcto\n2. Confirmar que no hay datos importantes\n3. Hacer backup si es necesario\n4. Tener autorización explícita"
+					},
+					"response": []
 				}
 			],
-			"description": "# Business Registration & Authentication\n\n## Flow:\n1. Register Business (with Super Admin token)\n2. Login with business credentials\n3. Use auth_token for all employee/payroll operations"
+			"description": "# Business Registration & Authentication\n\n## Flow:\n1. Register Business (with Super Admin token)\n2. Login with business credentials\n3. Use auth_token for all employee/payroll operations\n\n## Super Admin Endpoints:\n- **1.7 Disable Business Login**: Desactiva login (mantiene data)\n- **1.8 Reset Business Password**: Resetea contraseña\n- **1.9 Delete Business (Soft)**: Desactiva (mantiene data)\n- **1.10 Delete Business Complete**: Elimina TODO permanentemente"
 		},
 		{
 			"name": "2. Employees Management",
@@ -2633,7 +2840,70 @@
 								}
 							]
 						},
-						"description": "# Break Compliance Alerts (NY State)\n\n**NY State Law**:\n- 30-minute break required for 8+ hour shifts\n- Must be tracked\n- Violations must be addressed\n\n**Alert Types**:\n- Missing break (worked 8+ hours without break)\n- Short break (less than 30 minutes)\n- Late break (taken too late in shift)\n\n**Status**:\n- `pending` - Needs resolution\n- `resolved` - Addressed\n- `all` - All alerts"
+						"description": "# Break Compliance Alerts (NY State)\n\n**✅ GENERACIÓN AUTOMÁTICA DÍA POR DÍA**:\nLas alertas se generan **automáticamente** cuando un empleado registra su `check_out` (salida).\n\n**Cómo funciona**:\n1. Empleado registra check_in\n2. Empleado registra check_out al final del día\n3. **Sistema valida automáticamente**:\n   - ¿Trabajó 8+ horas?\n   - ¿Tomó su descanso de 30 minutos?\n4. Si hay violación → **ALERTA CREADA AUTOMÁTICAMENTE**\n\n**NY State Law**:\n- 30-minute break required for 8+ hour shifts\n- Must be tracked and documented\n- Violations must be addressed\n\n**Alert Types**:\n- Missing break (worked 8+ hours without break)\n- Short break (less than 30 minutes)\n- Late break (taken too late in shift)\n\n**Query Parameters**:\n- `status` (optional, default: pending):\n  - `pending` - Solo alertas pendientes de resolución\n  - `resolved` - Solo alertas resueltas\n  - `dismissed` - Solo alertas descartadas\n  - `all` - Todas las alertas\n\n**Response**:\n```json\n{\n  \"total_alerts\": 1,\n  \"status\": \"pending\",\n  \"alerts\": [\n    {\n      \"id\": \"uuid\",\n      \"employee_id\": \"uuid\",\n      \"employee_code\": \"EMP0001\",\n      \"employee_name\": \"Pedro Reynoso\",\n      \"tenant_id\": \"6887\",\n      \"violation_date\": \"2025-11-15\",\n      \"deficit_minutes\": 30,\n      \"severity\": \"high\",\n      \"status\": \"pending\",\n      \"resolved_by\": null,\n      \"resolution_notes\": null,\n      \"resolved_at\": null,\n      \"created_at\": \"2025-11-15T10:00:00\"\n    }\n  ]\n}\n```\n\n**Nota**: Las alertas se crean automáticamente día por día, no necesitas hacer nada manual."
+					},
+					"response": []
+				},
+				{
+					"name": "8.5.1 Resolve Break Compliance Alert",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    ",
+									"    console.log(\"✅ Alerta resuelta exitosamente\");",
+									"    console.log(\"🆔 Alert ID:\", jsonData.alert.id);",
+									"    console.log(\"👤 Empleado:\", jsonData.alert.employee_name);",
+									"    console.log(\"📅 Fecha violación:\", jsonData.alert.violation_date);",
+									"    console.log(\"📝 Notas:\", jsonData.alert.resolution_notes);",
+									"    console.log(\"✅ Estado:\", jsonData.alert.status);",
+									"} else {",
+									"    console.log(\"❌ Error:\", pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"resolution_notes\": \"Empleado tomó descanso pero no lo registró. Se corrigió en el sistema y se le recordó la importancia de registrar los breaks.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/break-compliance/alerts/{{alert_id}}/resolve",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"break-compliance",
+								"alerts",
+								"{{alert_id}}",
+								"resolve"
+							]
+						},
+						"description": "# Resolve Break Compliance Alert\n\n**Purpose**: Marcar una alerta de break compliance como resuelta.\n\n**Soporta tanto PUT como POST** para mayor flexibilidad.\n\n**Fields**:\n- `resolution_notes` (optional) - Notas sobre cómo se resolvió la alerta\n\n**Ejemplo de uso**:\n```bash\n# Usando POST\ncurl -X POST '127.0.0.1:8000/api/break-compliance/alerts/{alert_id}/resolve' \\\n  -H 'Authorization: Bearer TOKEN' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"resolution_notes\": \"Empleado tomó descanso pero no lo registró. Se corrigió.\"}'\n\n# Usando PUT (también funciona)\ncurl -X PUT '127.0.0.1:8000/api/break-compliance/alerts/{alert_id}/resolve' \\\n  -H 'Authorization: Bearer TOKEN' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"resolution_notes\": \"Empleado tomó descanso pero no lo registró. Se corrigió.\"}'\n```\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"message\": \"Alerta resuelta exitosamente\",\n  \"alert\": {\n    \"id\": \"uuid\",\n    \"employee_id\": \"uuid\",\n    \"employee_code\": \"EMP0001\",\n    \"employee_name\": \"Pedro Reynoso\",\n    \"tenant_id\": \"6887\",\n    \"violation_date\": \"2025-11-15\",\n    \"deficit_minutes\": 30,\n    \"severity\": \"high\",\n    \"status\": \"resolved\",\n    \"resolved_by\": \"carlos@elsaborlatino.com\",\n    \"resolution_notes\": \"Empleado tomó descanso pero no lo registró. Se corrigió.\",\n    \"resolved_at\": \"2025-11-15T10:30:00\",\n    \"created_at\": \"2025-11-15T10:00:00\"\n  }\n}\n```\n\n**Use Cases**:\n- Marcar alerta como resuelta después de investigar\n- Documentar acciones tomadas\n- Mantener historial de resolución\n- Cumplir con auditorías\n\n**Nota**: Solo puedes resolver alertas de tu propio tenant. El sistema valida automáticamente la pertenencia."
 					},
 					"response": []
 				},
@@ -2698,7 +2968,7 @@
 					"response": []
 				}
 			],
-			"description": "# Reports & Compliance\n\nComprehensive reporting for NY State compliance.\n\n**Features**:\n- Attendance tracking\n- Payroll summaries\n- Sick leave tracking (NY State)\n- Break compliance (NY State)\n- Time summaries\n- Quick stats dashboard"
+			"description": "# Reports & Compliance\n\nComprehensive reporting for NY State compliance.\n\n## 🎯 Break Compliance - Generación Automática Día por Día\n\n**✅ AUTOMÁTICO**: Las alertas de break compliance se generan **automáticamente** cuando un empleado registra su `check_out`.\n\n**Flujo automático**:\n1. Empleado hace check_in\n2. Trabaja durante el día\n3. Empleado hace check_out (salida)\n4. **Sistema valida automáticamente**:\n   - ¿Trabajó 8+ horas?\n   - ¿Tomó su descanso de 30 minutos?\n5. Si hay violación → **ALERTA CREADA AUTOMÁTICAMENTE**\n\n**No necesitas hacer nada manual** - el sistema monitorea día por día.\n\n**Features**:\n- Attendance tracking\n- Payroll summaries\n- Sick leave tracking (NY State)\n- **Break compliance con alertas automáticas día por día (NY State)**\n- Resolver alertas de break compliance\n- Time summaries\n- Quick stats dashboard"
 		},
 		{
 			"name": "9. Pay Rates & Configuration",

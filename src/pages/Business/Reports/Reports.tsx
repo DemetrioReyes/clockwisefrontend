@@ -71,7 +71,7 @@ const Reports: React.FC = () => {
 
     setResolving(true);
     try {
-      const result = await reportsService.resolveBreakComplianceAlert(resolvingAlert.id, resolutionNotes);
+      await reportsService.resolveBreakComplianceAlert(resolvingAlert.id, resolutionNotes);
       showToast('Alerta resuelta exitosamente', 'success');
       handleCloseResolveModal();
       // Recargar las alertas

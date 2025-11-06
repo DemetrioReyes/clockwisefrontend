@@ -852,152 +852,217 @@ const PayrollPrintView: React.FC = () => {
             break-inside: avoid !important;
           }
 
-          /* Header de empresa en cada comprobante - Optimizado para impresión */
-          .page-break > .mb-6.pb-4 {
-            page-break-after: avoid !important;
-            break-after: avoid !important;
-            margin-bottom: 6px !important;
-            padding-bottom: 4px !important;
-          }
-
-          .page-break > .mb-6.pb-4 h1 {
-            font-size: 16px !important;
-            margin-bottom: 2px !important;
-          }
-
-          .page-break > .mb-6.pb-4 h2 {
-            font-size: 14px !important;
-            margin-bottom: 2px !important;
-          }
-
-          .page-break > .mb-6.pb-4 .text-sm {
+          /* Configuración global compacta */
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
             font-size: 9px !important;
-          }
-
-          .page-break > .mb-6.pb-4 .bg-gray-50 {
-            padding: 4px !important;
-            margin-top: 4px !important;
-          }
-
-          .page-break > .mb-6.pb-4 .text-xs {
-            font-size: 7px !important;
-          }
-
-          .page-break > .mb-6.pb-4 .w-10 {
-            width: 24px !important;
-            height: 24px !important;
-          }
-
-          .page-break > .mb-6.pb-4 .gap-3 {
-            gap: 6px !important;
-          }
-
-          .page-break > .mb-6.pb-4 .mb-3 {
-            margin-bottom: 4px !important;
-          }
-
-          .page-break > .mb-6.pb-4 .mt-4 {
-            margin-top: 4px !important;
-          }
-
-          .page-break > .mb-6.pb-4 .grid-cols-3 {
-            gap: 4px !important;
           }
 
           .print-container {
-            padding: 15px;
-            font-size: 11px;
-          }
-
-          body {
-            margin: 0;
-            padding: 0;
-            font-size: 11px;
-          }
-
-          h1 {
-            font-size: 18px !important;
-          }
-
-          h2 {
-            font-size: 16px !important;
-          }
-
-          h3 {
-            font-size: 14px !important;
-          }
-
-          h4 {
-            font-size: 12px !important;
-          }
-
-          .text-3xl {
-            font-size: 20px !important;
-          }
-
-          .text-2xl {
-            font-size: 16px !important;
-          }
-
-          .text-xl {
-            font-size: 14px !important;
-          }
-
-          .text-lg {
-            font-size: 12px !important;
-          }
-
-          .text-base {
-            font-size: 11px !important;
-          }
-
-          .text-sm {
-            font-size: 10px !important;
-          }
-
-          .text-xs {
+            padding: 8px !important;
             font-size: 9px !important;
           }
 
+          /* Header de empresa en cada comprobante - Ultra compacto */
+          .page-break > .mb-6.pb-4 {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            margin-bottom: 3px !important;
+            padding-bottom: 2px !important;
+          }
+
+          .page-break > .mb-6.pb-4 h1 {
+            font-size: 12px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.2 !important;
+          }
+
+          .page-break > .mb-6.pb-4 h2 {
+            font-size: 11px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.2 !important;
+          }
+
+          .page-break > .mb-6.pb-4 .text-sm {
+            font-size: 7px !important;
+            line-height: 1.1 !important;
+          }
+
+          .page-break > .mb-6.pb-4 .bg-gray-50 {
+            padding: 2px 4px !important;
+            margin-top: 2px !important;
+          }
+
+          .page-break > .mb-6.pb-4 .text-xs {
+            font-size: 6px !important;
+            line-height: 1.1 !important;
+          }
+
+          .page-break > .mb-6.pb-4 .w-10 {
+            width: 16px !important;
+            height: 16px !important;
+          }
+
+          .page-break > .mb-6.pb-4 .gap-3 {
+            gap: 3px !important;
+          }
+
+          .page-break > .mb-6.pb-4 .mb-3 {
+            margin-bottom: 2px !important;
+          }
+
+          .page-break > .mb-6.pb-4 .mt-4 {
+            margin-top: 2px !important;
+          }
+
+          .page-break > .mb-6.pb-4 .grid-cols-3 {
+            gap: 2px !important;
+          }
+
+          /* Tamaños de fuente reducidos */
+          h1 {
+            font-size: 14px !important;
+            margin-bottom: 2px !important;
+            line-height: 1.2 !important;
+          }
+
+          h2 {
+            font-size: 12px !important;
+            margin-bottom: 2px !important;
+            line-height: 1.2 !important;
+          }
+
+          h3 {
+            font-size: 11px !important;
+            margin-bottom: 2px !important;
+            line-height: 1.2 !important;
+          }
+
+          h4 {
+            font-size: 10px !important;
+            margin-bottom: 2px !important;
+            line-height: 1.2 !important;
+          }
+
+          h5 {
+            font-size: 9px !important;
+            margin-bottom: 2px !important;
+            line-height: 1.2 !important;
+          }
+
+          .text-3xl {
+            font-size: 16px !important;
+            line-height: 1.2 !important;
+          }
+
+          .text-2xl {
+            font-size: 14px !important;
+            line-height: 1.2 !important;
+          }
+
+          .text-xl {
+            font-size: 12px !important;
+            line-height: 1.2 !important;
+          }
+
+          .text-lg {
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+          }
+
+          .text-base {
+            font-size: 9px !important;
+            line-height: 1.2 !important;
+          }
+
+          .text-sm {
+            font-size: 8px !important;
+            line-height: 1.2 !important;
+          }
+
+          .text-xs {
+            font-size: 7px !important;
+            line-height: 1.1 !important;
+          }
+
+          /* Padding y márgenes reducidos */
           .p-6 {
-            padding: 12px !important;
+            padding: 6px !important;
           }
 
           .p-4 {
-            padding: 10px !important;
+            padding: 4px !important;
+          }
+
+          .p-3 {
+            padding: 3px !important;
           }
 
           .mb-8 {
-            margin-bottom: 15px !important;
+            margin-bottom: 6px !important;
           }
 
           .mb-6 {
-            margin-bottom: 12px !important;
+            margin-bottom: 4px !important;
           }
 
           .mb-4 {
-            margin-bottom: 10px !important;
+            margin-bottom: 3px !important;
+          }
+
+          .mb-3 {
+            margin-bottom: 2px !important;
+          }
+
+          .mb-2 {
+            margin-bottom: 2px !important;
+          }
+
+          .mt-4 {
+            margin-top: 3px !important;
+          }
+
+          .mt-3 {
+            margin-top: 2px !important;
+          }
+
+          .mt-2 {
+            margin-top: 2px !important;
+          }
+
+          .pt-4 {
+            padding-top: 3px !important;
+          }
+
+          .pt-2 {
+            padding-top: 2px !important;
+          }
+
+          .pb-1 {
+            padding-bottom: 1px !important;
           }
 
           .gap-4 {
-            gap: 8px !important;
+            gap: 4px !important;
           }
 
-          /* Prevenir que el texto se corte horizontalmente */
-          * {
-            word-wrap: break-word !important;
-            overflow-wrap: break-word !important;
-            max-width: 100% !important;
+          .gap-2 {
+            gap: 2px !important;
           }
 
-          /* Asegurar que el header del empleado no se corte */
+          .space-y-2 > * + * {
+            margin-top: 2px !important;
+          }
+
+          /* Header del empleado compacto */
           .bg-gray-100 {
             overflow: visible !important;
-            padding-left: 12px !important;
-            padding-right: 12px !important;
-            margin-left: -12px !important;
-            margin-right: -12px !important;
-            margin-top: -12px !important;
+            padding: 4px 8px !important;
+            margin-left: -8px !important;
+            margin-right: -8px !important;
+            margin-top: -8px !important;
+            margin-bottom: 3px !important;
           }
 
           .bg-gray-100 > div {
@@ -1014,26 +1079,58 @@ const PayrollPrintView: React.FC = () => {
             max-width: 100% !important;
             overflow: visible !important;
             text-overflow: clip !important;
-            margin-left: 0 !important;
-            padding-left: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
           }
 
-          /* Asegurar que el contenedor del nombre tenga espacio */
           .bg-gray-100 .flex-1 {
             min-width: 0 !important;
             max-width: 70% !important;
-            padding-right: 8px !important;
+            padding-right: 4px !important;
           }
 
-          /* Asegurar que el monto de pago no se corte */
           .bg-gray-100 .flex-shrink-0 {
-            min-width: 120px !important;
+            min-width: 100px !important;
           }
 
-          /* Asegurar que flex containers permitan wrap */
+          /* Contenedor principal */
+          .border-2.rounded-lg {
+            padding: 6px 8px !important;
+            margin-bottom: 4px !important;
+          }
+
+          /* Secciones */
+          .border-b {
+            border-bottom-width: 1px !important;
+            padding-bottom: 2px !important;
+          }
+
+          .border-t {
+            border-top-width: 1px !important;
+            padding-top: 2px !important;
+          }
+
+          .border-t-2 {
+            border-top-width: 1px !important;
+            padding-top: 2px !important;
+            margin-top: 2px !important;
+          }
+
+          /* Grid compacto */
+          .grid-cols-3 {
+            gap: 3px !important;
+          }
+
+          .grid-cols-3 > div {
+            padding: 2px !important;
+          }
+
+          /* Flex containers */
           .flex {
             flex-wrap: wrap !important;
             min-width: 0 !important;
+            gap: 2px !important;
           }
 
           .flex-1 {
@@ -1041,40 +1138,61 @@ const PayrollPrintView: React.FC = () => {
             max-width: 100% !important;
           }
 
-          /* Asegurar padding suficiente en contenedores */
-          .print-container {
-            padding-left: 12px !important;
-            padding-right: 12px !important;
+          /* Ingresos y deducciones */
+          .flex.justify-between {
+            padding: 1px 0 !important;
+            font-size: 8px !important;
+            line-height: 1.3 !important;
           }
 
-          .border-2.rounded-lg {
-            padding-left: 12px !important;
-            padding-right: 12px !important;
-          }
-
-          /* Estilos para mostrar firmas en impresión */
-          img[alt="Firma del empleado"] {
-            max-height: 100px !important;
-            display: block !important;
-            margin: 0 auto !important;
-          }
-
-          .bg-blue-50 {
+          /* Pago neto destacado */
+          .bg-green-50 {
             background-color: #eff6ff !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            padding: 4px 6px !important;
+            margin-top: 3px !important;
+            margin-bottom: 3px !important;
+          }
+
+          .bg-green-50 .text-xl {
+            font-size: 11px !important;
+          }
+
+          .bg-green-50 .text-3xl {
+            font-size: 18px !important;
           }
 
           .border-green-400 {
             border-color: #4ade80 !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            border-width: 1px !important;
           }
 
-          /* Estilos para la tabla de desglose diario */
+          /* Tabla de desglose diario ultra compacta */
+          .desglose-dia-table {
+            font-size: 7px !important;
+            margin-top: 2px !important;
+            margin-bottom: 2px !important;
+          }
+
+          .desglose-dia-table th,
+          .desglose-dia-table td {
+            padding: 2px 1px !important;
+            font-size: 7px !important;
+            line-height: 1.2 !important;
+          }
+
+          .desglose-dia-table thead th {
+            padding: 2px 1px !important;
+            font-weight: 600 !important;
+          }
+
           table {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+            margin: 2px 0 !important;
           }
 
           thead {
@@ -1090,14 +1208,58 @@ const PayrollPrintView: React.FC = () => {
             break-inside: avoid !important;
           }
 
-          .desglose-dia-table {
-            font-size: 9px !important;
+          /* Sección de firma compacta */
+          .bg-blue-50 {
+            background-color: #eff6ff !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+            padding: 4px 6px !important;
+            margin-top: 3px !important;
           }
 
-          .desglose-dia-table th,
-          .desglose-dia-table td {
-            padding: 4px 2px !important;
+          .bg-blue-50 h4 {
             font-size: 9px !important;
+            margin-bottom: 2px !important;
+          }
+
+          .bg-blue-50 .text-sm {
+            font-size: 7px !important;
+            margin-bottom: 2px !important;
+          }
+
+          .bg-white.border-2 {
+            padding: 3px !important;
+            margin: 2px 0 !important;
+          }
+
+          img[alt="Firma del empleado"] {
+            max-height: 60px !important;
+            display: block !important;
+            margin: 2px auto !important;
+          }
+
+          /* Información adicional compacta */
+          .border-t.border-gray-200 {
+            padding-top: 2px !important;
+            margin-top: 2px !important;
+            font-size: 7px !important;
+            line-height: 1.2 !important;
+          }
+
+          /* Prevenir que el texto se corte horizontalmente */
+          * {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            max-width: 100% !important;
+          }
+
+          /* Ajustes de espaciado general */
+          .rounded-lg {
+            border-radius: 4px !important;
+          }
+
+          .rounded {
+            border-radius: 2px !important;
           }
         }
 

@@ -13,6 +13,9 @@ export const API_ENDPOINTS = {
   LIST_BUSINESSES: '/api/business/',
   BUSINESS_BY_ID: '/api/business',
   UPDATE_BUSINESS: '/api/business',
+  DISABLE_BUSINESS: '/api/business',
+  RESET_BUSINESS_PASSWORD: '/api/business',
+  DELETE_BUSINESS_COMPLETE: '/api/business',
 
   // Employees
   EMPLOYEES: '/api/employees/',
