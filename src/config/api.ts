@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
 
   // Break Compliance
   BREAK_COMPLIANCE_ALERTS: '/api/break-compliance/alerts',
+  BREAK_COMPLIANCE_ALERT_RESOLVE: '/api/break-compliance/alerts',
   BREAK_COMPLIANCE_DASHBOARD: '/api/break-compliance/dashboard',
 
   // PDF Generation

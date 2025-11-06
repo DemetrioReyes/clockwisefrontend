@@ -5,7 +5,7 @@ import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
 import { reportsService } from '../../../services/reports.service';
 import { SickLeaveReport, BreakComplianceAlert } from '../../../types';
-import { FileText, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, CheckCircle2, X } from 'lucide-react';
 
 const Reports: React.FC = () => {
   const { showToast } = useToast();
@@ -16,6 +16,9 @@ const Reports: React.FC = () => {
   const [breakComplianceStatus, setBreakComplianceStatus] = useState<'pending' | 'resolved' | 'all'>('pending');
   const [breakComplianceTotal, setBreakComplianceTotal] = useState<number>(0);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [resolvingAlert, setResolvingAlert] = useState<BreakComplianceAlert | null>(null);
+  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [resolving, setResolving] = useState(false);
 
   const handleLoadSickLeave = async () => {
     setLoading(true);
@@ -47,6 +50,36 @@ const Reports: React.FC = () => {
       showToast(formatErrorMessage(error), 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenResolveModal = (alert: BreakComplianceAlert) => {
+    setResolvingAlert(alert);
+    setResolutionNotes('');
+  };
+
+  const handleCloseResolveModal = () => {
+    setResolvingAlert(null);
+    setResolutionNotes('');
+  };
+
+  const handleResolveAlert = async () => {
+    if (!resolvingAlert || !resolutionNotes.trim()) {
+      showToast('Por favor, ingrese las notas de resolución', 'error');
+      return;
+    }
+
+    setResolving(true);
+    try {
+      const result = await reportsService.resolveBreakComplianceAlert(resolvingAlert.id, resolutionNotes);
+      showToast('Alerta resuelta exitosamente', 'success');
+      handleCloseResolveModal();
+      // Recargar las alertas
+      await handleLoadBreakCompliance();
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -329,6 +362,17 @@ const Reports: React.FC = () => {
                             <div className="text-sm text-gray-400">-</div>
                           )}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.status === 'pending' && (
+                            <button
+                              onClick={() => handleOpenResolveModal(item)}
+                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-1" />
+                              Resolver
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -345,6 +389,80 @@ const Reports: React.FC = () => {
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Modal para Resolver Alerta */}
+        {resolvingAlert && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Resolver Alerta de Break Compliance</h3>
+                <button
+                  onClick={handleCloseResolveModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <div className="bg-gray-50 p-3 rounded-md mb-4">
+                  <p className="text-sm text-gray-600 mb-1">
+                    <span className="font-medium">Empleado:</span> {resolvingAlert.employee_name}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    <span className="font-medium">Fecha:</span> {resolvingAlert.violation_date ? new Date(resolvingAlert.violation_date).toLocaleDateString('es-ES') : 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Déficit:</span> {resolvingAlert.deficit_minutes ?? 0} minutos
+                  </p>
+                </div>
+
+                <label htmlFor="resolution_notes" className="block text-sm font-medium text-gray-700 mb-2">
+                  Notas de Resolución *
+                </label>
+                <textarea
+                  id="resolution_notes"
+                  rows={4}
+                  value={resolutionNotes}
+                  onChange={(e) => setResolutionNotes(e.target.value)}
+                  placeholder="Ej: Empleado tomó descanso pero no lo registró. Se corrigió en el sistema y se le recordó la importancia de registrar los breaks."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  required
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Describe la acción tomada para resolver esta alerta de cumplimiento.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCloseResolveModal}
+                  disabled={resolving}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleResolveAlert}
+                  disabled={resolving || !resolutionNotes.trim()}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                >
+                  {resolving ? (
+                    <>
+                      <LoadingSpinner />
+                      <span className="ml-2">Resolviendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Marcar como Resuelto
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

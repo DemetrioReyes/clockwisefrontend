@@ -63,6 +63,13 @@ export const reportsService = {
     return response.data;
   },
 
+  resolveBreakComplianceAlert: async (alertId: string, resolutionNotes: string): Promise<any> => {
+    const response = await api.post(`${API_ENDPOINTS.BREAK_COMPLIANCE_ALERT_RESOLVE}/${alertId}/resolve`, {
+      resolution_notes: resolutionNotes,
+    });
+    return response.data;
+  },
+
   getBreakComplianceDashboard: async (): Promise<any> => {
     const response = await api.get(API_ENDPOINTS.BREAK_COMPLIANCE_DASHBOARD);
     return response.data;
