@@ -55,6 +55,7 @@ export const API_ENDPOINTS = {
   GENERATE_PDF_DETAILED: '/api/pdf-payroll/generate-detailed',
   DOWNLOAD_PDF: '/api/pdf-payroll/download',
   PDF_HISTORY: '/api/pdf-payroll/history',
+  UPLOAD_SIGNED_PDF: '/api/pdf-payroll/upload',
 
   // Digital Signatures
   SIGN_DOCUMENT: '/api/digital-signatures/',
@@ -75,6 +76,8 @@ export const API_ENDPOINTS = {
   SICK_LEAVE_LIST: '/api/sick-leave/list',
   SICK_LEAVE_USAGE: '/api/sick-leave/usage',
   SICK_LEAVE_USAGE_HISTORY: '/api/sick-leave/usage/employee',
+  SICK_LEAVE_UPLOAD_DOCUMENT: '/api/sick-leave/documents/upload',
+  SICK_LEAVE_DOCUMENTS: '/api/sick-leave/documents',
   PENDING_SICK_LEAVE: '/api/sick-leave/usage/pending',
   APPROVE_SICK_LEAVE: '/api/sick-leave/usage',
   ACCUMULATE_SICK_LEAVE: '/api/sick-leave/accumulate-all',

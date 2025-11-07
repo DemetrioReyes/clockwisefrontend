@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatErrorMessage } from '../../../services/api';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { reportsService } from '../../../services/reports.service';
-import { BreakComplianceAlert, TimeEntry, Employee } from '../../../types';
-import { CheckCircle, XCircle, CheckCircle2, X, Calendar, DollarSign, Clock } from 'lucide-react';
+import { sickleaveService } from '../../../services/sickleave.service';
+import { BreakComplianceAlert, TimeEntry, Employee, SickLeaveDocument, SickLeaveDocumentFilters } from '../../../types';
+import { CheckCircle, XCircle, CheckCircle2, X, Calendar, DollarSign, Clock, FileText, Download } from 'lucide-react';
 import employeeService from '../../../services/employee.service';
 import payrollService from '../../../services/payroll.service';
 
-type ReportTab = 'attendance' | 'payroll' | 'time-summary' | 'break-compliance';
+type ReportTab = 'attendance' | 'payroll' | 'time-summary' | 'break-compliance' | 'sick-leave-documents';
 
 interface AttendanceReportItem {
   employee_id: string;
@@ -94,6 +95,14 @@ const Reports: React.FC = () => {
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState(false);
 
+  // Sick Leave Documents State
+  const [sickLeaveDocuments, setSickLeaveDocuments] = useState<SickLeaveDocument[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsEmployeeId, setDocumentsEmployeeId] = useState<string>('');
+  const [documentsStartDate, setDocumentsStartDate] = useState<string>('');
+  const [documentsEndDate, setDocumentsEndDate] = useState<string>('');
+  const [documentsEmployees, setDocumentsEmployees] = useState<Employee[]>([]);
+
   // Helper function to load employees
   const loadEmployees = async (): Promise<Record<string, Employee>> => {
     try {
@@ -108,6 +117,17 @@ const Reports: React.FC = () => {
       return {};
     }
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const employeeList = await employeeService.listEmployees(true);
+        setDocumentsEmployees(employeeList);
+      } catch (error) {
+        console.error('Error loading employees for sick leave documents:', error);
+      }
+    })();
+  }, []);
 
   // Attendance Report Handlers - Generate from time entries
   const handleLoadAttendance = async () => {
@@ -554,6 +574,56 @@ const Reports: React.FC = () => {
     }
   };
 
+  const slugify = (value?: string) => {
+    if (!value) return '';
+    return value
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const handleLoadSickLeaveDocuments = async () => {
+    setDocumentsLoading(true);
+    try {
+      const filters: SickLeaveDocumentFilters = {};
+      if (documentsEmployeeId) filters.employee_id = documentsEmployeeId;
+      if (documentsStartDate) filters.start_date = documentsStartDate;
+      if (documentsEndDate) filters.end_date = documentsEndDate;
+
+      const documents = await sickleaveService.listSickLeaveDocuments(filters);
+      setSickLeaveDocuments(documents);
+      if (documents.length > 0) {
+        showToast(t('documents_loaded_successfully'), 'success');
+      } else {
+        showToast(t('no_documents_found'), 'info');
+      }
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+      setSickLeaveDocuments([]);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  const handleDownloadSickLeaveDocument = async (doc: SickLeaveDocument) => {
+    try {
+      const { blob, filename } = await sickleaveService.downloadSickLeaveDocument(doc.id);
+      const url = window.URL.createObjectURL(blob);
+      const anchor = window.document.createElement('a');
+      const fallbackName = `${slugify(doc.document_name || doc.document_filename || 'sick-leave-document') || 'sick-leave-document'}.pdf`;
+      anchor.href = url;
+      anchor.download = filename || fallbackName;
+      window.document.body.appendChild(anchor);
+      anchor.click();
+      window.document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    }
+  };
+
   const handleOpenResolveModal = (alert: BreakComplianceAlert) => {
     setResolvingAlert(alert);
     setResolutionNotes('');
@@ -595,6 +665,16 @@ const Reports: React.FC = () => {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+    });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -650,6 +730,17 @@ const Reports: React.FC = () => {
           >
             <CheckCircle className="inline w-5 h-5 mr-2" />
             {t('break_compliance')}
+          </button>
+          <button
+            onClick={() => setActiveTab('sick-leave-documents')}
+            className={`px-4 py-2 font-medium whitespace-nowrap ${
+              activeTab === 'sick-leave-documents'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <FileText className="inline w-5 h-5 mr-2" />
+            {t('sick_leave_documents_tab')}
           </button>
         </div>
 
@@ -1140,6 +1231,132 @@ const Reports: React.FC = () => {
                 <XCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 font-medium">{t('no_alerts_available', { status: '' })}</p>
                 <p className="text-sm text-gray-400 mt-2">{t('click_load_alerts')}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sick Leave Documents Tab */}
+        {activeTab === 'sick-leave-documents' && (
+          <div className="space-y-4">
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('employee')}
+                  </label>
+                  <select
+                    value={documentsEmployeeId}
+                    onChange={(e) => setDocumentsEmployeeId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">{t('all_employees')}</option>
+                    {documentsEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name} - {emp.employee_code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('start_date')}</label>
+                  <input
+                    type="date"
+                    value={documentsStartDate}
+                    onChange={(e) => setDocumentsStartDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('end_date')}</label>
+                  <input
+                    type="date"
+                    value={documentsEndDate}
+                    onChange={(e) => setDocumentsEndDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <button
+                  onClick={handleLoadSickLeaveDocuments}
+                  disabled={documentsLoading}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {documentsLoading ? t('loading') : t('load_documents')}
+                </button>
+              </div>
+            </div>
+
+            {documentsLoading ? (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" text={t('loading')} />
+              </div>
+            ) : sickLeaveDocuments.length > 0 ? (
+              <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('document_name')}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('employee')}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('usage_id')}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('uploaded_at')}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('actions')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {sickLeaveDocuments.map((doc) => {
+                      const employee = documentsEmployees.find((emp) => emp.id === doc.employee_id);
+                      return (
+                        <tr key={doc.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {doc.document_name || doc.document_filename || '-'}
+                            </div>
+                            {doc.document_filename && (
+                              <div className="text-xs text-gray-500">{doc.document_filename}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {employee
+                                ? `${employee.first_name} ${employee.last_name}`
+                                : doc.employee_code || doc.employee_id}
+                            </div>
+                            <div className="text-xs text-gray-500">{doc.employee_code || '-'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {doc.sick_leave_usage_id}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {doc.created_at ? formatDateTime(doc.created_at) : '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <button
+                              onClick={() => handleDownloadSickLeaveDocument(doc)}
+                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              {t('download_document')}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
+                {t('no_documents_found')}
               </div>
             )}
           </div>

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
@@ -7,6 +9,7 @@ import { formatErrorMessage } from '../../../services/api';
 import { sickleaveService } from '../../../services/sickleave.service';
 import { getEmployees } from '../../../services/employee.service';
 import { signaturesService } from '../../../services/signatures.service';
+import { pdfService } from '../../../services/pdf.service';
 import { Employee } from '../../../types';
 import { Calendar, Clock, Users, CheckCircle2, AlertCircle, FileText, Plus, X, PenTool, Printer } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
@@ -24,6 +27,7 @@ const SickLeaveManagement = () => {
   const [currentUsage, setCurrentUsage] = useState<any>(null);
   const [signing, setSigning] = useState(false);
   const signatureRef = useRef<any>(null);
+  const receiptRef = useRef<HTMLDivElement | null>(null);
   const { showToast } = useToast();
   const { t } = useLanguage();
 
@@ -36,6 +40,18 @@ const SickLeaveManagement = () => {
   });
 
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+
+  const slugify = (value?: string) => {
+    if (!value) {
+      return '';
+    }
+    return value
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
 
   useEffect(() => {
     loadEmployees();
@@ -121,23 +137,100 @@ const SickLeaveManagement = () => {
     }
   };
 
+  const generateAndUploadSickLeavePdf = async (
+    usageId: string,
+    employeeId: string,
+    employeeCode: string,
+    usageDate: string,
+    documentName: string
+  ) => {
+    if (!employeeId) {
+      showToast(t('sick_leave_missing_employee'), 'error');
+      return;
+    }
+
+    const element = receiptRef.current;
+    if (!element) {
+      console.warn('No se encontró el contenedor del comprobante de sick leave');
+      return;
+    }
+
+    const canvas = await html2canvas(element, {
+      scale: Math.min(Math.max(window.devicePixelRatio, 1), 1.2),
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pdfWidth;
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+    }
+
+    const pdfBlob = pdf.output('blob');
+    const baseName = documentName || `sick_leave_${usageId}`;
+    const normalizedFileName = `${baseName.replace(/[^a-z\d\-_.]/gi, '_')}.pdf`;
+    const pdfFile = new File([pdfBlob], normalizedFileName, { type: 'application/pdf' });
+
+    const response = await sickleaveService.uploadSickLeaveDocument({
+      sick_leave_usage_id: usageId,
+      employee_id: employeeId,
+      document_name: documentName,
+      file: pdfFile,
+    });
+
+    showToast(t('sick_leave_pdf_uploaded_success', { code: employeeCode }), 'success');
+
+    return response;
+  };
+
   const handleSignComprobante = async () => {
     if (!signatureRef.current || signatureRef.current.isEmpty()) {
       showToast(t('please_sign_receipt'), 'error');
       return;
     }
 
+    if (!currentUsage) {
+      showToast(t('sick_leave_missing_usage'), 'error');
+      return;
+    }
+
+    const employeeId = currentUsage.employee_id || selectedEmployee;
+    if (!employeeId) {
+      showToast(t('sick_leave_missing_employee'), 'error');
+      return;
+    }
+
+    const usageId = currentUsage.id || `sickleave-${Date.now()}`;
+    const usageDate = currentUsage.usage_date || new Date().toISOString();
+    const invoiceId = `sickleave-${slugify(usageDate)}-${slugify(currentUsage.employee_code || 'empleado')}`;
+    const documentName = currentUsage.document_name || t('sick_leave_default_document_name', {
+      date: new Date(usageDate).toLocaleDateString('es-ES'),
+    });
+    const employeeCode = currentUsage.employee_code || 'Empleado';
+
     setSigning(true);
     try {
       const signatureData = signatureRef.current.toDataURL();
-      
-      // Generar un nombre único para el PDF del comprobante
-      const timestamp = new Date().getTime();
-      const pdfFilename = `sick_leave_usage_${currentUsage.id || currentUsage.employee_code}_${timestamp}.pdf`;
 
-      // Firmar el documento
       await signaturesService.signDocument({
-        payroll_pdf_id: pdfFilename,
+        payroll_pdf_id: `sick_leave_usage_${usageId}.pdf`,
         signature_type: 'drawn',
         signature_data: signatureData,
         signature_metadata: {
@@ -146,18 +239,24 @@ const SickLeaveManagement = () => {
           user_agent: navigator.userAgent,
           signed_location: 'Sick Leave Management',
           timestamp: new Date().toISOString(),
-          geolocation: undefined,
+          payroll_id: usageId,
+          invoice_id: invoiceId,
+          employee_id: employeeId,
         },
       });
 
+      await generateAndUploadSickLeavePdf(
+        usageId,
+        employeeId,
+        employeeCode,
+        usageDate,
+        documentName
+      );
+
       showToast(t('receipt_signed_successfully'), 'success');
-      setShowSignatureModal(false);
-      setCurrentUsage(null);
-      if (signatureRef.current) {
-        signatureRef.current.clear();
-      }
+      handleCloseModal();
     } catch (error: any) {
-      showToast(formatErrorMessage(error), 'error');
+      // El error ya fue mostrado por helpers específicos
     } finally {
       setSigning(false);
     }
@@ -537,7 +636,10 @@ const SickLeaveManagement = () => {
 
               <div className="p-6">
                 {/* Contenido del Comprobante */}
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+                <div
+                  className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-6"
+                  ref={receiptRef}
+                >
                   <div className="text-center mb-6">
                     <h4 className="text-2xl font-bold text-gray-900 mb-2">{t('usage_receipt')}</h4>
                     <h5 className="text-xl font-semibold text-gray-700">Sick Leave - NY State</h5>

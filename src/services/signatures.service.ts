@@ -203,7 +203,7 @@ const saveSignatureToLocalStorage = (data: SignatureCreate): DigitalSignature =>
   const tenantId = (metadata as any).tenant_id || '';
   
   // Clean metadata to remove temporary fields
-  const { employee_id, tenant_id, ...cleanMetadata } = metadata as any;
+  const { employee_id, tenant_id, payroll_id, invoice_id, ...cleanMetadata } = metadata as any;
   
   const signature: DigitalSignature = {
     id: signatureId,
@@ -220,6 +220,8 @@ const saveSignatureToLocalStorage = (data: SignatureCreate): DigitalSignature =>
     },
     signed_at: new Date().toISOString(),
     is_valid: true,
+    payroll_id: payroll_id || '',
+    invoice_id: invoice_id || '',
   };
 
   return signature;

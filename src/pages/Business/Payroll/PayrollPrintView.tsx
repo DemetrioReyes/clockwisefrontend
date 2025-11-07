@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -12,12 +14,16 @@ import { signaturesService } from '../../../services/signatures.service';
 import { pdfService } from '../../../services/pdf.service';
 import employeeService from '../../../services/employee.service';
 import { Calendar } from 'lucide-react';
+import { UploadSignedPayrollResponse } from '../../../types';
 
 interface EmployeeSignature {
   employeeId: string;
   signatureData: string | null;
   pdfFilename: string | null;
   isSigned: boolean;
+  signedPdfFilename?: string | null;
+  signedPdfUrl?: string | null;
+  invoiceId?: string | null;
 }
 
 const PayrollPrintView: React.FC = () => {
@@ -32,7 +38,31 @@ const PayrollPrintView: React.FC = () => {
   const [signatures, setSignatures] = useState<Record<string, EmployeeSignature>>({});
   const [signingInProgress, setSigningInProgress] = useState<string | null>(null);
   const signatureRefs = useRef<Record<string, any>>({});
+  const employeePdfRef = useRef<HTMLDivElement | null>(null);
   const [employeeTimeEntries, setEmployeeTimeEntries] = useState<Record<string, any[]>>({});
+  const [invoiceIds, setInvoiceIds] = useState<Record<string, string>>({});
+  const [selectedSignedFiles, setSelectedSignedFiles] = useState<Record<string, File | null>>({});
+  const [uploadingSignedPdf, setUploadingSignedPdf] = useState<Record<string, boolean>>({});
+  const [uploadedSignedPdfs, setUploadedSignedPdfs] = useState<Record<string, UploadSignedPayrollResponse | null>>({});
+  const [activeEmployeeIndex, setActiveEmployeeIndex] = useState(0);
+
+  const slugify = (value?: string) => {
+    if (!value) {
+      return '';
+    }
+    return value
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const generateDefaultInvoiceId = (payrollInfo: any, employeeCode?: string, employeeId?: string) => {
+    const datePart = slugify(payrollInfo?.period_end || payrollInfo?.period_start || new Date().toISOString().split('T')[0]);
+    const codePart = slugify(employeeCode) || slugify(employeeId) || 'empleado';
+    return `payroll-${datePart}-${codePart}`;
+  };
 
   useEffect(() => {
     loadPayrollData();
@@ -44,9 +74,10 @@ const PayrollPrintView: React.FC = () => {
       if (!payrollId) return;
       const data = await payrollService.getPayrollById(payrollId);
       setPayrollData(data);
+      setActiveEmployeeIndex(0);
 
       // Cargar PDFs y firmas existentes
-      await loadEmployeeSignatures(data.calculations);
+      await loadEmployeeSignatures(data.calculations, data.payroll);
       
       // Cargar time entries para cada empleado
       if (data.calculations && data.payroll?.period_start && data.payroll?.period_end) {
@@ -157,7 +188,9 @@ const PayrollPrintView: React.FC = () => {
     return dailySummary.sort((a, b) => a.date.localeCompare(b.date));
   };
 
-  const loadEmployeeSignatures = async (calculations: any[]) => {
+  const SHOW_SIGNED_PDF_UPLOAD_UI = false;
+
+  const loadEmployeeSignatures = async (calculations: any[], payrollInfo?: any) => {
     if (!payrollId) return;
 
     try {
@@ -170,8 +203,9 @@ const PayrollPrintView: React.FC = () => {
         const pdfObj = pdfData as any;
         pdfArray = pdfObj.items || pdfObj.data || pdfObj.results || [];
       }
-
       const signaturesMap: Record<string, EmployeeSignature> = {};
+      const invoiceMap: Record<string, string> = {};
+      const uploadedMap: Record<string, UploadSignedPayrollResponse | null> = {};
 
       for (const calc of calculations) {
         const employeeId = calc.employee_id;
@@ -180,6 +214,22 @@ const PayrollPrintView: React.FC = () => {
         const employeePdf = pdfArray.find((pdf: any) =>
           pdf.employee_id === employeeId
         );
+        const invoiceId = employeePdf?.invoice_id || generateDefaultInvoiceId(payrollInfo, calc.employee_code, employeeId);
+        invoiceMap[employeeId] = invoiceId;
+
+        const signedPdfFilename = employeePdf?.signed_pdf_filename || employeePdf?.pdf_filename || null;
+        const signedPdfUrl = employeePdf?.signed_pdf_url || employeePdf?.signed_pdf_path || employeePdf?.pdf_url || employeePdf?.file_url || null;
+
+        if (signedPdfFilename || signedPdfUrl) {
+          uploadedMap[employeeId] = {
+            ...(employeePdf as UploadSignedPayrollResponse),
+            signed_pdf_filename: signedPdfFilename ?? undefined,
+            signed_pdf_url: signedPdfUrl ?? undefined,
+            invoice_id: invoiceId,
+          };
+        } else {
+          uploadedMap[employeeId] = null;
+        }
 
         if (employeePdf && employeePdf.pdf_filename) {
           try {
@@ -190,6 +240,9 @@ const PayrollPrintView: React.FC = () => {
               signatureData: signature.signature_data,
               pdfFilename: employeePdf.pdf_filename,
               isSigned: true,
+              signedPdfFilename,
+              signedPdfUrl,
+              invoiceId,
             };
           } catch (error: any) {
             // Si no hay firma (404), inicializar como no firmado
@@ -198,6 +251,9 @@ const PayrollPrintView: React.FC = () => {
               signatureData: null,
               pdfFilename: employeePdf.pdf_filename,
               isSigned: false,
+              signedPdfFilename,
+              signedPdfUrl,
+              invoiceId,
             };
           }
         } else {
@@ -207,13 +263,288 @@ const PayrollPrintView: React.FC = () => {
             signatureData: null,
             pdfFilename: null,
             isSigned: false,
+            signedPdfFilename: null,
+            signedPdfUrl: null,
+            invoiceId,
           };
         }
       }
 
+      // Consultar firmas existentes (backend o IndexedDB)
+      const signaturesByEmployee = await Promise.all(
+        calculations.map(async (calc) => {
+          try {
+            const employeeSignatures = await signaturesService.getEmployeeSignatures(calc.employee_id);
+            return {
+              employeeId: calc.employee_id,
+              signatures: Array.isArray(employeeSignatures) ? employeeSignatures : [],
+            };
+          } catch (error) {
+            console.warn(`Error obteniendo firmas para empleado ${calc.employee_id}:`, error);
+            return {
+              employeeId: calc.employee_id,
+              signatures: [],
+            };
+          }
+        })
+      );
+
+      signaturesByEmployee.forEach(({ employeeId, signatures: employeeSignaturesList }) => {
+        if (!employeeSignaturesList || employeeSignaturesList.length === 0) {
+          return;
+        }
+
+        const matchingSignature = employeeSignaturesList.find((signature) => {
+          if (!signature) return false;
+          if (signature.payroll_id && signature.payroll_id === payrollId) return true;
+          const signaturePayrollMetadata = signature.signature_metadata?.payroll_id;
+          if (signaturePayrollMetadata && signaturePayrollMetadata === payrollId) return true;
+          if (payrollId && signature.payroll_pdf_id?.includes(payrollId)) return true;
+          return false;
+        });
+
+        if (!matchingSignature) {
+          return;
+        }
+
+        const invoiceFromSignature =
+          matchingSignature.invoice_id ||
+          matchingSignature.signature_metadata?.invoice_id ||
+          invoiceMap[employeeId] ||
+          generateDefaultInvoiceId(payrollInfo, calculations.find((calc) => calc.employee_id === employeeId)?.employee_code, employeeId);
+
+        invoiceMap[employeeId] = invoiceFromSignature;
+
+        const currentSignature = signaturesMap[employeeId] || {
+          employeeId,
+          signatureData: null,
+          pdfFilename: null,
+          isSigned: false,
+          signedPdfFilename: null,
+          signedPdfUrl: null,
+          invoiceId: invoiceFromSignature,
+        };
+
+        signaturesMap[employeeId] = {
+          ...currentSignature,
+          employeeId,
+          signatureData: matchingSignature.signature_data,
+          pdfFilename: matchingSignature.payroll_pdf_id || currentSignature.pdfFilename,
+          isSigned: true,
+          invoiceId: invoiceFromSignature,
+          signedPdfFilename: currentSignature.signedPdfFilename || matchingSignature.payroll_pdf_id || null,
+          signedPdfUrl: currentSignature.signedPdfUrl || null,
+        };
+      });
+
       setSignatures(signaturesMap);
+      setInvoiceIds((prev) => {
+        const merged: Record<string, string> = { ...invoiceMap };
+        Object.keys(prev).forEach((key) => {
+          if (prev[key]) {
+            merged[key] = prev[key];
+          }
+        });
+        return merged;
+      });
+      setUploadedSignedPdfs(uploadedMap);
+      setSelectedSignedFiles({});
     } catch (error) {
       console.error('Error cargando firmas:', error);
+    }
+  };
+
+  const handleInvoiceChange = (employeeId: string, value: string) => {
+    setInvoiceIds((prev) => ({
+      ...prev,
+      [employeeId]: value,
+    }));
+  };
+
+  const handleSignedPdfFileChange = (employeeId: string, event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+
+    if (file && file.type !== 'application/pdf') {
+      showToast(t('signed_pdf_only'), 'error');
+      event.target.value = '';
+      return;
+    }
+
+    setSelectedSignedFiles((prev) => ({
+      ...prev,
+      [employeeId]: file,
+    }));
+  };
+
+  const handleUploadSignedPdf = async (employeeId: string, employeeCode: string) => {
+    if (!payrollId) {
+      showToast(t('error_no_payroll_id'), 'error');
+      return;
+    }
+
+    if (!signatures[employeeId]?.isSigned) {
+      showToast(t('signed_pdf_requires_signature'), 'error');
+      return;
+    }
+
+    const selectedFile = selectedSignedFiles[employeeId];
+    if (!selectedFile) {
+      showToast(t('signed_pdf_select_file_first'), 'error');
+      return;
+    }
+
+    const invoiceId = (invoiceIds[employeeId] || '').trim();
+    if (!invoiceId) {
+      showToast(t('signed_pdf_missing_invoice'), 'error');
+      return;
+    }
+
+    try {
+      setUploadingSignedPdf((prev) => ({
+        ...prev,
+        [employeeId]: true,
+      }));
+
+      const response = await pdfService.uploadSignedPayrollPDF({
+        payroll_id: payrollId,
+        employee_id: employeeId,
+        invoice_id: invoiceId,
+        file: selectedFile,
+      });
+
+      setUploadedSignedPdfs((prev) => ({
+        ...prev,
+        [employeeId]: response,
+      }));
+
+      setSignatures((prev) => ({
+        ...prev,
+        [employeeId]: {
+          ...(prev[employeeId] || { employeeId }),
+          employeeId,
+          signatureData: prev[employeeId]?.signatureData ?? null,
+          pdfFilename: prev[employeeId]?.pdfFilename ?? response.pdf_filename ?? null,
+          isSigned: true,
+          signedPdfFilename: response.signed_pdf_filename || response.pdf_filename || selectedFile.name,
+          signedPdfUrl:
+            response.signed_pdf_url || (response as any).file_url || (response as any).url || prev[employeeId]?.signedPdfUrl || null,
+          invoiceId,
+        },
+      }));
+
+      setSelectedSignedFiles((prev) => ({
+        ...prev,
+        [employeeId]: null,
+      }));
+
+      showToast(t('signed_pdf_uploaded_success', { code: employeeCode }), 'success');
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setUploadingSignedPdf((prev) => ({
+        ...prev,
+        [employeeId]: false,
+      }));
+    }
+  };
+
+  const generateAndUploadSignedPdf = async (
+    employeeId: string,
+    employeeCode: string,
+    invoiceId: string,
+    fallbackPdfFilename: string | null
+  ) => {
+    if (!payrollId) {
+      return;
+    }
+
+    const element = employeePdfRef.current;
+    if (!element) {
+      console.warn(`No se encontró el contenedor del comprobante para ${employeeId}`);
+      return;
+    }
+
+    try {
+      setUploadingSignedPdf((prev) => ({
+        ...prev,
+        [employeeId]: true,
+      }));
+
+      // Esperar a que React renderice la firma como imagen
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      const canvas = await html2canvas(element, {
+        scale: Math.min(Math.max(window.devicePixelRatio, 1), 1.2),
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      const pdfBlob = pdf.output('blob');
+      const baseName = invoiceId || fallbackPdfFilename || `${payrollId}_${employeeCode}`;
+      const normalizedFileName = `${baseName.replace(/[^a-z\d\-_.]/gi, '_')}.pdf`;
+      const pdfFile = new File([pdfBlob], normalizedFileName, { type: 'application/pdf' });
+
+      const response = await pdfService.uploadSignedPayrollPDF({
+        payroll_id: payrollId,
+        employee_id: employeeId,
+        invoice_id: invoiceId,
+        file: pdfFile,
+      });
+
+      setUploadedSignedPdfs((prev) => ({
+        ...prev,
+        [employeeId]: response,
+      }));
+
+      setSignatures((prev) => ({
+        ...prev,
+        [employeeId]: {
+          ...(prev[employeeId] || { employeeId }),
+          employeeId,
+          signatureData: prev[employeeId]?.signatureData || null,
+          pdfFilename: prev[employeeId]?.pdfFilename || fallbackPdfFilename,
+          isSigned: true,
+          signedPdfFilename: response.signed_pdf_filename || response.pdf_filename || normalizedFileName,
+          signedPdfUrl:
+            response.signed_pdf_url || (response as any)?.file_url || (response as any)?.url || prev[employeeId]?.signedPdfUrl || null,
+          invoiceId,
+        },
+      }));
+
+      showToast(t('signed_pdf_uploaded_success', { code: employeeCode }), 'success');
+    } catch (error: any) {
+      console.error('Error generando o subiendo el PDF firmado:', error);
+      if (error?.response?.data) {
+        console.error('Respuesta del backend (upload PDF):', error.response.data);
+      }
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setUploadingSignedPdf((prev) => ({
+        ...prev,
+        [employeeId]: false,
+      }));
     }
   };
 
@@ -235,6 +566,10 @@ const PayrollPrintView: React.FC = () => {
     try {
       const signatureData = sigPad.toDataURL();
       const metadata = signaturesService.getSignatureMetadata();
+
+      const existingInvoice = invoiceIds[employeeId];
+      const generatedInvoiceDefault = generateDefaultInvoiceId(payrollData?.payroll, employeeCode, employeeId);
+      const invoiceId = (existingInvoice && existingInvoice.trim()) || generatedInvoiceDefault;
 
       // Paso 1: Buscar si ya existe un PDF generado para este empleado
       let pdfFilename = signatures[employeeId]?.pdfFilename;
@@ -288,6 +623,8 @@ const PayrollPrintView: React.FC = () => {
           ...metadata,
           employee_id: employeeId,
           tenant_id: tenantId,
+          payroll_id: payrollId,
+          invoice_id: invoiceId,
         },
       });
 
@@ -295,12 +632,22 @@ const PayrollPrintView: React.FC = () => {
       setSignatures(prev => ({
         ...prev,
         [employeeId]: {
+          ...(prev[employeeId] || { employeeId }),
           employeeId,
           signatureData,
           pdfFilename,
           isSigned: true,
+          invoiceId,
+          signedPdfFilename: prev[employeeId]?.signedPdfFilename || pdfFilename,
         },
       }));
+
+      setInvoiceIds((prev) => ({
+        ...prev,
+        [employeeId]: invoiceId,
+      }));
+
+      await generateAndUploadSignedPdf(employeeId, employeeCode, invoiceId, pdfFilename);
 
       // Verificar si se guardó en IndexedDB (backend no disponible)
       if (signature.id?.startsWith('local_')) {
@@ -359,6 +706,38 @@ const PayrollPrintView: React.FC = () => {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const calculations = payrollData?.calculations ?? [];
+  const calcLength = calculations.length;
+  const safeActiveIndex = calcLength > 0 ? Math.min(activeEmployeeIndex, calcLength - 1) : 0;
+  const activeCalculation = calcLength > 0 ? calculations[safeActiveIndex] : null;
+  const totalEmployees = calcLength;
+
+  useEffect(() => {
+    if (calcLength === 0) {
+      return;
+    }
+    if (activeEmployeeIndex >= calcLength) {
+      setActiveEmployeeIndex(0);
+    }
+  }, [calcLength, activeEmployeeIndex]);
+
+  const handleEmployeeNavigation = (direction: 'prev' | 'next') => {
+    if (!calculations || calculations.length === 0) return;
+    setActiveEmployeeIndex((prevIndex) => {
+      if (direction === 'prev') {
+        return prevIndex <= 0 ? calculations.length - 1 : prevIndex - 1;
+      }
+      return prevIndex >= calculations.length - 1 ? 0 : prevIndex + 1;
+    });
+  };
+
+  const handleEmployeeSelect = (event: ChangeEvent<HTMLSelectElement>) => {
+    const newIndex = Number(event.target.value);
+    if (!Number.isNaN(newIndex)) {
+      setActiveEmployeeIndex(newIndex);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -380,7 +759,7 @@ const PayrollPrintView: React.FC = () => {
     );
   }
 
-  const { payroll, calculations } = payrollData;
+  const { payroll } = payrollData;
 
   return (
     <>
@@ -489,330 +868,479 @@ const PayrollPrintView: React.FC = () => {
         </div>
 
         {/* Detalle por Empleado */}
-        {calculations && calculations.map((calc: any) => (
-          <div key={calc.employee_id} className="mb-8 page-break">
-            {/* Header de la empresa - Aparece en cada comprobante */}
-            <div className="mb-6 pb-4 border-b-2 border-gray-800">
-              <div className="flex items-start justify-between">
+        {activeCalculation ? (() => {
+          const calc = activeCalculation;
+          const employeeSignature = signatures[calc.employee_id];
+          const invoiceValue = invoiceIds[calc.employee_id] ?? generateDefaultInvoiceId(payroll, calc.employee_code, calc.employee_id);
+          const selectedFile = selectedSignedFiles[calc.employee_id] || null;
+          const isUploading = uploadingSignedPdf[calc.employee_id] || false;
+          const uploadDetails = uploadedSignedPdfs[calc.employee_id] || null;
+          const signedPdfFilename = employeeSignature?.signedPdfFilename || uploadDetails?.signed_pdf_filename || null;
+          const signedPdfUrl = employeeSignature?.signedPdfUrl || uploadDetails?.signed_pdf_url || null;
+          const hasUploadedSignedPdf = Boolean(signedPdfFilename || signedPdfUrl);
+          const trimmedInvoice = (invoiceValue || '').trim();
+
+          return (
+            <div key={calc.employee_id} className="mb-8 page-break">
+              <div className="no-print mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleEmployeeNavigation('prev')}
+                    className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-sm font-medium"
+                  >
+                    {t('previous')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEmployeeNavigation('next')}
+                    className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-sm font-medium"
+                  >
+                    {t('next')}
+                  </button>
+                </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Building2 className="w-10 h-10 text-blue-600" />
-                    <h1 className="text-3xl font-bold text-gray-900">{companyName}</h1>
-                  </div>
-                  {businessAddress && (
-                    <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
-                  )}
-                  {businessPhone && (
-                    <p className="text-gray-600 text-sm">📞 {businessPhone}</p>
-                  )}
-                  {businessEmail && (
-                    <p className="text-gray-600 text-sm">📧 {businessEmail}</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <h2 className="text-2xl font-bold text-blue-600 mb-2">{t('payroll_receipt')}</h2>
-                  <p className="text-sm text-gray-500">ID: {payroll.id.substring(0, 8)}...</p>
-                  <p className="text-sm text-gray-500">{t('created')}: {new Date(payroll.created_at).toLocaleDateString('es-ES')}</p>
-                </div>
-              </div>
-              
-              {/* Info del período */}
-              <div className="mt-4 bg-gray-50 p-4 rounded-lg">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase">{t('period')}</p>
-                    <p className="font-semibold">{payroll.period_start} al {payroll.period_end}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase">{t('frequency')}</p>
-                    <p className="font-semibold capitalize">{payroll.pay_frequency}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase">{t('status')}</p>
-                    <p className="font-semibold capitalize">{payroll.status}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-2 border-gray-300 rounded-lg p-6">
-              {/* Header del empleado */}
-              <div className="bg-gray-100 -m-6 mb-6 p-4 rounded-t-lg">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-bold break-words">{calc.employee_name}</h3>
-                    <p className="text-gray-600 break-words">{t('payroll_code')}: {calc.employee_code} | {t('payroll_type')}: {calc.employee_type}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm text-gray-600 whitespace-nowrap">{t('net_pay')}</p>
-                    <p className="text-3xl font-bold text-green-600 whitespace-nowrap">${calc.net_pay}</p>
-                  </div>
+                  <label htmlFor="employee_selector" className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('select_employee_label')}
+                  </label>
+                  <select
+                    id="employee_selector"
+                    value={safeActiveIndex}
+                    onChange={handleEmployeeSelect}
+                    className="w-full md:w-72 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    {calculations.map((employee: any, optionIndex: number) => (
+                      <option key={employee.employee_id} value={optionIndex}>
+                        {employee.employee_code} - {employee.employee_name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {t('employee_position_indicator', { current: safeActiveIndex + 1, total: totalEmployees })}
+                  </p>
                 </div>
               </div>
 
-              {/* Horas trabajadas */}
-              <div className="mb-4">
-                <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('hours_worked')}</h4>
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-gray-600">{t('regular')}</p>
-                    <p className="text-lg font-bold">{calc.regular_hours}h</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">{t('overtime')}</p>
-                    <p className="text-lg font-bold">{calc.overtime_hours}h</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">{t('break')}</p>
-                    <p className="text-lg font-bold">{calc.break_hours}h</p>
-                  </div>
-                </div>
-
-                {/* Desglose por Día */}
-                {employeeTimeEntries[calc.employee_id] && employeeTimeEntries[calc.employee_id].length > 0 && (
-                  <div className="mt-4">
-                    <h5 className="font-semibold text-base mb-3 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      {t('daily_breakdown')}
-                    </h5>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm border-collapse desglose-dia-table">
-                        <thead>
-                          <tr className="bg-gray-100 border-b">
-                            <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('date')}</th>
-                            <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('check_in')}</th>
-                            <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('break_time')}</th>
-                            <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('check_out')}</th>
-                            <th className="text-right py-2 px-2 font-semibold text-gray-700">{t('hours')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {employeeTimeEntries[calc.employee_id].map((dayEntry: any, idx: number) => (
-                            <tr key={idx} className="border-b border-gray-200">
-                              <td className="py-2 px-2">
-                                {new Date(dayEntry.date).toLocaleDateString('es-ES', {
-                                  weekday: 'short',
-                                  day: 'numeric',
-                                  month: 'short'
-                                })}
-                              </td>
-                              <td className="py-2 px-2">
-                                {dayEntry.checkIn ? (
-                                  <span className="text-green-700 font-medium">{dayEntry.checkIn}</span>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </td>
-                              <td className="py-2 px-2">
-                                {dayEntry.breaks ? (
-                                  <span className="text-orange-600 text-xs">{dayEntry.breaks}</span>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </td>
-                              <td className="py-2 px-2">
-                                {dayEntry.checkOut ? (
-                                  <span className="text-red-700 font-medium">{dayEntry.checkOut}</span>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </td>
-                              <td className="py-2 px-2 text-right">
-                                <span className="text-blue-700 font-bold">{dayEntry.hoursWorked}h</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+              {/* Header de la empresa - Aparece en cada comprobante */}
+              <div className="mb-6 pb-4 border-b-2 border-gray-800">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Building2 className="w-10 h-10 text-blue-600" />
+                      <h1 className="text-3xl font-bold text-gray-900">{companyName}</h1>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Ingresos */}
-              <div className="mb-4">
-                <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('earnings')}</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">{t('regular_pay_calc', { hours: calc.regular_hours, rate: `$${calc.hourly_rate}` })}</span>
-                    <span className="font-semibold">${calc.regular_pay}</span>
-                  </div>
-                  {parseFloat(calc.overtime_hours) > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">{t('overtime_pay_calc', { hours: calc.overtime_hours, rate: `$${(parseFloat(calc.hourly_rate) * 1.5).toFixed(2)}` })}</span>
-                      <span className="font-semibold">${calc.overtime_pay}</span>
-                    </div>
-                  )}
-                  {parseFloat(calc.spread_hours_pay) > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">{t('spread_hours_pay')}</span>
-                      <span className="font-semibold">${calc.spread_hours_pay}</span>
-                    </div>
-                  )}
-                  {parseFloat(calc.total_bonus) > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">{t('bonuses')}</span>
-                      <span className="font-semibold text-green-600">+${calc.total_bonus}</span>
-                    </div>
-                  )}
-                  {parseFloat(calc.tips_reported) > 0 && (
-                    <div className="flex justify-between bg-yellow-50 p-2 rounded">
-                      <span className="text-gray-700 font-medium">{t('tips_reported_payroll')}</span>
-                      <span className="font-bold text-yellow-700">${calc.tips_reported}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between border-t-2 pt-2 mt-2">
-                    <span className="font-bold text-lg">{t('gross_pay_total')}</span>
-                    <span className="font-bold text-lg text-green-600">${calc.gross_pay}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Deducciones */}
-              <div className="mb-4">
-                <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('deductions')}</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">{t('federal_tax_payroll')}</span>
-                    <span className="text-red-600">-${calc.federal_tax}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">{t('state_tax_payroll')}</span>
-                    <span className="text-red-600">-${calc.state_tax}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">{t('social_security_payroll')}</span>
-                    <span className="text-red-600">-${calc.social_security}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">{t('medicare_payroll')}</span>
-                    <span className="text-red-600">-${calc.medicare}</span>
-                  </div>
-                  {parseFloat(calc.other_deductions) > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">{t('other_deductions')}</span>
-                      <span className="text-red-600">-${calc.other_deductions}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between border-t-2 pt-2 mt-2">
-                    <span className="font-bold text-lg">{t('total_deductions')}</span>
-                    <span className="font-bold text-lg text-red-600">-${calc.total_deductions}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pago Neto Final */}
-              <div className="bg-green-50 p-4 rounded-lg border-2 border-green-400">
-                <div className="flex justify-between items-center">
-                  <span className="text-xl font-bold">{t('net_pay_to_receive')}</span>
-                  <span className="text-3xl font-bold text-green-700">${calc.net_pay}</span>
-                </div>
-              </div>
-
-              {/* Sección de Firma Digital */}
-              <div className="mt-6 pt-4 border-t-2 border-gray-300">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold text-lg flex items-center gap-2">
-                      <PenTool className="w-5 h-5 text-blue-600" />
-                      {t('employee_digital_signature')}
-                    </h4>
-                    {signatures[calc.employee_id]?.isSigned && (
-                      <span className="text-green-600 font-semibold flex items-center gap-1">
-                        {t('signed')}
-                      </span>
+                    {businessAddress && (
+                      <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
+                    )}
+                    {businessPhone && (
+                      <p className="text-gray-600 text-sm">📞 {businessPhone}</p>
+                    )}
+                    {businessEmail && (
+                      <p className="text-gray-600 text-sm">📧 {businessEmail}</p>
                     )}
                   </div>
-
-                  {signatures[calc.employee_id]?.isSigned ? (
-                    // Mostrar firma existente
-                    <div className="bg-white border-2 border-green-400 rounded-lg p-4">
-                      <p className="text-sm text-gray-600 mb-2">{t('employee_signature', { code: calc.employee_code })}</p>
-                      <div className="flex justify-center items-center bg-gray-50 rounded border-2 border-gray-300" style={{ minHeight: '150px' }}>
-                        <img
-                          src={signatures[calc.employee_id].signatureData || ''}
-                          alt="Firma del empleado"
-                          className="max-h-36"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2 text-center">
-                        {t('digitally_signed_legal')}
-                      </p>
+                  <div className="text-right">
+                    <h2 className="text-2xl font-bold text-blue-600 mb-2">{t('payroll_receipt')}</h2>
+                    <p className="text-sm text-gray-500">ID: {payroll.id.substring(0, 8)}...</p>
+                    <p className="text-sm text-gray-500">{t('created')}: {new Date(payroll.created_at).toLocaleDateString('es-ES')}</p>
+                  </div>
+                </div>
+                
+                {/* Info del período */}
+                <div className="mt-4 bg-gray-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase">{t('period')}</p>
+                      <p className="font-semibold">{payroll.period_start} al {payroll.period_end}</p>
                     </div>
-                  ) : (
-                    // Mostrar canvas para firmar
-                    <div className="no-print">
-                      <p className="text-sm text-gray-700 mb-3">
-                        {t('employee_must_sign_payroll', { code: calc.employee_code })}
-                      </p>
-                      <div className="bg-white border-2 border-gray-300 rounded-lg p-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t('sign_here_payroll')}
-                        </label>
-                        <div className="border-2 border-dashed border-gray-400 rounded-lg bg-white">
-                          <SignatureCanvas
-                            ref={(ref) => {
-                              if (ref) signatureRefs.current[calc.employee_id] = ref;
-                            }}
-                            canvasProps={{
-                              className: 'w-full h-40 cursor-crosshair',
-                            }}
-                          />
-                        </div>
-                        <div className="mt-3 flex justify-between items-center">
-                          <button
-                            type="button"
-                            onClick={() => clearSignature(calc.employee_id)}
-                            className="px-4 py-2 text-sm border-2 border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium"
-                          >
-                            {t('clear_signature_payroll')}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSignEmployee(calc.employee_id, calc.employee_code)}
-                            disabled={signingInProgress === calc.employee_id}
-                            className="px-6 py-2 text-sm border border-transparent rounded-lg text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center gap-2"
-                          >
-                            {signingInProgress === calc.employee_id ? (
-                              <>
-                                <LoadingSpinner size="sm" />
-                                {t('saving_payroll')}
-                              </>
-                            ) : (
-                              <>
-                                <PenTool className="w-4 h-4" />
-                                {t('sign_and_save_payroll')}
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <p className="text-xs text-yellow-800">
-                          <strong>{t('info')}:</strong> {t('signature_legal_notice_payroll')}
-                        </p>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase">{t('frequency')}</p>
+                      <p className="font-semibold capitalize">{payroll.pay_frequency}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase">{t('status')}</p>
+                      <p className="font-semibold capitalize">{payroll.status}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="border-2 border-gray-300 rounded-lg p-6"
+                ref={(el) => {
+                  employeePdfRef.current = el;
+                }}
+              >
+                {/* Header del empleado */}
+                <div className="bg-gray-100 -m-6 mb-6 p-4 rounded-t-lg">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-xl font-bold break-words">{calc.employee_name}</h3>
+                      <p className="text-gray-600 break-words">{t('payroll_code')}: {calc.employee_code} | {t('payroll_type')}: {calc.employee_type}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm text-gray-600 whitespace-nowrap">{t('net_pay')}</p>
+                      <p className="text-3xl font-bold text-green-600 whitespace-nowrap">${calc.net_pay}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Horas trabajadas */}
+                <div className="mb-4">
+                  <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('hours_worked')}</h4>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-600">{t('regular')}</p>
+                      <p className="text-lg font-bold">{calc.regular_hours}h</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">{t('overtime')}</p>
+                      <p className="text-lg font-bold">{calc.overtime_hours}h</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">{t('break')}</p>
+                      <p className="text-lg font-bold">{calc.break_hours}h</p>
+                    </div>
+                  </div>
+
+                  {/* Desglose por Día */}
+                  {employeeTimeEntries[calc.employee_id] && employeeTimeEntries[calc.employee_id].length > 0 && (
+                    <div className="mt-4">
+                      <h5 className="font-semibold text-base mb-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        {t('daily_breakdown')}
+                      </h5>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border-collapse desglose-dia-table">
+                          <thead>
+                            <tr className="bg-gray-100 border-b">
+                              <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('date')}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('check_in')}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('break_time')}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-gray-700">{t('check_out')}</th>
+                              <th className="text-right py-2 px-2 font-semibold text-gray-700">{t('hours')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {employeeTimeEntries[calc.employee_id].map((dayEntry: any, idx: number) => (
+                              <tr key={idx} className="border-b border-gray-200">
+                                <td className="py-2 px-2">
+                                  {new Date(dayEntry.date).toLocaleDateString('es-ES', {
+                                    weekday: 'short',
+                                    day: 'numeric',
+                                    month: 'short'
+                                  })}
+                                </td>
+                                <td className="py-2 px-2">
+                                  {dayEntry.checkIn ? (
+                                    <span className="text-green-700 font-medium">{dayEntry.checkIn}</span>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-2">
+                                  {dayEntry.breaks ? (
+                                    <span className="text-orange-600 text-xs">{dayEntry.breaks}</span>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-2">
+                                  {dayEntry.checkOut ? (
+                                    <span className="text-red-700 font-medium">{dayEntry.checkOut}</span>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-2 text-right">
+                                  <span className="text-blue-700 font-bold">{dayEntry.hoursWorked}h</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Información adicional */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="text-xs text-gray-500">
-                  <p className="font-semibold mb-1">{t('employer')}: {companyName}</p>
-                  {businessAddress && <p>{businessAddress}</p>}
-                  <p className="mt-2 italic">{t('informational_receipt')}</p>
-                  <p className="text-right mt-2">{t('generated')}: {new Date().toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}</p>
+                {/* Ingresos */}
+                <div className="mb-4">
+                  <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('earnings')}</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">{t('regular_pay_calc', { hours: calc.regular_hours, rate: `$${calc.hourly_rate}` })}</span>
+                      <span className="font-semibold">${calc.regular_pay}</span>
+                    </div>
+                    {parseFloat(calc.overtime_hours) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-700">{t('overtime_pay_calc', { hours: calc.overtime_hours, rate: `$${(parseFloat(calc.hourly_rate) * 1.5).toFixed(2)}` })}</span>
+                        <span className="font-semibold">${calc.overtime_pay}</span>
+                      </div>
+                    )}
+                    {parseFloat(calc.spread_hours_pay) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-700">{t('spread_hours_pay')}</span>
+                        <span className="font-semibold">${calc.spread_hours_pay}</span>
+                      </div>
+                    )}
+                    {parseFloat(calc.total_bonus) > 0 && (
+                      <div className="flex justify_between">
+                        <span className="text-gray-700">{t('bonuses')}</span>
+                        <span className="font-semibold text-green-600">+${calc.total_bonus}</span>
+                      </div>
+                    )}
+                    {parseFloat(calc.tips_reported) > 0 && (
+                      <div className="flex justify-between bg-yellow-50 p-2 rounded">
+                        <span className="text-gray-700 font-medium">{t('tips_reported_payroll')}</span>
+                        <span className="font-bold text-yellow-700">${calc.tips_reported}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-t-2 pt-2 mt-2">
+                      <span className="font-bold text-lg">{t('gross_pay_total')}</span>
+                      <span className="font-bold text-lg text-green-600">${calc.gross_pay}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deducciones */}
+                <div className="mb-4">
+                  <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('deductions')}</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">{t('federal_tax_payroll')}</span>
+                      <span className="text-red-600">-${calc.federal_tax}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">{t('state_tax_payroll')}</span>
+                      <span className="text-red-600">-${calc.state_tax}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">{t('social_security_payroll')}</span>
+                      <span className="text-red-600">-${calc.social_security}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">{t('medicare_payroll')}</span>
+                      <span className="text-red-600">-${calc.medicare}</span>
+                    </div>
+                    {parseFloat(calc.other_deductions) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-700">{t('other_deductions')}</span>
+                        <span className="text-red-600">-${calc.other_deductions}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-t-2 pt-2 mt-2">
+                      <span className="font-bold text-lg">{t('total_deductions')}</span>
+                      <span className="font-bold text-lg text-red-600">-${calc.total_deductions}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pago Neto Final */}
+                <div className="bg-green-50 p-4 rounded-lg border-2 border-green-400">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xl font-bold">{t('net_pay_to_receive')}</span>
+                    <span className="text-3xl font-bold text-green-700">${calc.net_pay}</span>
+                  </div>
+                </div>
+
+                {/* Sección de Firma Digital */}
+                <div className="mt-6 pt-4 border-t-2 border-gray-300">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-lg flex items-center gap-2">
+                        <PenTool className="w-5 h-5 text-blue-600" />
+                        {t('employee_digital_signature')}
+                      </h4>
+                      {employeeSignature?.isSigned && (
+                        <span className="text-green-600 font-semibold flex items-center gap-1">
+                          {t('signed')}
+                        </span>
+                      )}
+                    </div>
+
+                    {employeeSignature?.isSigned ? (
+                      <div className="bg-white border-2 border-green-400 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-2">{t('employee_signature', { code: calc.employee_code })}</p>
+                        <div className="flex justify-center items-center bg-gray-50 rounded border-2 border-gray-300" style={{ minHeight: '150px' }}>
+                          <img
+                            src={employeeSignature?.signatureData || ''}
+                            alt="Firma del empleado"
+                            className="max-h-36"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2 text-center">
+                          {t('digitally_signed_legal')}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="no-print">
+                        <p className="text-sm text-gray-700 mb-3">
+                          {t('employee_must_sign_payroll', { code: calc.employee_code })}
+                        </p>
+                        <div className="bg-white border-2 border-gray-300 rounded-lg p-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {t('sign_here_payroll')}
+                          </label>
+                          <div className="border-2 border-dashed border-gray-400 rounded-lg bg-white">
+                            <SignatureCanvas
+                              ref={(ref) => {
+                                if (ref) signatureRefs.current[calc.employee_id] = ref;
+                              }}
+                              canvasProps={{
+                                className: 'w-full h-40 cursor-crosshair',
+                              }}
+                            />
+                          </div>
+                          <div className="mt-3 flex justify-between items-center">
+                            <button
+                              type="button"
+                              onClick={() => clearSignature(calc.employee_id)}
+                              className="px-4 py-2 text-sm border-2 border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium"
+                            >
+                              {t('clear_signature_payroll')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSignEmployee(calc.employee_id, calc.employee_code)}
+                              disabled={signingInProgress === calc.employee_id}
+                              className="px-6 py-2 text-sm border border-transparent rounded-lg text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center gap-2"
+                            >
+                              {signingInProgress === calc.employee_id ? (
+                                <>
+                                  <LoadingSpinner size="sm" />
+                                  {t('saving_payroll')}
+                                </>
+                              ) : (
+                                <>
+                                  <PenTool className="w-4 h-4" />
+                                  {t('sign_and_save_payroll')}
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          <p className="text-xs text-yellow-800">
+                            <strong>{t('info')}:</strong> {t('signature_legal_notice_payroll')}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              {/* Subir Comprobante Firmado */}
+              {SHOW_SIGNED_PDF_UPLOAD_UI && (
+                <div className="mt-6 pt-4 border-t-2 border-gray-200 no-print">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-lg text-green-800 mb-3">
+                      {t('signed_pdf_upload_section_title')}
+                    </h4>
+
+                    {employeeSignature?.isSigned ? (
+                      <div className="space-y-4">
+                        {hasUploadedSignedPdf && (
+                          <div className="bg-white border border-green-200 rounded-lg p-3">
+                            <p className="text-sm font-medium text-green-700">
+                              {t('signed_pdf_existing_download', { code: calc.employee_code })}
+                            </p>
+                            {signedPdfFilename && (
+                              <p className="text-xs text-gray-500 mt-1">{signedPdfFilename}</p>
+                            )}
+                            {signedPdfUrl ? (
+                              <a
+                                href={signedPdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center mt-2 text-sm text-blue-600 hover:text-blue-800"
+                              >
+                                {t('download')}
+                              </a>
+                            ) : (
+                              <p className="text-xs text-gray-400 mt-2">{t('signed_pdf_no_direct_link')}</p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`invoice-${calc.employee_id}`}>
+                              {t('signed_pdf_invoice_label')}
+                            </label>
+                            <input
+                              id={`invoice-${calc.employee_id}`}
+                              type="text"
+                              value={invoiceValue}
+                              onChange={(event) => handleInvoiceChange(calc.employee_id, event.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                              placeholder={t('signed_pdf_invoice_placeholder')}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`signed-pdf-${calc.employee_id}`}>
+                              {t('signed_pdf_file_label')}
+                            </label>
+                            <input
+                              id={`signed-pdf-${calc.employee_id}`}
+                              type="file"
+                              accept="application/pdf"
+                              onChange={(event) => handleSignedPdfFileChange(calc.employee_id, event)}
+                              className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-100 file:text-green-700 hover:file:bg-green-200"
+                            />
+                            {selectedFile && (
+                              <p className="text-xs text-gray-500 mt-1">{selectedFile.name}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-600">
+                            {t('signed_pdf_upload_hint')}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleUploadSignedPdf(calc.employee_id, calc.employee_code)}
+                            disabled={isUploading || !selectedFile || !trimmedInvoice}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isUploading && <LoadingSpinner size="sm" />}
+                            <span>{isUploading ? t('uploading') : t('upload_signed_pdf_btn')}</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-sm text-yellow-700">
+                          {t('signed_pdf_pending_signature')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+                {/* Información adicional */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-xs text-gray-500">
+                    <p className="font-semibold mb-1">{t('employer')}: {companyName}</p>
+                    {businessAddress && <p>{businessAddress}</p>}
+                    <p className="mt-2 italic">{t('informational_receipt')}</p>
+                    <p className="text-right mt-2">{t('generated')}: {new Date().toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}</p>
+                  </div>
                 </div>
               </div>
             </div>
+          );
+        })() : (
+          <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-500">
+            {t('no_employees_available')}
           </div>
-        ))}
+        )}
 
         {/* Footer - Oculto en impresión */}
         <div className="mt-8 pt-6 border-t-2 border-gray-300 no-print">

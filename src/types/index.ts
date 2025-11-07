@@ -338,6 +338,25 @@ export interface PDFResponse {
   pdf_path: string;
 }
 
+export interface UploadSignedPayrollPayload {
+  payroll_id: string;
+  employee_id: string;
+  invoice_id: string;
+  file: File;
+}
+
+export interface UploadSignedPayrollResponse {
+  id?: string;
+  payroll_id?: string;
+  employee_id?: string;
+  invoice_id?: string;
+  pdf_filename?: string;
+  signed_pdf_filename?: string;
+  signed_pdf_url?: string;
+  message?: string;
+  [key: string]: any;
+}
+
 // Digital Signature Types
 export type SignatureType = 'drawn' | 'typed' | 'digital' | 'biometric';
 
@@ -347,6 +366,10 @@ export interface SignatureMetadata {
   user_agent?: string;
   signed_location?: string;
   timestamp?: string;
+  payroll_id?: string;
+  invoice_id?: string;
+  employee_id?: string;
+  tenant_id?: string;
   geolocation?: {
     latitude: number;
     longitude: number;
@@ -363,6 +386,8 @@ export interface DigitalSignature {
   signature_metadata?: SignatureMetadata;
   signed_at: string;
   is_valid: boolean;
+  payroll_id?: string;
+  invoice_id?: string;
   invalidated_at?: string;
   invalidated_by?: string;
   invalidation_reason?: string;
@@ -443,6 +468,44 @@ export interface SickLeaveUsageCreate {
   hours_used: number;
   reason?: string;
   requires_approval?: boolean;
+}
+
+export interface UploadSickLeaveDocumentPayload {
+  sick_leave_usage_id: string;
+  employee_id: string;
+  document_name: string;
+  file: File;
+}
+
+export interface UploadSickLeaveDocumentResponse {
+  id?: string;
+  sick_leave_usage_id?: string;
+  employee_id?: string;
+  document_name?: string;
+  document_filename?: string;
+  document_url?: string;
+  message?: string;
+  [key: string]: any;
+}
+
+export interface SickLeaveDocument {
+  id: string;
+  sick_leave_usage_id: string;
+  employee_id: string;
+  employee_code?: string;
+  document_name: string;
+  document_filename?: string;
+  document_url?: string;
+  created_at: string;
+  uploaded_by?: string;
+}
+
+export interface SickLeaveDocumentFilters {
+  employee_id?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+  page?: number;
 }
 
 // Report Types

@@ -1,6 +1,6 @@
 import api from './api';
 import { API_ENDPOINTS } from '../config/api';
-import { PDFGenerate, PDFGenerateDetailed, PDFResponse } from '../types';
+import { PDFGenerate, PDFGenerateDetailed, PDFResponse, UploadSignedPayrollPayload, UploadSignedPayrollResponse } from '../types';
 
 export const pdfService = {
   generateSummaryPDF: async (data: PDFGenerate): Promise<PDFResponse> => {
@@ -50,5 +50,34 @@ export const pdfService = {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
+  },
+
+  uploadSignedPayrollPDF: async (payload: UploadSignedPayrollPayload): Promise<UploadSignedPayrollResponse> => {
+    const formData = new FormData();
+    formData.append('payroll_id', payload.payroll_id);
+    formData.append('employee_id', payload.employee_id);
+    formData.append('invoice_id', payload.invoice_id);
+    formData.append('file', payload.file, payload.file.name);
+
+    if (process.env.NODE_ENV === 'development') {
+      const debugEntries: string[] = [];
+      formData.forEach((value, key) => {
+        if (value instanceof File) {
+          debugEntries.push(`${key}: File{name=${value.name}, size=${value.size} bytes, type=${value.type}}`);
+        } else {
+          debugEntries.push(`${key}: ${value}`);
+        }
+      });
+      // eslint-disable-next-line no-console
+      console.debug('[pdfService.uploadSignedPayrollPDF] Enviando FormData →', debugEntries.join(' | '));
+    }
+
+    const response = await api.post<UploadSignedPayrollResponse>(API_ENDPOINTS.UPLOAD_SIGNED_PDF, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
   },
 };
