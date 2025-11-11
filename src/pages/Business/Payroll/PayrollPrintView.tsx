@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
+import React, { useState, useEffect, useRef, ChangeEvent, useMemo } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -31,7 +31,7 @@ const PayrollPrintView: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [payrollData, setPayrollData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -45,6 +45,44 @@ const PayrollPrintView: React.FC = () => {
   const [uploadingSignedPdf, setUploadingSignedPdf] = useState<Record<string, boolean>>({});
   const [uploadedSignedPdfs, setUploadedSignedPdfs] = useState<Record<string, UploadSignedPayrollResponse | null>>({});
   const [activeEmployeeIndex, setActiveEmployeeIndex] = useState(0);
+
+  const locale = language === 'es' ? 'es-ES' : 'en-US';
+
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+      }),
+    [locale]
+  );
+
+  const hoursFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [locale]
+  );
+
+  const formatCurrencyValue = (value: number) => currencyFormatter.format(Number.isFinite(value) ? value : 0);
+  const formatHoursValue = (value: number) => hoursFormatter.format(Number.isFinite(value) ? value : 0);
+  const formatDateOnly = (value: string) =>
+    value
+      ? new Date(value).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })
+      : '-';
+
+  const parseNumber = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const normalized = typeof value === 'string' ? value.replace(/,/g, '') : String(value);
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
 
   const slugify = (value?: string) => {
     if (!value) {
@@ -761,6 +799,27 @@ const PayrollPrintView: React.FC = () => {
 
   const { payroll } = payrollData;
 
+  const fallbackFoodGiftCredit = calculations.reduce((sum: number, calc: any) => sum + parseNumber(calc.food_gift_credit), 0);
+  const fallbackPaidSickLeaveHours = calculations.reduce((sum: number, calc: any) => sum + parseNumber(calc.paid_sick_leave_hours), 0);
+  const fallbackPaidSickLeaveAmount = calculations.reduce((sum: number, calc: any) => sum + parseNumber(calc.paid_sick_leave_amount), 0);
+
+  const totalFoodGiftCredit =
+    payroll?.total_food_gift_credit !== undefined && payroll?.total_food_gift_credit !== null
+      ? parseNumber(payroll.total_food_gift_credit)
+      : fallbackFoodGiftCredit;
+
+  const totalPaidSickLeaveHours =
+    payroll?.total_paid_sick_leave_hours !== undefined && payroll?.total_paid_sick_leave_hours !== null
+      ? parseNumber(payroll.total_paid_sick_leave_hours)
+      : fallbackPaidSickLeaveHours;
+
+  const totalPaidSickLeaveAmount =
+    payroll?.total_paid_sick_leave_amount !== undefined && payroll?.total_paid_sick_leave_amount !== null
+      ? parseNumber(payroll.total_paid_sick_leave_amount)
+      : fallbackPaidSickLeaveAmount;
+
+  const sickLeavePayments: any[] = Array.isArray(payrollData?.sick_leave_payments) ? payrollData.sick_leave_payments : [];
+
   return (
     <>
       {/* Botones de acción - NO se imprimen */}
@@ -847,22 +906,33 @@ const PayrollPrintView: React.FC = () => {
         {/* Resumen General - Oculto en impresión para confidencialidad */}
         <div className="mb-8 bg-blue-50 p-6 rounded-lg no-print">
           <h2 className="text-xl font-bold mb-4">{t('general_summary')}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             <div>
               <p className="text-sm text-gray-600">{t('total_employees')}</p>
               <p className="text-2xl font-bold">{payroll.total_employees}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">{t('gross_pay')}</p>
-              <p className="text-2xl font-bold text-green-600">${payroll.total_gross_pay}</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrencyValue(parseNumber(payroll.total_gross_pay))}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">{t('deductions')}</p>
-              <p className="text-2xl font-bold text-red-600">${payroll.total_deductions}</p>
+              <p className="text-2xl font-bold text-red-600">{formatCurrencyValue(parseNumber(payroll.total_deductions))}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">{t('net_pay')}</p>
-              <p className="text-2xl font-bold text-blue-600">${payroll.total_net_pay}</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrencyValue(parseNumber(payroll.total_net_pay))}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">{t('total_food_gift_credit_label')}</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatCurrencyValue(totalFoodGiftCredit)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">{t('total_paid_sick_leave_amount_label')}</p>
+              <p className="text-2xl font-bold text-indigo-600">{formatCurrencyValue(totalPaidSickLeaveAmount)}</p>
+              <p className="text-xs text-gray-500">
+                {t('total_paid_sick_leave_hours_label')}: {formatHoursValue(totalPaidSickLeaveHours)} {t('hrs')}
+              </p>
             </div>
           </div>
         </div>
@@ -879,6 +949,18 @@ const PayrollPrintView: React.FC = () => {
           const signedPdfUrl = employeeSignature?.signedPdfUrl || uploadDetails?.signed_pdf_url || null;
           const hasUploadedSignedPdf = Boolean(signedPdfFilename || signedPdfUrl);
           const trimmedInvoice = (invoiceValue || '').trim();
+          const foodGiftCredit = parseNumber(calc.food_gift_credit);
+          const paidSickLeaveHours = parseNumber(calc.paid_sick_leave_hours);
+          const paidSickLeaveAmount = parseNumber(calc.paid_sick_leave_amount);
+          const activeSickLeavePayments = sickLeavePayments.filter((payment: any) => {
+            const paymentEmployeeId = payment.employee_id || payment.employeeId;
+            return paymentEmployeeId === calc.employee_id;
+          });
+          const totalEmployeeSickLeaveHours = activeSickLeavePayments.reduce(
+            (sum, payment) => sum + parseNumber(payment.hours_paid ?? payment.hours ?? payment.paid_hours),
+            0
+          );
+          const showSickLeaveCapWarning = totalEmployeeSickLeaveHours >= 40 || paidSickLeaveHours >= 40;
 
           return (
             <div key={calc.employee_id} className="mb-8 page-break">
@@ -1096,12 +1178,82 @@ const PayrollPrintView: React.FC = () => {
                         <span className="font-bold text-yellow-700">${calc.tips_reported}</span>
                       </div>
                     )}
+                    {foodGiftCredit > 0 && (
+                      <div className="flex justify-between bg-emerald-50 p-2 rounded">
+                        <span className="text-gray-700 font-medium">{t('food_gift_credit_label')}</span>
+                        <span className="font-semibold text-emerald-700">{formatCurrencyValue(foodGiftCredit)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between border-t-2 pt-2 mt-2">
                       <span className="font-bold text-lg">{t('gross_pay_total')}</span>
                       <span className="font-bold text-lg text-green-600">${calc.gross_pay}</span>
                     </div>
                   </div>
                 </div>
+
+                {(paidSickLeaveAmount > 0 || paidSickLeaveHours > 0) && (
+                  <div className="mb-4">
+                    <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('paid_sick_leave_label')}</h4>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">{t('paid_sick_leave_amount_label')}</span>
+                      <span className="font-semibold text-blue-700">{formatCurrencyValue(paidSickLeaveAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>{t('paid_sick_leave_hours_label')}</span>
+                      <span>{formatHoursValue(paidSickLeaveHours)} {t('hrs')}</span>
+                    </div>
+                    {showSickLeaveCapWarning && (
+                      <div className="mt-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
+                        {t('paid_sick_leave_cap_warning')}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeSickLeavePayments.length > 0 ? (
+                  <div className="mb-4">
+                    <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('sick_leave_payments_section_title')}</h4>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wide">{t('sick_leave_payment_usage')}</th>
+                            <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wide">{t('sick_leave_payment_hours')}</th>
+                            <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wide">{t('sick_leave_payment_amount')}</th>
+                            <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wide">{t('sick_leave_payment_date')}</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {activeSickLeavePayments.map((payment, index) => {
+                            const usageId =
+                              payment.usage_id ||
+                              payment.usageId ||
+                              payment.sick_leave_usage_id ||
+                              `#${index + 1}`;
+                            const hoursPaid = parseNumber(payment.hours_paid ?? payment.hours ?? payment.paid_hours);
+                            const amountPaid = parseNumber(payment.amount_paid ?? payment.amount ?? payment.paid_amount);
+                            const paymentDate = payment.paid_at || payment.payment_date || payment.processed_at || payment.created_at || '';
+
+                            return (
+                              <tr key={`${usageId}-${index}`}>
+                                <td className="px-4 py-2 text-gray-700">{usageId}</td>
+                                <td className="px-4 py-2 text-gray-700">{formatHoursValue(hoursPaid)} {t('hrs')}</td>
+                                <td className="px-4 py-2 text-gray-700">{formatCurrencyValue(amountPaid)}</td>
+                                <td className="px-4 py-2 text-gray-700">{paymentDate ? formatDateOnly(paymentDate) : '-'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  (paidSickLeaveAmount > 0 || paidSickLeaveHours > 0) && (
+                    <div className="mb-4 text-sm text-gray-500">
+                      {t('sick_leave_payments_empty')}
+                    </div>
+                  )
+                )}
 
                 {/* Deducciones */}
                 <div className="mb-4">

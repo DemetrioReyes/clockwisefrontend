@@ -159,7 +159,7 @@ export interface DeductionCreate {
 }
 
 // Incident Types
-export type IncidentType = 'bonus' | 'penalty' | 'tips_reported' | 'warning' | 'advance' | 'other';
+export type IncidentType = 'bonus' | 'penalty' | 'tips_reported' | 'warning' | 'advance' | 'other' | 'food_gift';
 
 export interface Incident {
   id: string;
@@ -242,6 +242,9 @@ export interface PayrollCalculation {
   total_bonus: string;
   total_penalty: string;
   other_income: string;
+  food_gift_credit?: string;
+  paid_sick_leave_hours?: string;
+  paid_sick_leave_amount?: string;
   adjusted_gross_pay: string;
   federal_tax: string;
   state_tax: string;
@@ -269,9 +272,13 @@ export interface PayrollResponse {
     created_at: string;
     updated_at: string;
     description: string | null;
+    total_food_gift_credit?: string;
+    total_paid_sick_leave_hours?: string;
+    total_paid_sick_leave_amount?: string;
   };
   calculations: PayrollCalculation[];
   time_summaries: TimeSummary[];
+  sick_leave_payments?: SickLeavePayment[];
 }
 
 export interface TimeSummary {
@@ -309,6 +316,9 @@ export interface PayrollListItem {
   created_at: string;
   updated_at: string;
   description: string | null;
+  total_food_gift_credit?: string;
+  total_paid_sick_leave_hours?: string;
+  total_paid_sick_leave_amount?: string;
 }
 
 export interface PayrollListResponse {
@@ -382,6 +392,19 @@ export interface PayrollDocumentFilters {
   start_date?: string;
   end_date?: string;
   limit?: number;
+}
+
+export interface SickLeavePayment {
+  id?: string;
+  employee_id: string;
+  employee_code?: string;
+  employee_name?: string;
+  usage_id?: string;
+  usage_date?: string;
+  hours_paid?: string | number;
+  amount_paid?: string | number;
+  paid_at?: string;
+  note?: string;
 }
 
 // Digital Signature Types
@@ -555,6 +578,9 @@ export interface PayrollReport {
   total_gross_pay: number;
   total_deductions: number;
   total_net_pay: number;
+  total_food_gift_credit?: number;
+  total_paid_sick_leave_hours?: number;
+  total_paid_sick_leave_amount?: number;
   tip_credit_summary?: {
     total_tips_required: number;
     total_tips_reported: number;

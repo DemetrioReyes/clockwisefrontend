@@ -13,7 +13,22 @@ const PayRatesList = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  const parseNumber = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    const normalized = typeof value === 'string' ? value.replace(/,/g, '') : String(value);
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const formatCurrency = (value: any) =>
+    new Intl.NumberFormat(language === 'es' ? 'es-ES' : 'en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(parseNumber(value));
 
   useEffect(() => {
     loadPayRates();
@@ -90,13 +105,13 @@ const PayRatesList = () => {
                   {payRates.map((rate) => (
                     <tr key={rate.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${rate.regular_rate.toFixed(2)}/hr
+                        {formatCurrency(rate.regular_rate)}/{t('hours_short_label')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${rate.overtime_rate.toFixed(2)}/hr
+                        {formatCurrency(rate.overtime_rate)}/{t('hours_short_label')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {rate.overtime_threshold} hrs
+                        {parseNumber(rate.overtime_threshold)} {t('hours_short_label')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {rate.spread_hours_enabled ? t('yes_with_hours', { hours: rate.spread_hours_threshold }) : t('no_label')}

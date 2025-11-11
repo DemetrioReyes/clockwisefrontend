@@ -14,7 +14,7 @@ const ReportTips: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
-  const [incidentType, setIncidentType] = useState<'tip' | 'bonus'>('tip');
+  const [incidentType, setIncidentType] = useState<'tip' | 'bonus' | 'food_gift'>('tip');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -72,7 +72,7 @@ const ReportTips: React.FC = () => {
       if (incidentType === 'tip') {
         await deductionsService.reportTips(selectedEmployee, parseFloat(amount), date, date, description);
         showToast(t('tips_reported_successfully'), 'success');
-      } else {
+      } else if (incidentType === 'bonus') {
         await deductionsService.createIncident({
           employee_id: selectedEmployee,
           incident_type: 'bonus',
@@ -82,6 +82,32 @@ const ReportTips: React.FC = () => {
           incident_date: date,
         });
         showToast(t('bonus_added_successfully'), 'success');
+      } else {
+        try {
+          await deductionsService.createIncident({
+            employee_id: selectedEmployee,
+            incident_type: 'food_gift',
+            incident_name: t('food_gift_label'),
+            amount: parseFloat(amount),
+            description: description || t('food_gift_label'),
+            incident_date: date,
+          });
+          showToast(t('food_gift_reported_successfully'), 'success');
+        } catch (error: any) {
+          if (error?.response?.status === 422) {
+            await deductionsService.createIncident({
+              employee_id: selectedEmployee,
+              incident_type: 'other',
+              incident_name: `${t('food_gift_label')} (fallback)`,
+              amount: parseFloat(amount),
+              description: `${description ? `${description} ` : ''}[FOOD_GIFT]`,
+              incident_date: date,
+            });
+            showToast(t('food_gift_reported_with_fallback'), 'info');
+          } else {
+            throw error;
+          }
+        }
       }
 
       // Reset form
@@ -103,6 +129,7 @@ const ReportTips: React.FC = () => {
       bonus: t('bonus_label'),
       penalty: t('penalty_label'),
       tips_reported: t('tips_reported_label'),
+      food_gift: t('food_gift_label'),
       warning: t('warning_label'),
       advance: t('advance_label'),
       other: t('other_label'),
@@ -115,6 +142,7 @@ const ReportTips: React.FC = () => {
       bonus: 'bg-green-100 text-green-800',
       penalty: 'bg-red-100 text-red-800',
       tips_reported: 'bg-blue-100 text-blue-800',
+      food_gift: 'bg-emerald-100 text-emerald-800',
       warning: 'bg-yellow-100 text-yellow-800',
       advance: 'bg-purple-100 text-purple-800',
       other: 'bg-gray-100 text-gray-800',
@@ -174,7 +202,7 @@ const ReportTips: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {t('type')}
                 </label>
-                <div className="flex gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <label className="flex items-center cursor-pointer">
                     <input
                       type="radio"
@@ -194,6 +222,16 @@ const ReportTips: React.FC = () => {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
                     <span className="ml-2 text-sm text-gray-700">{t('bonus')}</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      value="food_gift"
+                      checked={incidentType === 'food_gift'}
+                      onChange={() => setIncidentType('food_gift')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{t('food_gift_label')}</span>
                   </label>
                 </div>
               </div>
@@ -247,7 +285,13 @@ const ReportTips: React.FC = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder={incidentType === 'tip' ? t('tips_notes_placeholder') : t('bonus_reason_placeholder')}
+                  placeholder={
+                    incidentType === 'tip'
+                      ? t('tips_notes_placeholder')
+                      : incidentType === 'bonus'
+                        ? t('bonus_reason_placeholder')
+                        : t('food_gift_notes_placeholder')
+                  }
                 />
               </div>
 

@@ -43,6 +43,9 @@ interface PayrollSummaryReport {
   total_net_pay: number;
   total_hours: number;
   total_deductions: number;
+  total_food_gift_credit: number;
+  total_paid_sick_leave_hours: number;
+  total_paid_sick_leave_amount: number;
   payrolls: any[];
 }
 
@@ -64,6 +67,16 @@ const Reports: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ReportTab>('attendance');
   
   const locale = language === 'es' ? 'es-ES' : 'en-US';
+
+  const parseNumber = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const normalized = typeof value === 'string' ? value.replace(/,/g, '') : String(value);
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
 
   // Attendance Report State
   const [attendanceData, setAttendanceData] = useState<AttendanceReportItem[]>([]);
@@ -315,19 +328,32 @@ const Reports: React.FC = () => {
       let totalNetPay = 0;
       let totalHours = 0;
       let totalDeductions = 0;
+      let totalFoodGiftCredit = 0;
+      let totalPaidSickLeaveHours = 0;
+      let totalPaidSickLeaveAmount = 0;
       const employeeSet = new Set<string>();
 
       payrollDetails.forEach((detail) => {
         // Use payroll totals if available (from PayrollResponse.payroll object)
         if (detail.payroll) {
-          const grossPay = parseFloat(String(detail.payroll.total_gross_pay || '0')) || 0;
-          const netPay = parseFloat(String(detail.payroll.total_net_pay || '0')) || 0;
-          const deductions = parseFloat(String(detail.payroll.total_deductions || '0')) || 0;
+          const grossPay = parseNumber(detail.payroll.total_gross_pay);
+          const netPay = parseNumber(detail.payroll.total_net_pay);
+          const deductions = parseNumber(detail.payroll.total_deductions);
           
-          totalGrossPay += isNaN(grossPay) ? 0 : grossPay;
-          totalNetPay += isNaN(netPay) ? 0 : netPay;
-          totalDeductions += isNaN(deductions) ? 0 : deductions;
+          totalGrossPay += grossPay;
+          totalNetPay += netPay;
+          totalDeductions += deductions;
           totalEmployees = Math.max(totalEmployees, detail.payroll.total_employees || 0);
+
+          if (detail.payroll.total_food_gift_credit !== undefined && detail.payroll.total_food_gift_credit !== null) {
+            totalFoodGiftCredit += parseNumber(detail.payroll.total_food_gift_credit);
+          }
+          if (detail.payroll.total_paid_sick_leave_hours !== undefined && detail.payroll.total_paid_sick_leave_hours !== null) {
+            totalPaidSickLeaveHours += parseNumber(detail.payroll.total_paid_sick_leave_hours);
+          }
+          if (detail.payroll.total_paid_sick_leave_amount !== undefined && detail.payroll.total_paid_sick_leave_amount !== null) {
+            totalPaidSickLeaveAmount += parseNumber(detail.payroll.total_paid_sick_leave_amount);
+          }
         }
         
         // Count unique employees from calculations
@@ -336,16 +362,24 @@ const Reports: React.FC = () => {
             if (calc.employee_id) {
               employeeSet.add(calc.employee_id);
             }
+
+            if (detail.payroll?.total_food_gift_credit === undefined || detail.payroll?.total_food_gift_credit === null) {
+              totalFoodGiftCredit += parseNumber(calc.food_gift_credit);
+            }
+            if (detail.payroll?.total_paid_sick_leave_hours === undefined || detail.payroll?.total_paid_sick_leave_hours === null) {
+              totalPaidSickLeaveHours += parseNumber(calc.paid_sick_leave_hours);
+            }
+            if (detail.payroll?.total_paid_sick_leave_amount === undefined || detail.payroll?.total_paid_sick_leave_amount === null) {
+              totalPaidSickLeaveAmount += parseNumber(calc.paid_sick_leave_amount);
+            }
           });
         }
         
         // Calculate hours from time summaries if available
         if (detail.time_summaries && Array.isArray(detail.time_summaries)) {
           detail.time_summaries.forEach((ts: any) => {
-            const hours = parseFloat(String(ts.hours_worked || '0')) || 0;
-            if (!isNaN(hours)) {
-              totalHours += hours;
-            }
+            const hours = parseNumber(ts.hours_worked);
+            totalHours += hours;
           });
         }
       });
@@ -363,6 +397,9 @@ const Reports: React.FC = () => {
         total_net_pay: totalNetPay,
         total_hours: totalHours,
         total_deductions: totalDeductions,
+        total_food_gift_credit: totalFoodGiftCredit,
+        total_paid_sick_leave_hours: totalPaidSickLeaveHours,
+        total_paid_sick_leave_amount: totalPaidSickLeaveAmount,
         payrolls: filteredPayrolls,
       };
 
@@ -742,10 +779,17 @@ const Reports: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: 'USD',
-    }).format(amount);
+    }).format(Number.isFinite(amount) ? amount : 0);
+  };
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number.isFinite(value) ? value : 0);
   };
 
   const formatDate = (dateString: string) => {
@@ -1009,7 +1053,7 @@ const Reports: React.FC = () => {
               <div className="space-y-4">
                 <div className="bg-white shadow rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('payroll_summary')}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-600">{t('period')}</p>
                       <p className="text-lg font-semibold text-gray-900">
@@ -1028,11 +1072,22 @@ const Reports: React.FC = () => {
                       <p className="text-sm text-gray-600">{t('total_net_pay_label')}</p>
                       <p className="text-lg font-semibold text-gray-900">{formatCurrency(payrollData.total_net_pay)}</p>
                     </div>
+                    <div className="bg-emerald-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">{t('total_food_gift_credit_label')}</p>
+                      <p className="text-lg font-semibold text-emerald-700">{formatCurrency(payrollData.total_food_gift_credit)}</p>
+                    </div>
+                    <div className="bg-indigo-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">{t('total_paid_sick_leave_amount_label')}</p>
+                      <p className="text-lg font-semibold text-indigo-700">{formatCurrency(payrollData.total_paid_sick_leave_amount)}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {t('total_paid_sick_leave_hours_label')}: {formatNumber(payrollData.total_paid_sick_leave_hours)} {t('hrs')}
+                      </p>
+                    </div>
                   </div>
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-gray-600">{t('total_hours')}</p>
-                      <p className="text-lg font-semibold text-gray-900">{payrollData.total_hours.toFixed(2)} {t('hrs')}</p>
+                      <p className="text-lg font-semibold text-gray-900">{formatNumber(payrollData.total_hours)} {t('hrs')}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">{t('total_deductions_label')}</p>
@@ -1067,6 +1122,16 @@ const Reports: React.FC = () => {
                                     ? `${formatDate(payroll.period_start)} - ${formatDate(payroll.period_end)}`
                                     : '-'}
                                 </div>
+                                {parseNumber(payroll.total_food_gift_credit) > 0 && (
+                                  <div className="text-xs text-emerald-600 mt-1">
+                                    {t('food_gift_credit_label')}: {formatCurrency(parseNumber(payroll.total_food_gift_credit))}
+                                  </div>
+                                )}
+                                {parseNumber(payroll.total_paid_sick_leave_amount) > 0 && (
+                                  <div className="text-xs text-blue-600">
+                                    {t('paid_sick_leave_label')}: {formatCurrency(parseNumber(payroll.total_paid_sick_leave_amount))} · {formatNumber(parseNumber(payroll.total_paid_sick_leave_hours))} {t('hrs')}
+                                  </div>
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${

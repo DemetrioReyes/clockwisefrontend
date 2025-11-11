@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatErrorMessage } from '../../../services/api';
 import Layout from '../../../components/Layout/Layout';
@@ -15,7 +15,7 @@ const CalculatePayroll: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const [result, setResult] = useState<PayrollResponse | null>(null);
   const [savedPayrollId, setSavedPayrollId] = useState<string | null>(null);
@@ -25,6 +25,52 @@ const CalculatePayroll: React.FC = () => {
     period_end: '',
     pay_frequency: 'weekly',
   });
+
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(language === 'es' ? 'es-ES' : 'en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+      }),
+    [language]
+  );
+
+  const hoursFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(language === 'es' ? 'es-ES' : 'en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [language]
+  );
+
+  const formatCurrencyValue = (value: number) => currencyFormatter.format(Number.isFinite(value) ? value : 0);
+  const formatHoursValue = (value: number) => hoursFormatter.format(Number.isFinite(value) ? value : 0);
+
+  const parseNumber = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const normalized = typeof value === 'string' ? value.replace(/,/g, '') : String(value);
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const calculationsData = result?.calculations ?? [];
+  const totalFoodGiftCredit =
+    result?.payroll?.total_food_gift_credit !== undefined && result?.payroll?.total_food_gift_credit !== null
+      ? parseNumber(result.payroll.total_food_gift_credit)
+      : calculationsData.reduce((sum, calc: any) => sum + parseNumber(calc.food_gift_credit), 0);
+  const totalPaidSickLeaveHours =
+    result?.payroll?.total_paid_sick_leave_hours !== undefined && result?.payroll?.total_paid_sick_leave_hours !== null
+      ? parseNumber(result.payroll.total_paid_sick_leave_hours)
+      : calculationsData.reduce((sum, calc: any) => sum + parseNumber(calc.paid_sick_leave_hours), 0);
+  const totalPaidSickLeaveAmount =
+    result?.payroll?.total_paid_sick_leave_amount !== undefined && result?.payroll?.total_paid_sick_leave_amount !== null
+      ? parseNumber(result.payroll.total_paid_sick_leave_amount)
+      : calculationsData.reduce((sum, calc: any) => sum + parseNumber(calc.paid_sick_leave_amount), 0);
 
   const handlePreview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,7 +234,7 @@ const CalculatePayroll: React.FC = () => {
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-blue-800">{t('payroll_summary')}</h3>
                   <div className="mt-2 text-sm text-blue-700">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mt-2">
                       <div>
                         <p className="font-semibold">{t('total_employees_label')}</p>
                         <p className="text-lg">{result.payroll.total_employees || 0}</p>
@@ -205,6 +251,21 @@ const CalculatePayroll: React.FC = () => {
                         <p className="font-semibold">{t('total_net_pay_label')}</p>
                         <p className="text-lg font-bold text-green-700">${result.payroll.total_net_pay || '0.00'}</p>
                       </div>
+                      <div>
+                        <p className="font-semibold">{t('total_food_gift_credit_label')}</p>
+                        <p className="text-lg font-semibold text-emerald-700">
+                          {formatCurrencyValue(totalFoodGiftCredit)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">{t('total_paid_sick_leave_amount_label')}</p>
+                        <p className="text-lg font-semibold text-blue-700">
+                          {formatCurrencyValue(totalPaidSickLeaveAmount)}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {t('total_paid_sick_leave_hours_label')}: {formatHoursValue(totalPaidSickLeaveHours)} {t('hrs')}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -220,58 +281,100 @@ const CalculatePayroll: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('regular_pay_col')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('overtime_col')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('tip_credit_col')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('benefits_col')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('deductions_col')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('net_pay_col')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {result.calculations && result.calculations.length > 0 ? result.calculations.map((calc) => (
-                    <tr key={calc.employee_id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{calc.employee_name}</div>
-                        <div className="text-sm text-gray-500">{calc.employee_code}</div>
-                        <div className="text-xs text-gray-400">{calc.employee_type}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        <div>{t('regular_hours_label')}: {parseFloat(calc.regular_hours).toFixed(2)}</div>
-                        {parseFloat(calc.overtime_hours) > 0 && (
-                          <div className="text-orange-600">{t('overtime_hours_label')}: {parseFloat(calc.overtime_hours).toFixed(2)}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        ${calc.regular_pay}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        ${calc.overtime_pay}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {calc.employee_type.includes('tipped') ? (
-                          <div className="text-purple-600">
-                            <div className="text-xs">{t('tips_reported_payroll')}: ${calc.tips_reported}</div>
-                            {parseFloat(calc.spread_hours_pay) > 0 && (
-                              <div className="text-xs text-green-600">{t('spread_hours_pay')}: ${calc.spread_hours_pay}</div>
-                            )}
+                  {result.calculations && result.calculations.length > 0 ? result.calculations.map((calc) => {
+                    const foodGiftCredit = parseNumber((calc as any).food_gift_credit);
+                    const paidSickLeaveHours = parseNumber((calc as any).paid_sick_leave_hours);
+                    const paidSickLeaveAmount = parseNumber((calc as any).paid_sick_leave_amount);
+                    const showCapWarning = paidSickLeaveHours >= 40;
+
+                    return (
+                      <tr key={calc.employee_id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{calc.employee_name}</div>
+                          <div className="text-sm text-gray-500">{calc.employee_code}</div>
+                          <div className="text-xs text-gray-400">{calc.employee_type}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          <div>{t('regular_hours_label')}: {parseFloat(calc.regular_hours).toFixed(2)}</div>
+                          {parseFloat(calc.overtime_hours) > 0 && (
+                            <div className="text-orange-600">{t('overtime_hours_label')}: {parseFloat(calc.overtime_hours).toFixed(2)}</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          ${calc.regular_pay}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          ${calc.overtime_pay}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {calc.employee_type.includes('tipped') ? (
+                            <div className="text-purple-600">
+                              <div className="text-xs">{t('tips_reported_payroll')}: ${calc.tips_reported}</div>
+                              {parseFloat(calc.spread_hours_pay) > 0 && (
+                                <div className="text-xs text-green-600">{t('spread_hours_pay')}: ${calc.spread_hours_pay}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">{t('not_applicable')}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          {foodGiftCredit > 0 ? (
+                            <div className="text-emerald-600">
+                              <span className="block text-xs uppercase tracking-wide text-emerald-700 font-semibold">
+                                {t('food_gift_credit_label')}
+                              </span>
+                              <span className="text-sm font-semibold">
+                                {formatCurrencyValue(foodGiftCredit)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">{t('not_applicable')}</span>
+                          )}
+
+                          {(paidSickLeaveAmount > 0 || paidSickLeaveHours > 0) && (
+                            <div className="mt-2 text-sm text-blue-700">
+                              <span className="block text-xs uppercase tracking-wide text-blue-700 font-semibold">
+                                {t('paid_sick_leave_label')}
+                              </span>
+                              <span className="block font-semibold">
+                                {formatCurrencyValue(paidSickLeaveAmount)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {t('paid_sick_leave_hours_label')}: {formatHoursValue(paidSickLeaveHours)} {t('hrs')}
+                              </span>
+                            </div>
+                          )}
+
+                          {showCapWarning && (
+                            <div className="mt-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                              {t('paid_sick_leave_cap_warning')}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
+                          -${calc.total_deductions}
+                          <div className="text-xs text-gray-500">
+                            {t('federal_tax_label_payroll')}: ${calc.federal_tax} | {t('social_security_label_payroll')}: ${calc.social_security}
                           </div>
-                        ) : (
-                          <span className="text-gray-400">{t('not_applicable')}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                        -${calc.total_deductions}
-                        <div className="text-xs text-gray-500">
-                          {t('federal_tax_label_payroll')}: ${calc.federal_tax} | {t('social_security_label_payroll')}: ${calc.social_security}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                        ${calc.net_pay}
-                        <div className="text-xs text-gray-500 font-normal">
-                          {t('gross_pay_label')}: ${calc.gross_pay}
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
+                          ${calc.net_pay}
+                          <div className="text-xs text-gray-500 font-normal">
+                            {t('gross_pay_label')}: ${calc.gross_pay}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }) : (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                         {t('no_calculations_available')}
                       </td>
                     </tr>
