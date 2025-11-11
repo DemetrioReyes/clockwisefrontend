@@ -357,6 +357,33 @@ export interface UploadSignedPayrollResponse {
   [key: string]: any;
 }
 
+export interface PayrollDocument {
+  id?: string;
+  payroll_id?: string;
+  employee_id?: string;
+  employee_code?: string;
+  employee_name?: string;
+  invoice_id?: string;
+  document_name?: string;
+  pdf_filename?: string;
+  download_url?: string;
+  created_at?: string;
+  uploaded_at?: string;
+  signed_at?: string;
+  uploaded_by?: string;
+  period_start?: string;
+  period_end?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface PayrollDocumentFilters {
+  employee_id?: string;
+  payroll_id?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+}
+
 // Digital Signature Types
 export type SignatureType = 'drawn' | 'typed' | 'digital' | 'biometric';
 

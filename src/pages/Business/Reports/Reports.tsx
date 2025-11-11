@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { formatErrorMessage } from '../../../services/api';
+import { API_BASE_URL } from '../../../config/api';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { reportsService } from '../../../services/reports.service';
 import { sickleaveService } from '../../../services/sickleave.service';
-import { BreakComplianceAlert, TimeEntry, Employee, SickLeaveDocument, SickLeaveDocumentFilters } from '../../../types';
-import { CheckCircle, XCircle, CheckCircle2, X, Calendar, DollarSign, Clock, FileText, Download } from 'lucide-react';
+import { pdfService } from '../../../services/pdf.service';
+import {
+  BreakComplianceAlert,
+  TimeEntry,
+  Employee,
+  SickLeaveDocument,
+  SickLeaveDocumentFilters,
+  PayrollDocument,
+  PayrollDocumentFilters,
+} from '../../../types';
+import { CheckCircle, XCircle, CheckCircle2, X, Calendar, DollarSign, Clock, FileText, Download, Link, Server } from 'lucide-react';
 import employeeService from '../../../services/employee.service';
 import payrollService from '../../../services/payroll.service';
 
-type ReportTab = 'attendance' | 'payroll' | 'time-summary' | 'break-compliance' | 'sick-leave-documents';
+type ReportTab = 'attendance' | 'payroll' | 'time-summary' | 'break-compliance' | 'sick-leave-documents' | 'payroll-documents';
 
 interface AttendanceReportItem {
   employee_id: string;
@@ -49,10 +59,12 @@ interface TimeSummaryItem {
 
 const Reports: React.FC = () => {
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<ReportTab>('attendance');
   
+  const locale = language === 'es' ? 'es-ES' : 'en-US';
+
   // Attendance Report State
   const [attendanceData, setAttendanceData] = useState<AttendanceReportItem[]>([]);
   const [attendanceStartDate, setAttendanceStartDate] = useState(() => {
@@ -102,6 +114,21 @@ const Reports: React.FC = () => {
   const [documentsStartDate, setDocumentsStartDate] = useState<string>('');
   const [documentsEndDate, setDocumentsEndDate] = useState<string>('');
   const [documentsEmployees, setDocumentsEmployees] = useState<Employee[]>([]);
+
+  // Payroll Documents State
+  const [payrollDocuments, setPayrollDocuments] = useState<PayrollDocument[]>([]);
+  const [payrollDocumentsLoading, setPayrollDocumentsLoading] = useState(false);
+  const [payrollDocumentsEmployeeId, setPayrollDocumentsEmployeeId] = useState<string>('');
+  const [payrollDocumentsPayrollId, setPayrollDocumentsPayrollId] = useState<string>('');
+  const [payrollDocumentsStartDate, setPayrollDocumentsStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split('T')[0];
+  });
+  const [payrollDocumentsEndDate, setPayrollDocumentsEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [payrollDocumentsLimit, setPayrollDocumentsLimit] = useState<string>('50');
 
   // Helper function to load employees
   const loadEmployees = async (): Promise<Record<string, Employee>> => {
@@ -624,6 +651,67 @@ const Reports: React.FC = () => {
     }
   };
 
+  const handleLoadPayrollDocuments = async () => {
+    setPayrollDocumentsLoading(true);
+    try {
+      const filters: PayrollDocumentFilters = {};
+      if (payrollDocumentsEmployeeId) {
+        filters.employee_id = payrollDocumentsEmployeeId;
+      }
+      if (payrollDocumentsPayrollId) {
+        filters.payroll_id = payrollDocumentsPayrollId;
+      }
+      if (payrollDocumentsStartDate) {
+        filters.start_date = payrollDocumentsStartDate;
+      }
+      if (payrollDocumentsEndDate) {
+        filters.end_date = payrollDocumentsEndDate;
+      }
+
+      const limitValue = payrollDocumentsLimit ? Number(payrollDocumentsLimit) : undefined;
+      if (limitValue && !Number.isNaN(limitValue)) {
+        filters.limit = limitValue;
+      }
+
+      const docs = await pdfService.listPayrollDocuments(filters);
+      setPayrollDocuments(docs);
+      if (docs.length > 0) {
+        showToast(t('payroll_documents_loaded_successfully'), 'success');
+      } else {
+        showToast(t('no_payroll_documents'), 'info');
+      }
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+      setPayrollDocuments([]);
+    } finally {
+      setPayrollDocumentsLoading(false);
+    }
+  };
+
+  const handleDownloadPayrollDocument = async (doc: PayrollDocument) => {
+    try {
+      if (doc.download_url) {
+        const url = resolveDownloadUrl(doc.download_url);
+        if (url) {
+          window.open(url, '_blank', 'noopener,noreferrer');
+          showToast(t('document_downloaded_successfully'), 'success');
+          return;
+        }
+      }
+
+      if (!doc.pdf_filename) {
+        showToast(t('payroll_document_download_unavailable'), 'info');
+        return;
+      }
+
+      const blob = await pdfService.downloadPDF(doc.pdf_filename);
+      pdfService.downloadPDFBlob(blob, doc.pdf_filename);
+      showToast(t('document_downloaded_successfully'), 'success');
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    }
+  };
+
   const handleOpenResolveModal = (alert: BreakComplianceAlert) => {
     setResolvingAlert(alert);
     setResolutionNotes('');
@@ -669,13 +757,37 @@ const Reports: React.FC = () => {
   };
 
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
+    return new Date(dateString).toLocaleString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatDateOnly = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const resolveDownloadUrl = (url: string) => {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) {
+      return url;
+    }
+    if (url.startsWith('/')) {
+      return `${API_BASE_URL}${url}`;
+    }
+    return `${API_BASE_URL}/${url}`;
+  };
+
+  const translateOrFallback = (key: string, fallback: string) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
   };
 
   return (
@@ -741,6 +853,17 @@ const Reports: React.FC = () => {
           >
             <FileText className="inline w-5 h-5 mr-2" />
             {t('sick_leave_documents_tab')}
+          </button>
+          <button
+            onClick={() => setActiveTab('payroll-documents')}
+            className={`px-4 py-2 font-medium whitespace-nowrap ${
+              activeTab === 'payroll-documents'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Download className="inline w-5 h-5 mr-2" />
+            {t('payroll_documents_tab')}
           </button>
         </div>
 
@@ -1239,49 +1362,61 @@ const Reports: React.FC = () => {
         {/* Sick Leave Documents Tab */}
         {activeTab === 'sick-leave-documents' && (
           <div className="space-y-4">
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('employee')}
-                  </label>
-                  <select
-                    value={documentsEmployeeId}
-                    onChange={(e) => setDocumentsEmployeeId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="">{t('all_employees')}</option>
-                    {documentsEmployees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.first_name} {emp.last_name} - {emp.employee_code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('start_date')}</label>
-                  <input
-                    type="date"
-                    value={documentsStartDate}
-                    onChange={(e) => setDocumentsStartDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('end_date')}</label>
-                  <input
-                    type="date"
-                    value={documentsEndDate}
-                    onChange={(e) => setDocumentsEndDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
+            <div className="bg-white shadow rounded-xl p-6 border border-gray-200">
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('employee')}
+                    </label>
+                    <select
+                      value={documentsEmployeeId}
+                      onChange={(e) => setDocumentsEmployeeId(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">{t('all_employees')}</option>
+                      {documentsEmployees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.first_name} {emp.last_name} - {emp.employee_code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('start_date')}</label>
+                    <input
+                      type="date"
+                      value={documentsStartDate}
+                      onChange={(e) => setDocumentsStartDate(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('end_date')}</label>
+                    <input
+                      type="date"
+                      value={documentsEndDate}
+                      onChange={(e) => setDocumentsEndDate(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
                 <button
                   onClick={handleLoadSickLeaveDocuments}
                   disabled={documentsLoading}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="inline-flex items-center justify-center px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {documentsLoading ? t('loading') : t('load_documents')}
+                  {documentsLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      <span className="ml-2">{t('loading')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4 mr-2" />
+                      {t('load_documents')}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1291,72 +1426,315 @@ const Reports: React.FC = () => {
                 <LoadingSpinner size="lg" text={t('loading')} />
               </div>
             ) : sickLeaveDocuments.length > 0 ? (
-              <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('document_name')}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('employee')}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('usage_id')}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('uploaded_at')}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t('actions')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {sickLeaveDocuments.map((doc) => {
-                      const employee = documentsEmployees.find((emp) => emp.id === doc.employee_id);
-                      return (
-                        <tr key={doc.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {doc.document_name || doc.document_filename || '-'}
-                            </div>
-                            {doc.document_filename && (
-                              <div className="text-xs text-gray-500">{doc.document_filename}</div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {employee
-                                ? `${employee.first_name} ${employee.last_name}`
-                                : doc.employee_code || doc.employee_id}
-                            </div>
-                            <div className="text-xs text-gray-500">{doc.employee_code || '-'}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {doc.sick_leave_usage_id}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {doc.created_at ? formatDateTime(doc.created_at) : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            <button
-                              onClick={() => handleDownloadSickLeaveDocument(doc)}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                            >
-                              <Download className="w-4 h-4 mr-1" />
-                              {t('download_document')}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {sickLeaveDocuments.map((doc) => {
+                  const employee = documentsEmployees.find((emp) => emp.id === doc.employee_id);
+                  const createdAt = doc.created_at ? new Date(doc.created_at) : null;
+                  const formattedDate = createdAt
+                    ? createdAt.toLocaleDateString(locale, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
+                    : '';
+                  const defaultNameRaw = t('sick_leave_default_document_name', { date: formattedDate });
+                  const defaultName =
+                    defaultNameRaw === 'sick_leave_default_document_name'
+                      ? `${language === 'es' ? 'Constancia médica' : 'Medical certificate'} ${formattedDate}`.trim()
+                      : defaultNameRaw;
+                  const employeeName = employee
+                    ? `${employee.first_name} ${employee.last_name}`
+                    : doc.employee_code || doc.employee_id;
+                  const employeeCode = employee?.employee_code || doc.employee_code;
+                  const documentTitle = doc.document_name && doc.document_name !== 'sick_leave_default_document_name'
+                    ? doc.document_name
+                    : defaultName || translateOrFallback('document_without_name', 'Sick leave document');
+                  const badgeText = translateOrFallback('sick_leave_receipt_tag', 'Sick Leave');
+ 
+                   return (
+                     <div
+                       key={doc.id}
+                       className="bg-white shadow-md border border-gray-200 rounded-xl p-5 flex flex-col gap-4 hover:shadow-lg transition-shadow"
+                     >
+                       <div className="flex items-start justify-between">
+                         <div>
+                           <h3 className="text-lg font-semibold text-gray-900">
+                             {documentTitle}
+                           </h3>
+                           {doc.document_filename && (
+                             <p className="text-xs text-gray-500 mt-1">{doc.document_filename}</p>
+                           )}
+                           <div className="text-sm text-gray-600 mt-2">
+                             {employeeName}
+                             {employeeCode && (
+                               <span className="text-xs text-gray-400 ml-2">{employeeCode}</span>
+                             )}
+                           </div>
+                         </div>
+                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                           {badgeText}
+                         </span>
+                       </div>
+ 
+                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 space-y-2">
+                         <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                           {t('sick_leave_document_info')}
+                         </p>
+                         <div className="grid grid-cols-1 gap-2">
+                           <div>
+                             <p className="text-xs text-gray-500 uppercase font-semibold flex items-center gap-2">
+                               <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                               {t('employee')}
+                             </p>
+                             <p className="text-sm font-medium text-gray-900">{employeeName}</p>
+                             {employeeCode && (
+                               <p className="text-xs text-gray-500">{employeeCode}</p>
+                             )}
+                           </div>
+                           <div>
+                             <p className="text-xs text-gray-500 uppercase font-semibold flex items-center gap-2">
+                               <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                               {t('usage_id')}
+                             </p>
+                             <p className="text-xs font-mono text-gray-600 break-all">
+                               {doc.sick_leave_usage_id}
+                             </p>
+                           </div>
+                           <div>
+                             <p className="text-xs text-gray-500 uppercase font-semibold flex items-center gap-2">
+                               <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                               {t('uploaded_at')}
+                             </p>
+                             <p className="text-sm text-gray-800">
+                               {doc.created_at ? formatDateTime(doc.created_at) : '-'}
+                             </p>
+                           </div>
+                           {doc.uploaded_by && (
+                             <div>
+                               <p className="text-xs text-gray-500 uppercase font-semibold flex items-center gap-2">
+                                 <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                                 {t('uploaded_by')}
+                               </p>
+                               <p className="text-sm text-gray-800">{doc.uploaded_by}</p>
+                             </div>
+                           )}
+                         </div>
+                       </div>
+ 
+                       <button
+                         onClick={() => handleDownloadSickLeaveDocument(doc)}
+                         className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
+                       >
+                         <Download className="w-4 h-4 mr-2" />
+                         {t('download_document')}
+                       </button>
+                     </div>
+                   );
+                 })}
               </div>
             ) : (
               <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
                 {t('no_documents_found')}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Payroll Documents Tab */}
+        {activeTab === 'payroll-documents' && (
+          <div className="space-y-4">
+            <div className="bg-white shadow rounded-xl p-6 border border-gray-200">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">{t('payroll_documents_title')}</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {t('payroll_documents_description')}
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 text-sm rounded-lg border border-blue-100">
+                  <Download className="w-4 h-4" />
+                  <span>{t('load_payroll_documents_hint')}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                <div className="lg:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('employee')}
+                  </label>
+                  <select
+                    value={payrollDocumentsEmployeeId}
+                    onChange={(e) => setPayrollDocumentsEmployeeId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">{t('all_employees')}</option>
+                    {documentsEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name} - {emp.employee_code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="lg:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('payroll_document_payroll_id')}</label>
+                  <input
+                    type="text"
+                    value={payrollDocumentsPayrollId}
+                    onChange={(e) => setPayrollDocumentsPayrollId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="550e8400-e29b-41d4-a716-446655440000"
+                  />
+                </div>
+                <div className="lg:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('start_date')}</label>
+                  <input
+                    type="date"
+                    value={payrollDocumentsStartDate}
+                    onChange={(e) => setPayrollDocumentsStartDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="lg:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('end_date')}</label>
+                  <input
+                    type="date"
+                    value={payrollDocumentsEndDate}
+                    onChange={(e) => setPayrollDocumentsEndDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="lg:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('results_limit')}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={payrollDocumentsLimit}
+                    onChange={(e) => setPayrollDocumentsLimit(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={handleLoadPayrollDocuments}
+                  disabled={payrollDocumentsLoading}
+                  className="inline-flex items-center justify-center px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {payrollDocumentsLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      <span className="ml-2">{t('loading')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      {t('load_payroll_documents')}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {payrollDocumentsLoading ? (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" text={t('loading')} />
+              </div>
+            ) : payrollDocuments.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {payrollDocuments.map((doc) => {
+                  const employee = documentsEmployees.find((emp) => emp.id === doc.employee_id);
+                  const employeeName =
+                    employee ? `${employee.first_name} ${employee.last_name}` : doc.employee_name || doc.employee_code || doc.employee_id || '-';
+                  const employeeCode = employee?.employee_code || doc.employee_code;
+                  const displayName =
+                    doc.document_name ||
+                    doc.invoice_id ||
+                    doc.pdf_filename ||
+                    translateOrFallback('payroll_document_default_name', 'Payroll receipt');
+                  const uploadedAt = doc.uploaded_at || doc.created_at || doc.signed_at || '';
+                  const invoiceDisplay = doc.invoice_id || t('payroll_document_invoice_missing');
+                  const hasDirectLink = Boolean(doc.download_url);
+                  const sourceLabel = hasDirectLink ? t('payroll_document_source_direct') : t('payroll_document_source_history');
+                  const sourceStyles = hasDirectLink
+                    ? 'bg-green-100 text-green-700 border-green-200'
+                    : 'bg-amber-100 text-amber-700 border-amber-200';
+                  const sourceIcon = hasDirectLink ? <Link className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />;
+                  let periodDisplay = '-';
+                  if (doc.period_start && doc.period_end) {
+                    periodDisplay = `${formatDateOnly(doc.period_start)} → ${formatDateOnly(doc.period_end)}`;
+                  } else if (doc.period_start) {
+                    periodDisplay = formatDateOnly(doc.period_start);
+                  } else if (doc.period_end) {
+                    periodDisplay = formatDateOnly(doc.period_end);
+                  }
+                  const uploadedBy = doc.uploaded_by || '-';
+
+                  return (
+                    <div
+                      key={`${doc.id || doc.pdf_filename}`}
+                      className="bg-white shadow-md border border-gray-200 rounded-xl p-5 flex flex-col gap-4 hover:shadow-lg transition-shadow"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                            {t('payroll_document_name')}
+                          </p>
+                          <h3 className="text-lg font-semibold text-gray-900">{displayName}</h3>
+                          {doc.pdf_filename && <p className="text-xs text-gray-500 mt-1 font-mono">{doc.pdf_filename}</p>}
+                        </div>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${sourceStyles}`}>
+                          {sourceIcon}
+                          {sourceLabel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('employee')}</p>
+                          <p className="text-sm font-medium text-gray-900">{employeeName}</p>
+                          {employeeCode && <p className="text-xs text-gray-500">{employeeCode}</p>}
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('payroll_document_payroll_id_short')}</p>
+                          <p className="text-xs font-mono text-gray-700 break-all">{doc.payroll_id || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('payroll_document_invoice_id')}</p>
+                          <p className="text-sm text-gray-800 break-words">{invoiceDisplay}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('payroll_document_period_label')}</p>
+                          <p className="text-sm text-gray-800">{periodDisplay}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('uploaded_at')}</p>
+                          <p className="text-sm text-gray-800">{uploadedAt ? formatDateTime(uploadedAt) : '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('uploaded_by')}</p>
+                          <p className="text-sm text-gray-800 break-words">{uploadedBy}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end border-t border-gray-100 pt-4">
+                        <button
+                          onClick={() => handleDownloadPayrollDocument(doc)}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          {t('download_document')}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-lg font-medium">{t('no_payroll_documents')}</p>
+                <p className="text-sm text-gray-400 mt-2">{t('load_payroll_documents_hint')}</p>
               </div>
             )}
           </div>

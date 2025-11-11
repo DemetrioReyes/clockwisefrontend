@@ -56,6 +56,7 @@ export const API_ENDPOINTS = {
   DOWNLOAD_PDF: '/api/pdf-payroll/download',
   PDF_HISTORY: '/api/pdf-payroll/history',
   UPLOAD_SIGNED_PDF: '/api/pdf-payroll/upload',
+  PAYROLL_SIGNED_DOCUMENTS: '/api/pdf-payroll/documents',
 
   // Digital Signatures
   SIGN_DOCUMENT: '/api/digital-signatures/',

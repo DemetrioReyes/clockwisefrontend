@@ -9,7 +9,6 @@ import { formatErrorMessage } from '../../../services/api';
 import { sickleaveService } from '../../../services/sickleave.service';
 import { getEmployees } from '../../../services/employee.service';
 import { signaturesService } from '../../../services/signatures.service';
-import { pdfService } from '../../../services/pdf.service';
 import { Employee } from '../../../types';
 import { Calendar, Clock, Users, CheckCircle2, AlertCircle, FileText, Plus, X, PenTool, Printer } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
