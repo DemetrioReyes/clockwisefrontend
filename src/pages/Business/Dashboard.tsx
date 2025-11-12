@@ -14,12 +14,11 @@ import { Users, Clock, DollarSign, TrendingUp, UserPlus, AlertTriangle } from 'l
 
 const BusinessDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [breakComplianceAlerts, setBreakComplianceAlerts] = useState<any[]>([]);
+  const [breakComplianceTotal, setBreakComplianceTotal] = useState(0);
   const [weeklyHours, setWeeklyHours] = useState<{ total: number; overtime: number }>({ total: 0, overtime: 0 });
   const [payrollCount, setPayrollCount] = useState<number>(0);
   const [employeeStats, setEmployeeStats] = useState<any[]>([]);
-  const [breakComplianceAlerts, setBreakComplianceAlerts] = useState<any[]>([]);
-  const [breakComplianceTotal, setBreakComplianceTotal] = useState<number>(0);
-  const [loadingBreakCompliance, setLoadingBreakCompliance] = useState(false);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -32,16 +31,20 @@ const BusinessDashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
+      // Cargar empleados
       const employeesData = await employeeService.listEmployees(true);
-      console.log('🔍 Respuesta del backend:', employeesData);
-      console.log('🔍 Es array?', Array.isArray(employeesData));
-      console.log('🔍 Tiene employees?', (employeesData as any)?.employees);
-      
-      // Manejar respuesta: puede ser array directo o objeto {employees: [...]}
-      const employeesArray = Array.isArray(employeesData) ? employeesData : (employeesData as any)?.employees || [];
-      console.log('✅ Array final:', employeesArray);
-      setEmployees(employeesArray);
-      
+      const employeesList = Array.isArray(employeesData) ? employeesData : (employeesData as any)?.employees || [];
+      setEmployees(employeesList);
+
+      // Cargar alertas de break compliance
+      try {
+        const alertsResponse = await reportsService.getBreakComplianceAlerts('pending');
+        setBreakComplianceAlerts(alertsResponse.alerts || alertsResponse || []);
+        setBreakComplianceTotal(alertsResponse.total_alerts || (alertsResponse.alerts || alertsResponse || []).length || 0);
+      } catch (error) {
+        console.log('Could not load break alerts:', error);
+      }
+
       // Cargar horas del mes actual (todo el mes)
       try {
         const today = new Date();
@@ -113,29 +116,8 @@ const BusinessDashboard: React.FC = () => {
     }
   };
 
-  const loadBreakComplianceAlerts = async () => {
-    setLoadingBreakCompliance(true);
-    try {
-      const response = await reportsService.getBreakComplianceAlerts('pending');
-      const alerts = response.alerts || response || [];
-      setBreakComplianceAlerts(alerts);
-      setBreakComplianceTotal(response.total_alerts || alerts.length || 0);
-    } catch (error) {
-      console.log('No se pudieron cargar alertas de Break Compliance:', error);
-      setBreakComplianceAlerts([]);
-      setBreakComplianceTotal(0);
-    } finally {
-      setLoadingBreakCompliance(false);
-    }
-  };
-
-  useEffect(() => {
-    loadBreakComplianceAlerts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const activeEmployees = employees.filter((e) => e.is_active);
-  const tippedEmployees = employees.filter((e) => e.has_tip_credit);
+  const activeEmployees = employees.filter((e: Employee) => e.is_active);
+  const tippedEmployees = employees.filter((e: Employee) => e.has_tip_credit);
 
   return (
     <Layout>
@@ -217,7 +199,7 @@ const BusinessDashboard: React.FC = () => {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">{t('break_compliance')}</p>
                     <p className={`text-2xl font-bold ${breakComplianceTotal > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {loadingBreakCompliance ? '...' : breakComplianceTotal}
+                      {breakComplianceTotal}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {breakComplianceTotal > 0 ? t('pending_alerts') : t('all_clear')}
@@ -287,11 +269,7 @@ const BusinessDashboard: React.FC = () => {
                     {t('view_all')} →
                   </Link>
                 </div>
-                {loadingBreakCompliance ? (
-                  <div className="p-6 text-center">
-                    <LoadingSpinner size="sm" text={t('loading')} />
-                  </div>
-                ) : breakComplianceAlerts.length === 0 ? (
+                {breakComplianceAlerts.length === 0 ? (
                   <div className="p-6 text-center text-gray-500">
                     {t('pending')} {t('break_compliance_alerts').toLowerCase()}
                   </div>
@@ -318,7 +296,7 @@ const BusinessDashboard: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {breakComplianceAlerts.slice(0, 5).map((alert) => {
+                        {breakComplianceAlerts.slice(0, 5).map((alert: any) => {
                           const severityColors: { [key: string]: string } = {
                             high: 'bg-red-100 text-red-800',
                             medium: 'bg-yellow-100 text-yellow-800',
@@ -439,7 +417,7 @@ const BusinessDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {activeEmployees.slice(0, 5).map((employee) => {
+                      {activeEmployees.slice(0, 5).map((employee: Employee) => {
                         const empStats = employeeStats.find(s => s.employee_id === employee.id);
                         return (
                         <tr key={employee.id} className="hover:bg-gray-50">

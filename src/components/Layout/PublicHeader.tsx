@@ -48,7 +48,7 @@ const PublicHeader: React.FC = () => {
                 className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               >
                 <Shield className="w-4 h-4" />
-                <span>Super Admin</span>
+                <span>Administration</span>
               </button>
             )}
             
@@ -57,7 +57,7 @@ const PublicHeader: React.FC = () => {
               className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-md"
             >
               <Building2 className="w-4 h-4" />
-              <span>Portal de Negocio</span>
+              <span>Business Portal</span>
             </button>
           </nav>
         </div>

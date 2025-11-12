@@ -42,6 +42,19 @@ class EmployeeService {
     return response.data;
   }
 
+  // NUEVA: Con paginación (opcional)
+  async listEmployeesPaginated(
+    page: number = 1,
+    limit: number = 50,
+    activeOnly?: boolean
+  ): Promise<{ results: Employee[]; total: number; page: number; pages: number }> {
+    const params: any = { page, limit };
+    if (activeOnly !== undefined) params.active_only = activeOnly;
+    const response = await api.get(API_ENDPOINTS.EMPLOYEES, { params });
+    return response.data;
+  }
+
+  // VIEJA: Sin paginación (mantenemos para compatibilidad)
   async listEmployees(activeOnly?: boolean): Promise<Employee[]> {
     const params: any = {};
     if (activeOnly !== undefined) params.active_only = activeOnly;
@@ -111,6 +124,7 @@ const employeeServiceInstance = new EmployeeService();
 
 // Named exports for specific functions
 export const getEmployees = (activeOnly: boolean = true) => employeeServiceInstance.getEmployees(activeOnly);
+export const getEmployeesPaginated = (page?: number, limit?: number, activeOnly?: boolean) => employeeServiceInstance.listEmployeesPaginated(page, limit, activeOnly);
 export const registerEmployee = (data: EmployeeRegisterData) => employeeServiceInstance.registerEmployee(data);
 export const listEmployees = (activeOnly?: boolean) => employeeServiceInstance.listEmployees(activeOnly);
 export const getEmployeeById = (id: string) => employeeServiceInstance.getEmployeeById(id);
