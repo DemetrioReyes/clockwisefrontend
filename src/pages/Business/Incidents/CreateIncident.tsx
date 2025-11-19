@@ -124,7 +124,6 @@ const CreateIncident = () => {
               <option value="bonus">Bono</option>
               <option value="penalty">Penalización</option>
               <option value="tips_reported">Propinas Reportadas</option>
-              <option value="food_gift">Regalo de comida (no imponible)</option>
               <option value="warning">Advertencia</option>
               <option value="advance">Adelanto</option>
               <option value="other">Otro</option>

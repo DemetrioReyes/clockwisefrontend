@@ -97,6 +97,7 @@ export interface Employee {
   tip_credit_cash_wage?: number;
   tip_credit_amount?: number;
   state_minimum_wage?: number;
+  receives_meal_benefit?: boolean;
   face_image_path?: string;
   is_active: boolean;
   created_at: string;
@@ -126,6 +127,7 @@ export interface EmployeeRegisterData {
   bank_routing_number?: string;
   bank_account_type?: BankAccountType;
   state_minimum_wage?: number;
+  receives_meal_benefit?: boolean;
   face_image?: File;
 }
 
@@ -715,6 +717,49 @@ export interface TipCreditShortfall {
   tips_reported: number;
   shortfall: number;
   config_used: TipCreditConfig;
+}
+
+// Meal Benefit Types
+export interface MealBenefitConfig {
+  id: string;
+  tenant_id?: string;
+  config_name: string;
+  employee_type: EmployeeType;
+  min_hours_threshold: number;
+  credit_amount: number;
+  effective_date: string;
+  end_date?: string;
+  is_active: boolean;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MealBenefitConfigCreate {
+  config_name: string;
+  employee_type: EmployeeType;
+  min_hours_threshold: number;
+  credit_amount: number;
+  effective_date: string;
+  end_date?: string;
+  notes?: string;
+}
+
+export interface MealBenefitConfigUpdate {
+  config_name?: string;
+  min_hours_threshold?: number;
+  credit_amount?: number;
+  effective_date?: string;
+  end_date?: string;
+  is_active?: boolean;
+  notes?: string;
+}
+
+export interface MealBenefitConfigResponse {
+  config: MealBenefitConfig;
+  is_global: boolean;
+  source: string;
 }
 
 // UI State Types

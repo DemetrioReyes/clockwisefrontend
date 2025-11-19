@@ -29,6 +29,9 @@ class EmployeeService {
     if (data.bank_routing_number) formData.append('bank_routing_number', data.bank_routing_number);
     if (data.bank_account_type) formData.append('bank_account_type', data.bank_account_type);
     if (data.state_minimum_wage) formData.append('state_minimum_wage', data.state_minimum_wage.toString());
+    if (data.receives_meal_benefit !== undefined) {
+      formData.append('receives_meal_benefit', data.receives_meal_benefit ? 'true' : 'false');
+    }
 
     if (data.face_image) {
       formData.append('face_image', data.face_image);

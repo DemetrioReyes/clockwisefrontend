@@ -37,6 +37,7 @@ const RegisterEmployee: React.FC = () => {
     bank_routing_number: '',
     bank_account_type: 'checking',
     state_minimum_wage: 16.50,
+    receives_meal_benefit: false,
   });
 
   // Formatear teléfono automáticamente a XXX-XXX-XXXX
@@ -434,6 +435,35 @@ const RegisterEmployee: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Beneficio de Comida */}
+          <div className="bg-emerald-50 border-l-4 border-emerald-400 p-6 rounded">
+            <h3 className="text-lg font-semibold mb-4 text-emerald-900">Beneficio de Comida (Crédito Automático)</h3>
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="receives_meal_benefit"
+                  name="receives_meal_benefit"
+                  checked={formData.receives_meal_benefit || false}
+                  onChange={(e) => setFormData(prev => ({ ...prev, receives_meal_benefit: e.target.checked }))}
+                  className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <label htmlFor="receives_meal_benefit" className="ml-3 text-sm font-medium text-gray-700">
+                  Este empleado recibe crédito de comida automático
+                </label>
+              </div>
+              <div className="bg-emerald-100 p-4 rounded">
+                <p className="text-sm text-emerald-800 font-semibold mb-2">Cómo funciona:</p>
+                <ul className="text-xs text-emerald-700 space-y-1 list-disc list-inside">
+                  <li>El crédito se calcula automáticamente en cada período de nómina</li>
+                  <li>Se aplica si el empleado trabaja las horas mínimas configuradas para su tipo</li>
+                  <li>El crédito es <strong>imponible</strong> (se suma al gross_pay)</li>
+                  <li>La configuración se gestiona en "Configuración de Beneficio de Comida"</li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
           {/* Foto Facial */}
           <div>

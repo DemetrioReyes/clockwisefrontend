@@ -44,6 +44,8 @@ const SickLeaveManagement = lazy(() => import('./pages/Business/SickLeave/SickLe
 const TipCreditConfig = lazy(() => import('./pages/Business/TipCredit/TipCreditConfig'));
 const CreateTipCreditConfig = lazy(() => import('./pages/Business/TipCredit/CreateTipCreditConfig'));
 const TipCreditCalculator = lazy(() => import('./pages/Business/TipCredit/TipCreditCalculator'));
+const MealBenefitConfig = lazy(() => import('./pages/Business/MealBenefit/MealBenefitConfig'));
+const CreateMealBenefitConfig = lazy(() => import('./pages/Business/MealBenefit/CreateMealBenefitConfig'));
 
 function App() {
   return (
@@ -255,6 +257,32 @@ function App() {
               element={
                 <ProtectedRoute requiredUserType="business">
                   <TipCreditCalculator />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Meal Benefit Configuration Routes */}
+            <Route
+              path="/business/meal-benefit"
+              element={
+                <ProtectedRoute requiredUserType="business">
+                  <MealBenefitConfig />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/business/meal-benefit/create"
+              element={
+                <ProtectedRoute requiredUserType="business">
+                  <CreateMealBenefitConfig />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/business/meal-benefit/edit/:id"
+              element={
+                <ProtectedRoute requiredUserType="business">
+                  <CreateMealBenefitConfig />
                 </ProtectedRoute>
               }
             />

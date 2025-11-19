@@ -40,6 +40,7 @@ const EmployeeList: React.FC = () => {
     bank_routing_number: '',
     bank_account_type: 'checking' as BankAccountType,
     state_minimum_wage: '',
+    receives_meal_benefit: false,
   });
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
@@ -99,6 +100,7 @@ const EmployeeList: React.FC = () => {
       bank_routing_number: employee.bank_routing_number || '',
       bank_account_type: employee.bank_account_type || 'checking',
       state_minimum_wage: employee.state_minimum_wage?.toString() || '',
+      receives_meal_benefit: employee.receives_meal_benefit || false,
     });
   };
 
@@ -128,6 +130,7 @@ const EmployeeList: React.FC = () => {
       bank_routing_number: '',
       bank_account_type: 'checking',
       state_minimum_wage: '',
+      receives_meal_benefit: false,
     });
   };
 
@@ -170,6 +173,9 @@ const EmployeeList: React.FC = () => {
       if (editForm.bank_account_type !== (editingEmployee.bank_account_type || 'checking')) updateData.bank_account_type = editForm.bank_account_type;
       if (editForm.state_minimum_wage !== (editingEmployee.state_minimum_wage?.toString() || '')) {
         updateData.state_minimum_wage = editForm.state_minimum_wage ? parseFloat(editForm.state_minimum_wage) : null;
+      }
+      if (editForm.receives_meal_benefit !== (editingEmployee.receives_meal_benefit || false)) {
+        updateData.receives_meal_benefit = editForm.receives_meal_benefit;
       }
 
       await employeeService.updateEmployee(editingEmployee.id, updateData);
@@ -661,6 +667,35 @@ const EmployeeList: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Beneficio de Comida */}
+                <div className="bg-emerald-50 border-l-4 border-emerald-400 p-6 rounded">
+                  <h3 className="text-lg font-semibold mb-4 text-emerald-900">Beneficio de Comida (Crédito Automático)</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="receives_meal_benefit_edit"
+                        name="receives_meal_benefit"
+                        checked={editForm.receives_meal_benefit || false}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, receives_meal_benefit: e.target.checked }))}
+                        className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                      />
+                      <label htmlFor="receives_meal_benefit_edit" className="ml-3 text-sm font-medium text-gray-700">
+                        Este empleado recibe crédito de comida automático
+                      </label>
+                    </div>
+                    <div className="bg-emerald-100 p-4 rounded">
+                      <p className="text-sm text-emerald-800 font-semibold mb-2">Cómo funciona:</p>
+                      <ul className="text-xs text-emerald-700 space-y-1 list-disc list-inside">
+                        <li>El crédito se calcula automáticamente en cada período de nómina</li>
+                        <li>Se aplica si el empleado trabaja las horas mínimas configuradas para su tipo</li>
+                        <li>El crédito es <strong>imponible</strong> (se suma al gross_pay)</li>
+                        <li>La configuración se gestiona en "Configuración de Beneficio de Comida"</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Botones */}
                 <div className="flex gap-3 pt-6 border-t">

@@ -14,7 +14,7 @@ const ReportTips: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
-  const [incidentType, setIncidentType] = useState<'tip' | 'bonus' | 'food_gift'>('tip');
+  const [incidentType, setIncidentType] = useState<'tip' | 'bonus'>('tip');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -82,32 +82,6 @@ const ReportTips: React.FC = () => {
           incident_date: date,
         });
         showToast(t('bonus_added_successfully'), 'success');
-      } else {
-        try {
-          await deductionsService.createIncident({
-            employee_id: selectedEmployee,
-            incident_type: 'food_gift',
-            incident_name: t('food_gift_label'),
-            amount: parseFloat(amount),
-            description: description || t('food_gift_label'),
-            incident_date: date,
-          });
-          showToast(t('food_gift_reported_successfully'), 'success');
-        } catch (error: any) {
-          if (error?.response?.status === 422) {
-            await deductionsService.createIncident({
-              employee_id: selectedEmployee,
-              incident_type: 'other',
-              incident_name: `${t('food_gift_label')} (fallback)`,
-              amount: parseFloat(amount),
-              description: `${description ? `${description} ` : ''}[FOOD_GIFT]`,
-              incident_date: date,
-            });
-            showToast(t('food_gift_reported_with_fallback'), 'info');
-          } else {
-            throw error;
-          }
-        }
       }
 
       // Reset form
@@ -223,16 +197,6 @@ const ReportTips: React.FC = () => {
                     />
                     <span className="ml-2 text-sm text-gray-700">{t('bonus')}</span>
                   </label>
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      value="food_gift"
-                      checked={incidentType === 'food_gift'}
-                      onChange={() => setIncidentType('food_gift')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">{t('food_gift_label')}</span>
-                  </label>
                 </div>
               </div>
 
@@ -288,9 +252,7 @@ const ReportTips: React.FC = () => {
                   placeholder={
                     incidentType === 'tip'
                       ? t('tips_notes_placeholder')
-                      : incidentType === 'bonus'
-                        ? t('bonus_reason_placeholder')
-                        : t('food_gift_notes_placeholder')
+                      : t('bonus_reason_placeholder')
                   }
                 />
               </div>

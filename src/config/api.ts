@@ -91,4 +91,12 @@ export const API_ENDPOINTS = {
   TIP_CREDIT_CALCULATE: '/api/tip-credit/calculate-shortfall',
   TIP_CREDIT_UPDATE: '/api/tip-credit',
   TIP_CREDIT_DELETE: '/api/tip-credit',
+
+  // Meal Benefit Configuration
+  MEAL_BENEFIT_CURRENT: '/api/meal-benefit/current',
+  MEAL_BENEFIT_LIST: '/api/meal-benefit/',
+  MEAL_BENEFIT_CREATE: '/api/meal-benefit/',
+  MEAL_BENEFIT_BY_ID: '/api/meal-benefit',
+  MEAL_BENEFIT_UPDATE: '/api/meal-benefit',
+  MEAL_BENEFIT_DELETE: '/api/meal-benefit',
 };
