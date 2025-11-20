@@ -6,7 +6,7 @@ import { useToast } from '../../../components/Common/Toast';
 import { formatErrorMessage } from '../../../services/api';
 import mealBenefitService from '../../../services/meal-benefit.service';
 import { MealBenefitConfig as MealBenefitConfigType, EmployeeType } from '../../../types';
-import { Settings, Info, Plus, Edit2, Trash2, Calendar } from 'lucide-react';
+import { Settings, Info, Plus, Edit2, Trash2, Calendar, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
 const MealBenefitConfig = () => {
@@ -15,7 +15,7 @@ const MealBenefitConfig = () => {
   const [selectedEmployeeType, setSelectedEmployeeType] = useState<EmployeeType | ''>('');
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
 
   const employeeTypeLabels: Record<EmployeeType, string> = {
     hourly_tipped_waiter: 'Mesero (Con Tip Credit)',
@@ -44,13 +44,45 @@ const MealBenefitConfig = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Recargar cuando se regresa de crear/editar
+  useEffect(() => {
+    const handleFocus = () => {
+      loadConfigs();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadConfigs = async () => {
     setLoading(true);
     try {
       const all = await mealBenefitService.listConfigs(undefined, true, false);
-      const normalizedConfigs = Array.isArray(all) ? all : [];
+      console.log('Response from backend:', all);
+      
+      // Manejar diferentes formatos de respuesta
+      let normalizedConfigs: MealBenefitConfigType[] = [];
+      if (Array.isArray(all)) {
+        normalizedConfigs = all;
+      } else if (all && typeof all === 'object') {
+        // Si viene como objeto con propiedades
+        if (Array.isArray((all as any).items)) {
+          normalizedConfigs = (all as any).items;
+        } else if (Array.isArray((all as any).configs)) {
+          normalizedConfigs = (all as any).configs;
+        } else if (Array.isArray((all as any).data)) {
+          normalizedConfigs = (all as any).data;
+        }
+      }
+      
+      console.log('Normalized configs:', normalizedConfigs);
       setConfigs(normalizedConfigs);
+      
+      if (normalizedConfigs.length === 0) {
+        console.log('No configs found. Check backend response format.');
+      }
     } catch (error: any) {
+      console.error('Error loading configs:', error);
       showToast(formatErrorMessage(error), 'error');
     } finally {
       setLoading(false);
@@ -58,13 +90,13 @@ const MealBenefitConfig = () => {
   };
 
   const handleDelete = async (configId: string) => {
-    if (!window.confirm('¿Está seguro de que desea desactivar esta configuración?')) {
+    if (!window.confirm(t('tip_credit_deactivate_confirm'))) {
       return;
     }
 
     try {
       await mealBenefitService.deleteConfig(configId);
-      showToast('Configuración desactivada exitosamente', 'success');
+      showToast(t('tip_credit_deactivate_success'), 'success');
       loadConfigs();
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
@@ -92,19 +124,27 @@ const MealBenefitConfig = () => {
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-              Configuración de Beneficio de Comida
+              {t('meal_benefit_config_title')}
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Configure las reglas de crédito automático de comida por tipo de empleado
+              {t('meal_benefit_config_subtitle')}
             </p>
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+            <button
+              onClick={loadConfigs}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
+            >
+              <RefreshCw className={`-ml-1 mr-2 h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+              Recargar
+            </button>
             <button
               onClick={() => navigate('/business/meal-benefit/create')}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
             >
               <Plus className="-ml-1 mr-2 h-5 w-5" />
-              Nueva Configuración
+              {t('meal_benefit_new_config_button')}
             </button>
           </div>
         </div>
@@ -112,14 +152,14 @@ const MealBenefitConfig = () => {
         {/* Filtro por tipo de empleado */}
         <div className="bg-white shadow rounded-lg p-4 mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Filtrar por tipo de empleado:
+            {t('meal_benefit_filter_by_type')}
           </label>
           <select
             value={selectedEmployeeType}
             onChange={(e) => setSelectedEmployeeType(e.target.value as EmployeeType | '')}
             className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
           >
-            <option value="">Todos los tipos</option>
+            <option value="">{t('meal_benefit_all_types')}</option>
             {(Object.keys(employeeTypeLabels) as EmployeeType[]).map((type) => (
               <option key={type} value={type}>
                 {employeeTypeLabels[type]}
@@ -133,14 +173,14 @@ const MealBenefitConfig = () => {
           <div className="flex">
             <Info className="h-5 w-5 text-emerald-400 mr-3" />
             <div>
-              <h3 className="text-sm font-medium text-emerald-800">Cómo funciona el sistema automático</h3>
+              <h3 className="text-sm font-medium text-emerald-800">{t('meal_benefit_how_it_works')}</h3>
               <div className="mt-2 text-sm text-emerald-700">
                 <ul className="list-disc list-inside space-y-1">
-                  <li>El crédito se calcula automáticamente en cada período de nómina</li>
-                  <li>Se aplica si el empleado tiene <code className="bg-emerald-100 px-1 rounded">receives_meal_benefit = TRUE</code></li>
-                  <li>Se aplica si las horas trabajadas en el período ≥ horas mínimas configuradas</li>
-                  <li>El crédito es <strong>imponible</strong> (se suma al gross_pay)</li>
-                  <li>Se calcula por período completo, no diario</li>
+                  <li>{t('meal_benefit_auto_calculated')}</li>
+                  <li>{t('meal_benefit_requires_flag')}</li>
+                  <li>{t('meal_benefit_min_hours_description')}</li>
+                  <li>{t('meal_benefit_taxable')}</li>
+                  <li>{t('meal_benefit_per_period')}</li>
                 </ul>
               </div>
             </div>
@@ -150,31 +190,31 @@ const MealBenefitConfig = () => {
         {/* Configuraciones Activas */}
         {activeConfigs.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuraciones Activas</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('meal_benefit_active_configs')}</h3>
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nombre
+                      {t('meal_benefit_config_name')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo de Empleado
+                      {t('meal_benefit_employee_type')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Horas Mínimas
+                      {t('meal_benefit_min_hours')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Crédito
+                      {t('meal_benefit_credit')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fechas Vigentes
+                      {t('meal_benefit_effective_dates')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Origen
+                      {t('meal_benefit_source')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
+                      {t('actions')}
                     </th>
                   </tr>
                 </thead>
@@ -203,11 +243,11 @@ const MealBenefitConfig = () => {
                           <Calendar className="w-4 h-4 mr-1" />
                           <div>
                             <div>
-                              Desde: {new Date(config.effective_date).toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US')}
+                              {t('meal_benefit_from')}: {new Date(config.effective_date).toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US')}
                             </div>
                             {config.end_date && (
                               <div className="text-xs">
-                                Hasta: {new Date(config.end_date).toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US')}
+                                {t('meal_benefit_to')}: {new Date(config.end_date).toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US')}
                               </div>
                             )}
                           </div>
@@ -216,11 +256,11 @@ const MealBenefitConfig = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         {config.tenant_id ? (
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            Tenant
+                            {t('meal_benefit_tenant')}
                           </span>
                         ) : (
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Global
+                            {t('meal_benefit_global')}
                           </span>
                         )}
                       </td>
@@ -230,14 +270,14 @@ const MealBenefitConfig = () => {
                           className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
                         >
                           <Edit2 className="w-4 h-4" />
-                          Editar
+                          {t('meal_benefit_edit')}
                         </button>
                         <button
                           onClick={() => handleDelete(config.id)}
                           className="text-red-600 hover:text-red-900 flex items-center gap-1"
                         >
                           <Trash2 className="w-4 h-4" />
-                          Desactivar
+                          {t('meal_benefit_deactivate')}
                         </button>
                       </td>
                     </tr>
@@ -251,7 +291,7 @@ const MealBenefitConfig = () => {
         {/* Configuraciones Inactivas */}
         {inactiveConfigs.length > 0 && (
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuraciones Inactivas</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('meal_benefit_inactive_configs')}</h3>
             <div className="bg-white shadow overflow-hidden sm:rounded-lg opacity-75">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -303,16 +343,34 @@ const MealBenefitConfig = () => {
         )}
 
         {/* Estado vacío */}
-        {filteredConfigs.length === 0 && (
-          <div className="text-center py-12 bg-white shadow rounded-lg">
+        {!loading && filteredConfigs.length === 0 && (
+            <div className="text-center py-12 bg-white shadow rounded-lg">
             <Settings className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">No hay configuraciones disponibles</p>
+            <p className="text-gray-600 mb-2">
+              {configs.length === 0 
+                ? t('meal_benefit_no_configs')
+                : selectedEmployeeType 
+                  ? t('meal_benefit_no_configs')
+                  : t('meal_benefit_no_configs')}
+            </p>
+            {configs.length === 0 && (
+              <p className="text-sm text-gray-500 mb-4">
+                {t('meal_benefit_create_first')}
+              </p>
+            )}
             <button
               onClick={() => navigate('/business/meal-benefit/create')}
               className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700"
             >
               <Plus className="-ml-1 mr-2 h-5 w-5" />
-              Crear Primera Configuración
+              {configs.length === 0 ? t('meal_benefit_create_config') : t('meal_benefit_new_config_button')}
+            </button>
+            <button
+              onClick={loadConfigs}
+              className="mt-2 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <RefreshCw className="-ml-1 mr-2 h-5 w-5" />
+              Recargar
             </button>
           </div>
         )}

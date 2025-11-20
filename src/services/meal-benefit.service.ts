@@ -39,11 +39,31 @@ class MealBenefitService {
     if (includeGlobal !== undefined) params.include_global = includeGlobal;
     if (activeOnly !== undefined) params.active_only = activeOnly;
 
-    const response = await api.get<MealBenefitConfig[]>(
+    const response = await api.get<any>(
       API_ENDPOINTS.MEAL_BENEFIT_LIST,
       { params }
     );
-    return response.data;
+    
+    // Manejar diferentes formatos de respuesta
+    const data = response.data;
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && typeof data === 'object') {
+      // Si viene como objeto con propiedades
+      if (Array.isArray(data.items)) {
+        return data.items;
+      } else if (Array.isArray(data.configs)) {
+        return data.configs;
+      } else if (Array.isArray(data.data)) {
+        return data.data;
+      } else if (Array.isArray(data.results)) {
+        return data.results;
+      }
+    }
+    
+    // Si no se puede parsear, devolver array vacío
+    console.warn('Unexpected response format from meal-benefit list endpoint:', data);
+    return [];
   }
 
   /**

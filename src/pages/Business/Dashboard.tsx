@@ -10,7 +10,7 @@ import employeeService from '../../services/employee.service';
 import payrollService from '../../services/payroll.service';
 import { reportsService } from '../../services/reports.service';
 import { Employee } from '../../types';
-import { Users, Clock, DollarSign, TrendingUp, UserPlus, AlertTriangle } from 'lucide-react';
+import { Users, Clock, DollarSign, TrendingUp, UserPlus, AlertTriangle, Building2 } from 'lucide-react';
 
 const BusinessDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -131,7 +131,7 @@ const BusinessDashboard: React.FC = () => {
         ) : (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -204,6 +204,21 @@ const BusinessDashboard: React.FC = () => {
                     <p className="text-xs text-gray-500 mt-1">
                       {breakComplianceTotal > 0 ? t('pending_alerts') : t('all_clear')}
                     </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Building2 className="h-8 w-8 text-indigo-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">{t('tenant_code')}</p>
+                    <p className="text-2xl font-bold text-gray-900 font-mono">
+                      {(user as any)?.tenant_id || 'N/A'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{t('identifier')}</p>
                   </div>
                 </div>
               </div>
