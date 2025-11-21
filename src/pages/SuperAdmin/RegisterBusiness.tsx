@@ -49,7 +49,7 @@ const RegisterBusiness: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Register New Business</h1>
-          <p className="text-gray-600 mt-2">Add a new business to the ClockWise platform</p>
+          <p className="text-gray-600 mt-2">Add a new business to the Smart Punch platform</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white shadow-xl rounded-lg p-8 space-y-6">

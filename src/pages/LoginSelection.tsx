@@ -12,11 +12,11 @@ const LoginSelection: React.FC = () => {
           <div className="flex items-center justify-center mb-4">
             <img 
               src="/logo.png" 
-              alt="ClockWise Logo" 
+              alt="Smart Punch Logo" 
               className="h-20 w-auto"
             />
           </div>
-          <h1 className="text-5xl font-bold text-white mb-4">ClockWise</h1>
+          <h1 className="text-5xl font-bold text-white mb-4">Smart Punch</h1>
           <p className="text-xl text-blue-100">Complete Payroll Management System</p>
           <p className="text-sm text-blue-200 mt-2">
             With FLSA Compliance, Tip Credit Auto-Determination & California Break Law Support

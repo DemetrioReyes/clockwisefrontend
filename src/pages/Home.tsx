@@ -48,7 +48,7 @@ const Home: React.FC = () => {
               <div className="bg-white/6 backdrop-blur-sm p-1 rounded-xl">
                 <img 
                   src="/logo.png" 
-                  alt="ClockWise Logo" 
+                  alt="Smart Punch Logo" 
                   className="h-60 w-auto object-contain"
                 />
               </div>
@@ -151,10 +151,10 @@ const Home: React.FC = () => {
           <div className="flex items-center justify-center mb-4">
             <img 
               src="/logo.png" 
-              alt="ClockWise Logo" 
+              alt="Smart Punch Logo" 
               className="h-10 w-auto mr-2"
             />
-            <span className="text-xl font-bold text-white">ClockWise</span>
+            <span className="text-xl font-bold text-white">Smart Punch</span>
           </div>
           <p className="text-sm">
             Sistema de Gestión de Nómina y Cumplimiento Laboral

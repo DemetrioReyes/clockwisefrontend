@@ -35,8 +35,8 @@ const PublicHeader: React.FC = () => {
           >
             <img 
               src="/logo.png" 
-              alt="ClockWise Logo" 
-              className="h-40 w-auto object-contain"
+              alt="Smart Punch Logo" 
+              className="h-12 w-auto object-contain"
             />
           </div>
 

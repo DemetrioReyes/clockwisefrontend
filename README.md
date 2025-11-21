@@ -1,6 +1,6 @@
-# ClockWise Payroll System - Frontend
+# Smart Punch Payroll System - Frontend
 
-A comprehensive React + TypeScript frontend for the ClockWise payroll management system with FLSA compliance, tip credit auto-determination, California break law support, and bilingual interface (English/Spanish).
+A comprehensive React + TypeScript frontend for the Smart Punch payroll management system with FLSA compliance, tip credit auto-determination, California break law support, and bilingual interface (English/Spanish).
 
 ## Features
 
@@ -105,7 +105,7 @@ This creates an optimized production build in the `build/` directory ready for d
 ## Authentication
 
 ### Super Admin Login
-- **Email**: admin@clockwise.com
+- **Email**: admin@smartpunch.com
 - **Password**: A25bd1e23
 - **Access**: Full system access, can manage all businesses
 
@@ -392,7 +392,7 @@ npm test
 
 ## License
 
-This project is proprietary software developed for ClockWise Payroll System.
+This project is proprietary software developed for Smart Punch Payroll System.
 
 ## Version
 

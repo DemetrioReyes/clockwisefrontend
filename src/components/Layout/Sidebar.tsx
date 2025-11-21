@@ -58,7 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userType }) => {
         <div className="flex items-center justify-center mb-2">
           <img 
             src="/logo.png" 
-            alt="ClockWise Logo" 
+            alt="Smart Punch Logo" 
             className="h-10 w-auto"
           />
         </div>

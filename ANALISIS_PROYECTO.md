@@ -1,14 +1,14 @@
-# ANÁLISIS DE MEJORAS NECESARIAS - CLOCKWISE
+# ANÁLISIS DE MEJORAS NECESARIAS - SMART PUNCH
 
 **Fecha:** 11 de Noviembre, 2025
-**Proyecto:** ClockWise Payroll Management System
+**Proyecto:** Smart Punch Payroll Management System
 **Versión:** 0.1.0
 
 ---
 
 ## 📋 RESUMEN EJECUTIVO
 
-Este documento identifica **únicamente las deficiencias, problemas y mejoras necesarias** del proyecto ClockWise.
+Este documento identifica **únicamente las deficiencias, problemas y mejoras necesarias** del proyecto Smart Punch.
 
 **Estado actual:** Funcional para desarrollo, requiere correcciones críticas para producción.
 

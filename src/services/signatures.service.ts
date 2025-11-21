@@ -3,13 +3,13 @@ import { API_ENDPOINTS } from '../config/api';
 import { DigitalSignature, SignatureCreate } from '../types';
 
 // IndexedDB configuration
-const DB_NAME = 'ClockWiseSignaturesDB';
+const DB_NAME = 'SmartPunchSignaturesDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'signatures';
 
 // Legacy localStorage keys (for migration)
-const LOCAL_STORAGE_PREFIX = 'clockwise_signatures_';
-const LOCAL_STORAGE_INDEX_KEY = 'clockwise_signatures_index';
+const LOCAL_STORAGE_PREFIX = 'smartpunch_signatures_';
+const LOCAL_STORAGE_INDEX_KEY = 'smartpunch_signatures_index';
 
 // Migrate old localStorage signatures to IndexedDB
 const migrateLocalStorageToIndexedDB = async (): Promise<void> => {
