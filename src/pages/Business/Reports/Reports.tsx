@@ -17,7 +17,7 @@ import {
   PayrollDocument,
   PayrollDocumentFilters,
 } from '../../../types';
-import { CheckCircle, XCircle, CheckCircle2, X, Calendar, DollarSign, Clock, FileText, Download, Link, Server } from 'lucide-react';
+import { CheckCircle, XCircle, CheckCircle2, X, Calendar, DollarSign, Clock, FileText, Download, Link, Server, Users } from 'lucide-react';
 import employeeService from '../../../services/employee.service';
 import payrollService from '../../../services/payroll.service';
 
@@ -80,6 +80,7 @@ const Reports: React.FC = () => {
 
   // Attendance Report State
   const [attendanceData, setAttendanceData] = useState<AttendanceReportItem[]>([]);
+  const [attendanceEmployeeId, setAttendanceEmployeeId] = useState<string>('');
   const [attendanceStartDate, setAttendanceStartDate] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate() - 7); // Last 7 days
@@ -102,6 +103,7 @@ const Reports: React.FC = () => {
 
   // Time Summary Report State
   const [timeSummaryData, setTimeSummaryData] = useState<TimeSummaryItem[]>([]);
+  const [timeSummaryEmployeeId, setTimeSummaryEmployeeId] = useState<string>('');
   const [timeSummaryStartDate, setTimeSummaryStartDate] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate() - 7);
@@ -158,11 +160,14 @@ const Reports: React.FC = () => {
     }
   };
 
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+
   useEffect(() => {
     (async () => {
       try {
         const employeeList = await employeeService.listEmployees(true);
         setDocumentsEmployees(employeeList);
+        setAllEmployees(employeeList);
       } catch (error) {
         console.error('Error loading employees for sick leave documents:', error);
       }
@@ -181,9 +186,11 @@ const Reports: React.FC = () => {
       // Load all employees
       const employeesMap = await loadEmployees();
       
-      // Load time entries for all employees in the date range
+      // Load time entries for all employees in the date range (or specific employee if selected)
       const allTimeEntries: TimeEntry[] = [];
-      const employeeIds = Object.keys(employeesMap);
+      const employeeIds = attendanceEmployeeId 
+        ? [attendanceEmployeeId] 
+        : Object.keys(employeesMap);
       
       for (const employeeId of employeeIds) {
         try {
@@ -424,12 +431,15 @@ const Reports: React.FC = () => {
     try {
       // Load all employees
       const employeesMap = await loadEmployees();
-      const employees = Object.values(employeesMap);
+      const employees = timeSummaryEmployeeId
+        ? [employeesMap[timeSummaryEmployeeId]].filter(Boolean)
+        : Object.values(employeesMap);
       
-      // Load time entries for all employees
+      // Load time entries for selected employees (or all if none selected)
       const allTimeEntries: TimeEntry[] = [];
       
       for (const employee of employees) {
+        if (!employee) continue;
         try {
           const entries = await employeeService.listTimeEntries(employee.id, timeSummaryStartDate, timeSummaryEndDate);
           if (Array.isArray(entries)) {
@@ -915,9 +925,30 @@ const Reports: React.FC = () => {
         {activeTab === 'attendance' && (
           <div className="space-y-4">
             <div className="bg-white shadow rounded-lg p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('start_date')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Users className="inline w-4 h-4 mr-1" />
+                    {t('employee')}
+                  </label>
+                  <select
+                    value={attendanceEmployeeId}
+                    onChange={(e) => setAttendanceEmployeeId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">{t('all_employees') || 'Todos los empleados'}</option>
+                    {allEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name} - {emp.employee_code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Calendar className="inline w-4 h-4 mr-1" />
+                    {t('start_date')}
+                  </label>
                   <input
                     type="date"
                     value={attendanceStartDate}
@@ -926,7 +957,10 @@ const Reports: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('end_date')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Calendar className="inline w-4 h-4 mr-1" />
+                    {t('end_date')}
+                  </label>
                   <input
                     type="date"
                     value={attendanceEndDate}
@@ -1168,9 +1202,30 @@ const Reports: React.FC = () => {
         {activeTab === 'time-summary' && (
           <div className="space-y-4">
             <div className="bg-white shadow rounded-lg p-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('start_date')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Users className="inline w-4 h-4 mr-1" />
+                    {t('employee')}
+                  </label>
+                  <select
+                    value={timeSummaryEmployeeId}
+                    onChange={(e) => setTimeSummaryEmployeeId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">{t('all_employees') || 'Todos los empleados'}</option>
+                    {allEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name} - {emp.employee_code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Calendar className="inline w-4 h-4 mr-1" />
+                    {t('start_date')}
+                  </label>
                   <input
                     type="date"
                     value={timeSummaryStartDate}
@@ -1179,7 +1234,10 @@ const Reports: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('end_date')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Calendar className="inline w-4 h-4 mr-1" />
+                    {t('end_date')}
+                  </label>
                   <input
                     type="date"
                     value={timeSummaryEndDate}

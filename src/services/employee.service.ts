@@ -121,6 +121,22 @@ class EmployeeService {
     const response = await api.get<TimeEntry[]>(API_ENDPOINTS.TIME_ENTRY, { params });
     return response.data;
   }
+
+  /**
+   * Agrega un registro de tiempo manualmente (corrección)
+   */
+  async createManualTimeEntry(data: import('../types').TimeEntryManualCreate): Promise<any> {
+    const response = await api.post(API_ENDPOINTS.TIME_ENTRY_MANUAL, data);
+    return response.data;
+  }
+
+  /**
+   * Corrige la hora de un registro de tiempo existente
+   */
+  async updateTimeEntry(recordId: string, data: import('../types').TimeEntryUpdate): Promise<any> {
+    const response = await api.put(`${API_ENDPOINTS.TIME_ENTRY_UPDATE}/${recordId}`, data);
+    return response.data;
+  }
 }
 
 const employeeServiceInstance = new EmployeeService();

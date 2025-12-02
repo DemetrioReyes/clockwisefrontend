@@ -207,6 +207,15 @@ export interface TimeEntry {
   confidence?: number; // Campo del API POST (mantener compatibilidad)
   device_info?: string;
   created_at?: string;
+  // Campos de sesión y corrección
+  session_status?: 'active_session' | 'needs_correction' | 'closed';
+  needs_correction?: boolean;
+  hours_since_checkin?: number | null;
+  message?: string | null;
+  is_manual_correction?: boolean;
+  correction_notes?: string;
+  corrected_by?: string;
+  old_record_time?: string;
 }
 
 export interface TimeEntryCreate {
@@ -214,6 +223,18 @@ export interface TimeEntryCreate {
   tenant_id: string;
   record_type: RecordType;
   device_info?: string;
+}
+
+export interface TimeEntryManualCreate {
+  employee_id: string;
+  record_type: RecordType;
+  record_time: string; // ISO 8601 format: YYYY-MM-DDTHH:MM:SS
+  notes?: string;
+}
+
+export interface TimeEntryUpdate {
+  new_record_time: string; // ISO 8601 format: YYYY-MM-DDTHH:MM:SS
+  notes?: string;
 }
 
 // Payroll Types
