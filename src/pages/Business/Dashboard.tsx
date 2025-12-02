@@ -97,8 +97,7 @@ const BusinessDashboard: React.FC = () => {
         const entriesNeedingCorrection = (Array.isArray(allTimeEntries) ? allTimeEntries : []).filter(
           (entry: TimeEntry) => 
             entry.session_status === 'needs_correction' || 
-            entry.needs_correction === true ||
-            (entry.message && entry.message.length > 0)
+            entry.needs_correction === true
         );
         
         // Ordenar por fecha más reciente primero
@@ -448,9 +447,19 @@ const BusinessDashboard: React.FC = () => {
                               <div className="text-sm text-gray-900">{formattedDateTime}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                {t('needs_correction') || 'Necesita Corrección'}
-                              </span>
+                              {entry.session_status === 'needs_correction' ? (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                  {t('needs_correction') || 'Necesita Corrección'}
+                                </span>
+                              ) : entry.session_status === 'active_session' ? (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                  {t('active_session') || 'Sesión Activa'}
+                                </span>
+                              ) : (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                  {t('closed') || 'Cerrado'}
+                                </span>
+                              )}
                             </td>
                             <td className="px-6 py-4">
                               <div className="text-sm text-gray-700 max-w-md">
