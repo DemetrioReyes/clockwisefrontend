@@ -18,10 +18,10 @@ const MealBenefitConfig = () => {
   const { t, language } = useLanguage();
 
   const employeeTypeLabels: Record<EmployeeType, string> = {
-    hourly_tipped_waiter: 'Mesero (Con Tip Credit)',
-    hourly_tipped_delivery: 'Delivery (Con Tip Credit)',
-    hourly_fixed: 'Por Hora (Sin Tip Credit)',
-    exempt_salary: 'Salario Exento',
+    hourly_tipped_waiter: t('employee_type_hourly_tipped_waiter'),
+    hourly_tipped_delivery: t('employee_type_hourly_tipped_delivery'),
+    hourly_fixed: t('employee_type_hourly_fixed'),
+    exempt_salary: t('employee_type_exempt_salary'),
   };
 
   const parseNumber = (value: any): number => {
@@ -137,7 +137,7 @@ const MealBenefitConfig = () => {
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
             >
               <RefreshCw className={`-ml-1 mr-2 h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-              Recargar
+              {t('reload')}
             </button>
             <button
               onClick={() => navigate('/business/meal-benefit/create')}
@@ -297,19 +297,19 @@ const MealBenefitConfig = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nombre
+                      {t('meal_benefit_config_name')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo de Empleado
+                      {t('meal_benefit_employee_type')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Horas Mínimas
+                      {t('meal_benefit_min_hours')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Crédito
+                      {t('meal_benefit_credit')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fechas Vigentes
+                      {t('meal_benefit_effective_dates')}
                     </th>
                   </tr>
                 </thead>
@@ -370,7 +370,7 @@ const MealBenefitConfig = () => {
               className="mt-2 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <RefreshCw className="-ml-1 mr-2 h-5 w-5" />
-              Recargar
+              {t('reload')}
             </button>
           </div>
         )}

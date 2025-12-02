@@ -670,7 +670,7 @@ const EmployeeList: React.FC = () => {
 
                 {/* Beneficio de Comida */}
                 <div className="bg-emerald-50 border-l-4 border-emerald-400 p-6 rounded">
-                  <h3 className="text-lg font-semibold mb-4 text-emerald-900">Beneficio de Comida (Crédito Automático)</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-emerald-900">{t('meal_benefit_title')}</h3>
                   <div className="space-y-4">
                     <div className="flex items-center">
                       <input
@@ -682,16 +682,16 @@ const EmployeeList: React.FC = () => {
                         className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                       />
                       <label htmlFor="receives_meal_benefit_edit" className="ml-3 text-sm font-medium text-gray-700">
-                        Este empleado recibe crédito de comida automático
+                        {t('meal_benefit_employee_receives')}
                       </label>
                     </div>
                     <div className="bg-emerald-100 p-4 rounded">
-                      <p className="text-sm text-emerald-800 font-semibold mb-2">Cómo funciona:</p>
+                      <p className="text-sm text-emerald-800 font-semibold mb-2">{t('meal_benefit_how_works')}</p>
                       <ul className="text-xs text-emerald-700 space-y-1 list-disc list-inside">
-                        <li>El crédito se calcula automáticamente en cada período de nómina</li>
-                        <li>Se aplica si el empleado trabaja las horas mínimas configuradas para su tipo</li>
-                        <li>El crédito es <strong>imponible</strong> (se suma al gross_pay)</li>
-                        <li>La configuración se gestiona en "Configuración de Beneficio de Comida"</li>
+                        <li>{t('meal_benefit_auto_calc_period')}</li>
+                        <li>{t('meal_benefit_applies_if')}</li>
+                        <li>{t('meal_benefit_taxable_note')}</li>
+                        <li>{t('meal_benefit_manage_in')}</li>
                       </ul>
                     </div>
                   </div>

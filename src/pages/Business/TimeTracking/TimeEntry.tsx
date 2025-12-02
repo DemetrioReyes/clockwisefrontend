@@ -6,7 +6,6 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 import { formatErrorMessage } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import employeeService from '../../../services/employee.service';
-import payrollService from '../../../services/payroll.service';
 import { TimeEntry as TimeEntryType, Business, TimeSummary, Employee, TimeEntryManualCreate, TimeEntryUpdate } from '../../../types';
 import { Clock, Camera, Calendar, Users, Edit2, Plus } from 'lucide-react';
 import Modal from '../../../components/Common/Modal';
@@ -34,7 +33,42 @@ const getRecordTypeLabel = (type: string, t: (key: string) => string) => {
 const TimeEntry: React.FC = () => {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  // Función para traducir mensajes del backend
+  const translateBackendMessage = (message: string | null | undefined): string => {
+    if (!message) return '';
+    
+    // Mensajes comunes del backend que necesitan traducción
+    const messageTranslations: Record<string, string> = {
+      'falta check-out del día anterior': t('message_missing_checkout_previous_day'),
+      'Necesita corrección - falta check-out del día anterior': t('message_missing_checkout_previous_day'),
+      'needs correction - missing check-out from previous day': t('message_missing_checkout_previous_day'),
+    };
+    
+    // Buscar traducción exacta o parcial
+    const normalizedMessage = message.trim();
+    if (messageTranslations[normalizedMessage]) {
+      return messageTranslations[normalizedMessage];
+    }
+    
+    // Si el mensaje contiene "falta check-out", traducirlo
+    if (normalizedMessage.toLowerCase().includes('falta check-out') || 
+        normalizedMessage.toLowerCase().includes('missing check-out')) {
+      return t('message_missing_checkout_previous_day');
+    }
+    
+    // Si el idioma es inglés pero el mensaje está en español, intentar traducir patrones comunes
+    if (language === 'en' && /[áéíóúñ]/.test(normalizedMessage)) {
+      // Patrones comunes en español
+      if (normalizedMessage.includes('falta check-out')) {
+        return t('message_missing_checkout_previous_day');
+      }
+    }
+    
+    // Si no hay traducción, retornar el mensaje original
+    return message;
+  };
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [recordType, setRecordType] = useState<'check_in' | 'check_out' | 'break_start' | 'break_end'>('check_in');
@@ -822,7 +856,7 @@ const TimeEntry: React.FC = () => {
                             )}
                             {entry.message && (
                               <div className="text-xs text-gray-500 mt-1 max-w-xs">
-                                {entry.message}
+                                {translateBackendMessage(entry.message)}
                               </div>
                             )}
                           </div>

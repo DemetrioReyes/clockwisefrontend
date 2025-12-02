@@ -1,27 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { formatErrorMessage } from '../../../services/api';
-import { API_BASE_URL } from '../../../config/api';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { reportsService } from '../../../services/reports.service';
 import { sickleaveService } from '../../../services/sickleave.service';
-import { pdfService } from '../../../services/pdf.service';
 import {
   BreakComplianceAlert,
   TimeEntry,
   Employee,
   SickLeaveDocument,
   SickLeaveDocumentFilters,
-  PayrollDocument,
-  PayrollDocumentFilters,
 } from '../../../types';
-import { CheckCircle, XCircle, CheckCircle2, X, Calendar, DollarSign, Clock, FileText, Download, Link, Server, Users } from 'lucide-react';
+import { CheckCircle, XCircle, CheckCircle2, X, Calendar, Clock, FileText, Download, Users } from 'lucide-react';
 import employeeService from '../../../services/employee.service';
-import payrollService from '../../../services/payroll.service';
 
-type ReportTab = 'attendance' | 'payroll' | 'time-summary' | 'break-compliance' | 'sick-leave-documents' | 'payroll-documents';
+type ReportTab = 'attendance' | 'time-summary' | 'break-compliance' | 'sick-leave-documents';
 
 interface AttendanceReportItem {
   employee_id: string;
@@ -33,20 +28,6 @@ interface AttendanceReportItem {
   total_hours: number;
   late_arrival: boolean;
   early_departure: boolean;
-}
-
-interface PayrollSummaryReport {
-  period_start: string;
-  period_end: string;
-  total_employees: number;
-  total_gross_pay: number;
-  total_net_pay: number;
-  total_hours: number;
-  total_deductions: number;
-  total_food_gift_credit: number;
-  total_paid_sick_leave_hours: number;
-  total_paid_sick_leave_amount: number;
-  payrolls: any[];
 }
 
 interface TimeSummaryItem {
@@ -68,16 +49,6 @@ const Reports: React.FC = () => {
   
   const locale = language === 'es' ? 'es-ES' : 'en-US';
 
-  const parseNumber = (value: any): number => {
-    if (value === null || value === undefined || value === '') return 0;
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : 0;
-    }
-    const normalized = typeof value === 'string' ? value.replace(/,/g, '') : String(value);
-    const parsed = parseFloat(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
   // Attendance Report State
   const [attendanceData, setAttendanceData] = useState<AttendanceReportItem[]>([]);
   const [attendanceEmployeeId, setAttendanceEmployeeId] = useState<string>('');
@@ -87,17 +58,6 @@ const Reports: React.FC = () => {
     return date.toISOString().split('T')[0];
   });
   const [attendanceEndDate, setAttendanceEndDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
-
-  // Payroll Report State
-  const [payrollData, setPayrollData] = useState<PayrollSummaryReport | null>(null);
-  const [payrollStartDate, setPayrollStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30); // Last 30 days
-    return date.toISOString().split('T')[0];
-  });
-  const [payrollEndDate, setPayrollEndDate] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
 
@@ -129,21 +89,6 @@ const Reports: React.FC = () => {
   const [documentsStartDate, setDocumentsStartDate] = useState<string>('');
   const [documentsEndDate, setDocumentsEndDate] = useState<string>('');
   const [documentsEmployees, setDocumentsEmployees] = useState<Employee[]>([]);
-
-  // Payroll Documents State
-  const [payrollDocuments, setPayrollDocuments] = useState<PayrollDocument[]>([]);
-  const [payrollDocumentsLoading, setPayrollDocumentsLoading] = useState(false);
-  const [payrollDocumentsEmployeeId, setPayrollDocumentsEmployeeId] = useState<string>('');
-  const [payrollDocumentsPayrollId, setPayrollDocumentsPayrollId] = useState<string>('');
-  const [payrollDocumentsStartDate, setPayrollDocumentsStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split('T')[0];
-  });
-  const [payrollDocumentsEndDate, setPayrollDocumentsEndDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
-  const [payrollDocumentsLimit, setPayrollDocumentsLimit] = useState<string>('50');
 
   // Helper function to load employees
   const loadEmployees = async (): Promise<Record<string, Employee>> => {
@@ -286,135 +231,6 @@ const Reports: React.FC = () => {
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
       setAttendanceData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Payroll Report Handlers - Generate from saved payrolls
-  const handleLoadPayroll = async () => {
-    if (!payrollStartDate || !payrollEndDate) {
-      showToast(t('please_select_start_and_end_dates') || 'Please select start and end dates', 'error');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Load all payrolls
-      const payrollsResponse = await payrollService.listPayrolls(undefined, 1000);
-      const payrollsList = Array.isArray(payrollsResponse) 
-        ? payrollsResponse 
-        : ((payrollsResponse as any)?.payrolls || (payrollsResponse as any)?.items || []);
-
-      // Filter payrolls by date range
-      const filteredPayrolls = payrollsList.filter((payroll: any) => {
-        if (!payroll.period_start || !payroll.period_end) return false;
-        const startDate = new Date(payroll.period_start);
-        const endDate = new Date(payroll.period_end);
-        const filterStart = new Date(payrollStartDate);
-        const filterEnd = new Date(payrollEndDate);
-        
-        // Check if payroll period overlaps with filter period
-        return (startDate <= filterEnd && endDate >= filterStart);
-      });
-
-      // Load detailed payroll data for each payroll
-      const payrollDetails: any[] = [];
-      for (const payroll of filteredPayrolls) {
-        try {
-          const detail = await payrollService.getPayrollById(payroll.id);
-          payrollDetails.push(detail);
-        } catch (error) {
-          console.error(`Error loading payroll ${payroll.id}:`, error);
-        }
-      }
-
-      // Calculate summary
-      let totalEmployees = 0;
-      let totalGrossPay = 0;
-      let totalNetPay = 0;
-      let totalHours = 0;
-      let totalDeductions = 0;
-      let totalFoodGiftCredit = 0;
-      let totalPaidSickLeaveHours = 0;
-      let totalPaidSickLeaveAmount = 0;
-      const employeeSet = new Set<string>();
-
-      payrollDetails.forEach((detail) => {
-        // Use payroll totals if available (from PayrollResponse.payroll object)
-        if (detail.payroll) {
-          const grossPay = parseNumber(detail.payroll.total_gross_pay);
-          const netPay = parseNumber(detail.payroll.total_net_pay);
-          const deductions = parseNumber(detail.payroll.total_deductions);
-          
-          totalGrossPay += grossPay;
-          totalNetPay += netPay;
-          totalDeductions += deductions;
-          totalEmployees = Math.max(totalEmployees, detail.payroll.total_employees || 0);
-
-          if (detail.payroll.total_food_gift_credit !== undefined && detail.payroll.total_food_gift_credit !== null) {
-            totalFoodGiftCredit += parseNumber(detail.payroll.total_food_gift_credit);
-          }
-          if (detail.payroll.total_paid_sick_leave_hours !== undefined && detail.payroll.total_paid_sick_leave_hours !== null) {
-            totalPaidSickLeaveHours += parseNumber(detail.payroll.total_paid_sick_leave_hours);
-          }
-          if (detail.payroll.total_paid_sick_leave_amount !== undefined && detail.payroll.total_paid_sick_leave_amount !== null) {
-            totalPaidSickLeaveAmount += parseNumber(detail.payroll.total_paid_sick_leave_amount);
-          }
-        }
-        
-        // Count unique employees from calculations
-        if (detail.calculations && Array.isArray(detail.calculations)) {
-          detail.calculations.forEach((calc: any) => {
-            if (calc.employee_id) {
-              employeeSet.add(calc.employee_id);
-            }
-
-            if (detail.payroll?.total_food_gift_credit === undefined || detail.payroll?.total_food_gift_credit === null) {
-              totalFoodGiftCredit += parseNumber(calc.food_gift_credit);
-            }
-            if (detail.payroll?.total_paid_sick_leave_hours === undefined || detail.payroll?.total_paid_sick_leave_hours === null) {
-              totalPaidSickLeaveHours += parseNumber(calc.paid_sick_leave_hours);
-            }
-            if (detail.payroll?.total_paid_sick_leave_amount === undefined || detail.payroll?.total_paid_sick_leave_amount === null) {
-              totalPaidSickLeaveAmount += parseNumber(calc.paid_sick_leave_amount);
-            }
-          });
-        }
-        
-        // Calculate hours from time summaries if available
-        if (detail.time_summaries && Array.isArray(detail.time_summaries)) {
-          detail.time_summaries.forEach((ts: any) => {
-            const hours = parseNumber(ts.hours_worked);
-            totalHours += hours;
-          });
-        }
-      });
-
-      // Use employee count from set if we have it, otherwise use the max from payrolls
-      if (employeeSet.size > 0) {
-        totalEmployees = employeeSet.size;
-      }
-
-      const summary: PayrollSummaryReport = {
-        period_start: payrollStartDate,
-        period_end: payrollEndDate,
-        total_employees: totalEmployees,
-        total_gross_pay: totalGrossPay,
-        total_net_pay: totalNetPay,
-        total_hours: totalHours,
-        total_deductions: totalDeductions,
-        total_food_gift_credit: totalFoodGiftCredit,
-        total_paid_sick_leave_hours: totalPaidSickLeaveHours,
-        total_paid_sick_leave_amount: totalPaidSickLeaveAmount,
-        payrolls: filteredPayrolls,
-      };
-
-      setPayrollData(summary);
-      showToast(t('report_loaded_successfully'), 'success');
-    } catch (error: any) {
-      showToast(formatErrorMessage(error), 'error');
-      setPayrollData(null);
     } finally {
       setLoading(false);
     }
@@ -698,67 +514,6 @@ const Reports: React.FC = () => {
     }
   };
 
-  const handleLoadPayrollDocuments = async () => {
-    setPayrollDocumentsLoading(true);
-    try {
-      const filters: PayrollDocumentFilters = {};
-      if (payrollDocumentsEmployeeId) {
-        filters.employee_id = payrollDocumentsEmployeeId;
-      }
-      if (payrollDocumentsPayrollId) {
-        filters.payroll_id = payrollDocumentsPayrollId;
-      }
-      if (payrollDocumentsStartDate) {
-        filters.start_date = payrollDocumentsStartDate;
-      }
-      if (payrollDocumentsEndDate) {
-        filters.end_date = payrollDocumentsEndDate;
-      }
-
-      const limitValue = payrollDocumentsLimit ? Number(payrollDocumentsLimit) : undefined;
-      if (limitValue && !Number.isNaN(limitValue)) {
-        filters.limit = limitValue;
-      }
-
-      const docs = await pdfService.listPayrollDocuments(filters);
-      setPayrollDocuments(docs);
-      if (docs.length > 0) {
-        showToast(t('payroll_documents_loaded_successfully'), 'success');
-      } else {
-        showToast(t('no_payroll_documents'), 'info');
-      }
-    } catch (error: any) {
-      showToast(formatErrorMessage(error), 'error');
-      setPayrollDocuments([]);
-    } finally {
-      setPayrollDocumentsLoading(false);
-    }
-  };
-
-  const handleDownloadPayrollDocument = async (doc: PayrollDocument) => {
-    try {
-      if (doc.download_url) {
-        const url = resolveDownloadUrl(doc.download_url);
-        if (url) {
-          window.open(url, '_blank', 'noopener,noreferrer');
-          showToast(t('document_downloaded_successfully'), 'success');
-          return;
-        }
-      }
-
-      if (!doc.pdf_filename) {
-        showToast(t('payroll_document_download_unavailable'), 'info');
-        return;
-      }
-
-      const blob = await pdfService.downloadPDF(doc.pdf_filename);
-      pdfService.downloadPDFBlob(blob, doc.pdf_filename);
-      showToast(t('document_downloaded_successfully'), 'success');
-    } catch (error: any) {
-      showToast(formatErrorMessage(error), 'error');
-    }
-  };
-
   const handleOpenResolveModal = (alert: BreakComplianceAlert) => {
     setResolvingAlert(alert);
     setResolutionNotes('');
@@ -788,20 +543,6 @@ const Reports: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: 'USD',
-    }).format(Number.isFinite(amount) ? amount : 0);
-  };
-
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(Number.isFinite(value) ? value : 0);
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -818,25 +559,6 @@ const Reports: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const formatDateOnly = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const resolveDownloadUrl = (url: string) => {
-    if (!url) return '';
-    if (/^https?:\/\//i.test(url)) {
-      return url;
-    }
-    if (url.startsWith('/')) {
-      return `${API_BASE_URL}${url}`;
-    }
-    return `${API_BASE_URL}/${url}`;
   };
 
   const translateOrFallback = (key: string, fallback: string) => {
@@ -863,17 +585,6 @@ const Reports: React.FC = () => {
           >
             <Calendar className="inline w-5 h-5 mr-2" />
             {t('attendance_report')}
-          </button>
-          <button
-            onClick={() => setActiveTab('payroll')}
-            className={`px-4 py-2 font-medium whitespace-nowrap ${
-              activeTab === 'payroll'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <DollarSign className="inline w-5 h-5 mr-2" />
-            {t('payroll_report')}
           </button>
           <button
             onClick={() => setActiveTab('time-summary')}
@@ -907,17 +618,6 @@ const Reports: React.FC = () => {
           >
             <FileText className="inline w-5 h-5 mr-2" />
             {t('sick_leave_documents_tab')}
-          </button>
-          <button
-            onClick={() => setActiveTab('payroll-documents')}
-            className={`px-4 py-2 font-medium whitespace-nowrap ${
-              activeTab === 'payroll-documents'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Download className="inline w-5 h-5 mr-2" />
-            {t('payroll_documents_tab')}
           </button>
         </div>
 
@@ -1037,158 +737,6 @@ const Reports: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            ) : (
-              <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
-                {t('no_data_available')}. {t('click_load_report') || 'Click "Load Report" to get data'}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Payroll Report Tab */}
-        {activeTab === 'payroll' && (
-          <div className="space-y-4">
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('start_date')}</label>
-                  <input
-                    type="date"
-                    value={payrollStartDate}
-                    onChange={(e) => setPayrollStartDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('end_date')}</label>
-                  <input
-                    type="date"
-                    value={payrollEndDate}
-                    onChange={(e) => setPayrollEndDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <button
-                  onClick={handleLoadPayroll}
-                  disabled={loading}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {loading ? t('loading') : t('load_report')}
-                </button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" text={t('loading')} />
-              </div>
-            ) : payrollData ? (
-              <div className="space-y-4">
-                <div className="bg-white shadow rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('payroll_summary')}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">{t('period')}</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {formatDate(payrollData.period_start)} - {formatDate(payrollData.period_end)}
-                      </p>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">{t('total_employees_label')}</p>
-                      <p className="text-lg font-semibold text-gray-900">{payrollData.total_employees}</p>
-                    </div>
-                    <div className="bg-yellow-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">{t('total_gross_pay_label')}</p>
-                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(payrollData.total_gross_pay)}</p>
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">{t('total_net_pay_label')}</p>
-                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(payrollData.total_net_pay)}</p>
-                    </div>
-                    <div className="bg-emerald-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">{t('total_food_gift_credit_label')}</p>
-                      <p className="text-lg font-semibold text-emerald-700">{formatCurrency(payrollData.total_food_gift_credit)}</p>
-                    </div>
-                    <div className="bg-indigo-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">{t('total_paid_sick_leave_amount_label')}</p>
-                      <p className="text-lg font-semibold text-indigo-700">{formatCurrency(payrollData.total_paid_sick_leave_amount)}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {t('total_paid_sick_leave_hours_label')}: {formatNumber(payrollData.total_paid_sick_leave_hours)} {t('hrs')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">{t('total_hours')}</p>
-                      <p className="text-lg font-semibold text-gray-900">{formatNumber(payrollData.total_hours)} {t('hrs')}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">{t('total_deductions_label')}</p>
-                      <p className="text-lg font-semibold text-red-600">{formatCurrency(payrollData.total_deductions)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">{t('total_payrolls') || 'Total Payrolls'}</p>
-                      <p className="text-lg font-semibold text-gray-900">{payrollData.payrolls.length}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payrolls List */}
-                {payrollData.payrolls.length > 0 && (
-                  <div className="bg-white shadow rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('payrolls_list') || 'Payrolls List'}</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('period')}</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('status')}</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('created_at')}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {payrollData.payrolls.map((payroll: any) => (
-                            <tr key={payroll.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {payroll.period_start && payroll.period_end 
-                                    ? `${formatDate(payroll.period_start)} - ${formatDate(payroll.period_end)}`
-                                    : '-'}
-                                </div>
-                                {parseNumber(payroll.total_food_gift_credit) > 0 && (
-                                  <div className="text-xs text-emerald-600 mt-1">
-                                    {t('food_gift_credit_label')}: {formatCurrency(parseNumber(payroll.total_food_gift_credit))}
-                                  </div>
-                                )}
-                                {parseNumber(payroll.total_paid_sick_leave_amount) > 0 && (
-                                  <div className="text-xs text-blue-600">
-                                    {t('paid_sick_leave_label')}: {formatCurrency(parseNumber(payroll.total_paid_sick_leave_amount))} · {formatNumber(parseNumber(payroll.total_paid_sick_leave_hours))} {t('hrs')}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                  payroll.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                  payroll.status === 'paid' ? 'bg-blue-100 text-blue-800' :
-                                  payroll.status === 'calculated' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {payroll.status || 'draft'}
-                          </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-600">
-                                  {payroll.created_at ? formatDate(payroll.created_at) : '-'}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
@@ -1658,206 +1206,6 @@ const Reports: React.FC = () => {
             ) : (
               <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
                 {t('no_documents_found')}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Payroll Documents Tab */}
-        {activeTab === 'payroll-documents' && (
-          <div className="space-y-4">
-            <div className="bg-white shadow rounded-xl p-6 border border-gray-200">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">{t('payroll_documents_title')}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {t('payroll_documents_description')}
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 text-sm rounded-lg border border-blue-100">
-                  <Download className="w-4 h-4" />
-                  <span>{t('load_payroll_documents_hint')}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                <div className="lg:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('employee')}
-                  </label>
-                  <select
-                    value={payrollDocumentsEmployeeId}
-                    onChange={(e) => setPayrollDocumentsEmployeeId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">{t('all_employees')}</option>
-                    {documentsEmployees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.first_name} {emp.last_name} - {emp.employee_code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="lg:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('payroll_document_payroll_id')}</label>
-                  <input
-                    type="text"
-                    value={payrollDocumentsPayrollId}
-                    onChange={(e) => setPayrollDocumentsPayrollId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="550e8400-e29b-41d4-a716-446655440000"
-                  />
-                </div>
-                <div className="lg:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('start_date')}</label>
-                  <input
-                    type="date"
-                    value={payrollDocumentsStartDate}
-                    onChange={(e) => setPayrollDocumentsStartDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div className="lg:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('end_date')}</label>
-                  <input
-                    type="date"
-                    value={payrollDocumentsEndDate}
-                    onChange={(e) => setPayrollDocumentsEndDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div className="lg:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('results_limit')}</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={payrollDocumentsLimit}
-                    onChange={(e) => setPayrollDocumentsLimit(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={handleLoadPayrollDocuments}
-                  disabled={payrollDocumentsLoading}
-                  className="inline-flex items-center justify-center px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {payrollDocumentsLoading ? (
-                    <>
-                      <LoadingSpinner size="sm" />
-                      <span className="ml-2">{t('loading')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      {t('load_payroll_documents')}
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {payrollDocumentsLoading ? (
-              <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" text={t('loading')} />
-              </div>
-            ) : payrollDocuments.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {payrollDocuments.map((doc) => {
-                  const employee = documentsEmployees.find((emp) => emp.id === doc.employee_id);
-                  const employeeName =
-                    employee ? `${employee.first_name} ${employee.last_name}` : doc.employee_name || doc.employee_code || doc.employee_id || '-';
-                  const employeeCode = employee?.employee_code || doc.employee_code;
-                  const displayName =
-                    doc.document_name ||
-                    doc.invoice_id ||
-                    doc.pdf_filename ||
-                    translateOrFallback('payroll_document_default_name', 'Payroll receipt');
-                  const uploadedAt = doc.uploaded_at || doc.created_at || doc.signed_at || '';
-                  const invoiceDisplay = doc.invoice_id || t('payroll_document_invoice_missing');
-                  const hasDirectLink = Boolean(doc.download_url);
-                  const sourceLabel = hasDirectLink ? t('payroll_document_source_direct') : t('payroll_document_source_history');
-                  const sourceStyles = hasDirectLink
-                    ? 'bg-green-100 text-green-700 border-green-200'
-                    : 'bg-amber-100 text-amber-700 border-amber-200';
-                  const sourceIcon = hasDirectLink ? <Link className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />;
-                  let periodDisplay = '-';
-                  if (doc.period_start && doc.period_end) {
-                    periodDisplay = `${formatDateOnly(doc.period_start)} → ${formatDateOnly(doc.period_end)}`;
-                  } else if (doc.period_start) {
-                    periodDisplay = formatDateOnly(doc.period_start);
-                  } else if (doc.period_end) {
-                    periodDisplay = formatDateOnly(doc.period_end);
-                  }
-                  const uploadedBy = doc.uploaded_by || '-';
-
-                  return (
-                    <div
-                      key={`${doc.id || doc.pdf_filename}`}
-                      className="bg-white shadow-md border border-gray-200 rounded-xl p-5 flex flex-col gap-4 hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                            {t('payroll_document_name')}
-                          </p>
-                          <h3 className="text-lg font-semibold text-gray-900">{displayName}</h3>
-                          {doc.pdf_filename && <p className="text-xs text-gray-500 mt-1 font-mono">{doc.pdf_filename}</p>}
-                        </div>
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${sourceStyles}`}>
-                          {sourceIcon}
-                          {sourceLabel}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('employee')}</p>
-                          <p className="text-sm font-medium text-gray-900">{employeeName}</p>
-                          {employeeCode && <p className="text-xs text-gray-500">{employeeCode}</p>}
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('payroll_document_payroll_id_short')}</p>
-                          <p className="text-xs font-mono text-gray-700 break-all">{doc.payroll_id || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('payroll_document_invoice_id')}</p>
-                          <p className="text-sm text-gray-800 break-words">{invoiceDisplay}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('payroll_document_period_label')}</p>
-                          <p className="text-sm text-gray-800">{periodDisplay}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('uploaded_at')}</p>
-                          <p className="text-sm text-gray-800">{uploadedAt ? formatDateTime(uploadedAt) : '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-semibold">{t('uploaded_by')}</p>
-                          <p className="text-sm text-gray-800 break-words">{uploadedBy}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end border-t border-gray-100 pt-4">
-                        <button
-                          onClick={() => handleDownloadPayrollDocument(doc)}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
-                        >
-                          <Download className="w-4 h-4" />
-                          {t('download_document')}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-lg font-medium">{t('no_payroll_documents')}</p>
-                <p className="text-sm text-gray-400 mt-2">{t('load_payroll_documents_hint')}</p>
               </div>
             )}
           </div>

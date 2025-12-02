@@ -10,19 +10,56 @@ import employeeService from '../../services/employee.service';
 import payrollService from '../../services/payroll.service';
 import { reportsService } from '../../services/reports.service';
 import { Employee } from '../../types';
-import { Users, Clock, DollarSign, TrendingUp, UserPlus, AlertTriangle, Building2 } from 'lucide-react';
+import { Users, Clock, DollarSign, TrendingUp, UserPlus, AlertTriangle, Building2, Edit2 } from 'lucide-react';
+import { TimeEntry } from '../../types';
 
 const BusinessDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [breakComplianceAlerts, setBreakComplianceAlerts] = useState<any[]>([]);
   const [breakComplianceTotal, setBreakComplianceTotal] = useState(0);
+  const [timeEntriesNeedingCorrection, setTimeEntriesNeedingCorrection] = useState<TimeEntry[]>([]);
   const [weeklyHours, setWeeklyHours] = useState<{ total: number; overtime: number }>({ total: 0, overtime: 0 });
   const [payrollCount, setPayrollCount] = useState<number>(0);
   const [employeeStats, setEmployeeStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  // Función para traducir mensajes del backend
+  const translateBackendMessage = (message: string | null | undefined): string => {
+    if (!message) return t('correction_required');
+    
+    // Mensajes comunes del backend que necesitan traducción
+    const messageTranslations: Record<string, string> = {
+      'falta check-out del día anterior': t('message_missing_checkout_previous_day'),
+      'Necesita corrección - falta check-out del día anterior': t('message_missing_checkout_previous_day'),
+      'needs correction - missing check-out from previous day': t('message_missing_checkout_previous_day'),
+    };
+    
+    // Buscar traducción exacta o parcial
+    const normalizedMessage = message.trim();
+    if (messageTranslations[normalizedMessage]) {
+      return messageTranslations[normalizedMessage];
+    }
+    
+    // Si el mensaje contiene "falta check-out", traducirlo
+    if (normalizedMessage.toLowerCase().includes('falta check-out') || 
+        normalizedMessage.toLowerCase().includes('missing check-out')) {
+      return t('message_missing_checkout_previous_day');
+    }
+    
+    // Si el idioma es inglés pero el mensaje está en español, intentar traducir patrones comunes
+    if (language === 'en' && /[áéíóúñ]/.test(normalizedMessage)) {
+      // Patrones comunes en español
+      if (normalizedMessage.includes('falta check-out')) {
+        return t('message_missing_checkout_previous_day');
+      }
+    }
+    
+    // Si no hay traducción, retornar el mensaje original
+    return message;
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -43,6 +80,37 @@ const BusinessDashboard: React.FC = () => {
         setBreakComplianceTotal(alertsResponse.total_alerts || (alertsResponse.alerts || alertsResponse || []).length || 0);
       } catch (error) {
         console.log('Could not load break alerts:', error);
+      }
+
+      // Cargar registros de tiempo que necesitan corrección
+      try {
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - 7); // Últimos 7 días
+        
+        const allTimeEntries = await employeeService.listTimeEntries(
+          undefined,
+          startDate.toISOString().split('T')[0],
+          today.toISOString().split('T')[0]
+        );
+        
+        const entriesNeedingCorrection = (Array.isArray(allTimeEntries) ? allTimeEntries : []).filter(
+          (entry: TimeEntry) => 
+            entry.session_status === 'needs_correction' || 
+            entry.needs_correction === true ||
+            (entry.message && entry.message.length > 0)
+        );
+        
+        // Ordenar por fecha más reciente primero
+        entriesNeedingCorrection.sort((a, b) => {
+          const dateA = new Date(a.record_time || a.timestamp || 0).getTime();
+          const dateB = new Date(b.record_time || b.timestamp || 0).getTime();
+          return dateB - dateA;
+        });
+        
+        setTimeEntriesNeedingCorrection(entriesNeedingCorrection);
+      } catch (error) {
+        console.log('Could not load time entries needing correction:', error);
       }
 
       // Cargar horas del mes actual (todo el mes)
@@ -131,7 +199,7 @@ const BusinessDashboard: React.FC = () => {
         ) : (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -211,6 +279,23 @@ const BusinessDashboard: React.FC = () => {
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
+                    <Edit2 className={`h-8 w-8 ${timeEntriesNeedingCorrection.length > 0 ? 'text-orange-600' : 'text-green-600'}`} />
+                  </div>
+                  <div className="ml-4 min-w-0 flex-1">
+                    <p className="text-xs font-medium text-gray-600 leading-tight">{t('time_issues')}</p>
+                    <p className={`text-2xl font-bold ${timeEntriesNeedingCorrection.length > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                      {timeEntriesNeedingCorrection.length}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 truncate">
+                      {timeEntriesNeedingCorrection.length > 0 ? t('pending_corrections') : t('all_clear')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
                     <Building2 className="h-8 w-8 text-indigo-600" />
                   </div>
                   <div className="ml-4">
@@ -265,6 +350,131 @@ const BusinessDashboard: React.FC = () => {
                 </div>
               </Link>
             </div>
+
+            {/* Time Entries Needing Correction */}
+            {timeEntriesNeedingCorrection.length > 0 && (
+              <div className="bg-white shadow rounded-lg mb-8">
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Edit2 className="h-5 w-5 text-orange-600" />
+                    <h2 className="text-lg font-semibold text-gray-900">{t('time_issues_title')}</h2>
+                    <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
+                      {timeEntriesNeedingCorrection.length} {timeEntriesNeedingCorrection.length === 1 ? t('pending') : t('pending_alerts')}
+                    </span>
+                  </div>
+                  <Link
+                    to="/business/time-entry"
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    {t('view_all')} →
+                  </Link>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {t('employee')}
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {t('code')}
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {t('record_type')}
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {t('date_time')}
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {t('status')}
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {t('message') || 'Mensaje'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {timeEntriesNeedingCorrection.slice(0, 5).map((entry: TimeEntry) => {
+                        const getRecordTypeLabel = (type: string) => {
+                          const labels: { [key: string]: string } = {
+                            check_in: t('check_in'),
+                            check_out: t('check_out'),
+                            break_start: t('break_start'),
+                            break_end: t('break_end'),
+                          };
+                          return labels[type] || type;
+                        };
+
+                        const getRecordTypeBadge = (type: string) => {
+                          const badges: { [key: string]: string } = {
+                            check_in: 'bg-green-100 text-green-800',
+                            check_out: 'bg-red-100 text-red-800',
+                            break_start: 'bg-yellow-100 text-yellow-800',
+                            break_end: 'bg-blue-100 text-blue-800',
+                          };
+                          return badges[type] || 'bg-gray-100 text-gray-800';
+                        };
+
+                        const dateTime = entry.record_time || entry.timestamp;
+                        const formattedDateTime = dateTime
+                          ? new Date(dateTime).toLocaleString('es-ES', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            })
+                          : '-';
+
+                        return (
+                          <tr key={entry.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {entry.employee_name || 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-mono font-semibold text-blue-600">
+                                {entry.employee_code || 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRecordTypeBadge(entry.record_type)}`}>
+                                {getRecordTypeLabel(entry.record_type)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{formattedDateTime}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                {t('needs_correction') || 'Necesita Corrección'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-700 max-w-md">
+                                {translateBackendMessage(entry.message)}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {timeEntriesNeedingCorrection.length > 5 && (
+                    <div className="px-6 py-4 bg-gray-50 text-center border-t border-gray-200">
+                      <Link
+                        to="/business/time-entry"
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        {t('view_more_entries', { count: timeEntriesNeedingCorrection.length - 5 }) || `Ver ${timeEntriesNeedingCorrection.length - 5} más`} →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Break Compliance Alerts */}
             {breakComplianceTotal > 0 && (
