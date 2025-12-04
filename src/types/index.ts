@@ -129,6 +129,7 @@ export interface EmployeeRegisterData {
   state_minimum_wage?: number;
   receives_meal_benefit?: boolean;
   face_image?: File;
+  face_image_2?: File;
 }
 
 // Deduction Types

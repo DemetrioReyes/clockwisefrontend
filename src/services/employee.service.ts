@@ -37,6 +37,10 @@ class EmployeeService {
       formData.append('face_image', data.face_image);
     }
 
+    if (data.face_image_2) {
+      formData.append('face_image_2', data.face_image_2);
+    }
+
     const response = await api.post<Employee>(API_ENDPOINTS.EMPLOYEES, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
