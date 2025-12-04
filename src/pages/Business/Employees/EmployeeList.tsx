@@ -7,7 +7,7 @@ import { useToast } from '../../../components/Common/Toast';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import employeeService from '../../../services/employee.service';
 import { Employee } from '../../../types';
-import { Users, Search, Plus, Mail, Phone, Edit2, X } from 'lucide-react';
+import { Users, Search, Plus, Mail, Phone, Edit2, X, Trash2, AlertTriangle } from 'lucide-react';
 import { EmployeeType, PayFrequency, PaymentMethod, BankAccountType } from '../../../types';
 
 const EmployeeList: React.FC = () => {
@@ -43,6 +43,9 @@ const EmployeeList: React.FC = () => {
     receives_meal_benefit: false,
   });
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<{ show: boolean; employee: Employee | null }>({ show: false, employee: null });
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { showToast } = useToast();
   const { t } = useLanguage();
 
@@ -189,6 +192,28 @@ const EmployeeList: React.FC = () => {
     }
   };
 
+  const handleDeleteClick = (employee: Employee) => {
+    setShowDeleteModal({ show: true, employee });
+    setConfirmDelete(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!showDeleteModal.employee) return;
+
+    setDeleting(true);
+    try {
+      const result = await employeeService.deleteEmployeeComplete(showDeleteModal.employee.id);
+      showToast(t('delete_employee_success', { name: result.employee_name, total: result.total_deleted }), 'success');
+      setShowDeleteModal({ show: false, employee: null });
+      setConfirmDelete(false);
+      await loadEmployees();
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Layout>
       <div>
@@ -325,13 +350,23 @@ const EmployeeList: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleEditClick(employee)}
-                            className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            {t('edit')}
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleEditClick(employee)}
+                              className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              {t('edit')}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(employee)}
+                              className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                              title={t('delete_employee_permanently')}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              {t('delete_employee')}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -720,6 +755,102 @@ const EmployeeList: React.FC = () => {
                     )}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Eliminación */}
+        {showDeleteModal.show && showDeleteModal.employee && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                  <h3 className="text-lg font-medium text-gray-900">
+                    {t('delete_employee_permanently')}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDeleteModal({ show: false, employee: null });
+                    setConfirmDelete(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>{t('employee')}:</strong> {showDeleteModal.employee.first_name} {showDeleteModal.employee.last_name}
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>{t('code')}:</strong> {showDeleteModal.employee.employee_code}
+                </p>
+                <div className="bg-red-50 border-l-4 border-red-400 p-3 rounded">
+                  <p className="text-sm font-semibold text-red-800 mb-2">{t('delete_employee_warning')}</p>
+                  <p className="text-sm text-red-700">
+                    {t('delete_employee_will_delete')}
+                  </p>
+                  <ul className="text-sm text-red-700 list-disc list-inside mt-2">
+                    <li>{t('delete_employee_record')}</li>
+                    <li>{t('delete_employee_time_records')}</li>
+                    <li>{t('delete_employee_payrolls')}</li>
+                    <li>{t('delete_employee_deductions')}</li>
+                    <li>{t('delete_employee_sick_leave')}</li>
+                    <li>{t('delete_employee_break_alerts')}</li>
+                    <li>{t('delete_employee_pay_rates')}</li>
+                    <li>{t('delete_employee_signatures')}</li>
+                    <li>{t('delete_employee_face_images')}</li>
+                    <li><strong>{t('delete_employee_all_data')}</strong></li>
+                  </ul>
+                  <p className="text-sm font-semibold text-red-800 mt-2">
+                    {t('delete_employee_cannot_undo')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={confirmDelete}
+                    onChange={(e) => setConfirmDelete(e.target.checked)}
+                    className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">
+                    {t('delete_employee_confirm_checkbox')}
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal({ show: false, employee: null });
+                    setConfirmDelete(false);
+                  }}
+                  disabled={deleting}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {t('cancel')}
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={deleting || !confirmDelete}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      <span className="ml-2">{t('delete_employee_deleting')}</span>
+                    </>
+                  ) : (
+                    t('delete_employee_permanently_btn')
+                  )}
+                </button>
               </div>
             </div>
           </div>

@@ -86,6 +86,27 @@ class EmployeeService {
     await api.delete(`${API_ENDPOINTS.EMPLOYEE_BY_ID}/${id}`);
   }
 
+  async deleteEmployeeComplete(id: string): Promise<{
+    success: boolean;
+    message: string;
+    employee_id: string;
+    employee_code: string;
+    employee_name: string;
+    deleted_records: Record<string, number>;
+    total_deleted: number;
+  }> {
+    const response = await api.delete<{
+      success: boolean;
+      message: string;
+      employee_id: string;
+      employee_code: string;
+      employee_name: string;
+      deleted_records: Record<string, number>;
+      total_deleted: number;
+    }>(`${API_ENDPOINTS.DELETE_EMPLOYEE_COMPLETE}/${id}/complete`);
+    return response.data;
+  }
+
   // Time Entry Methods (Facial Recognition)
   async createTimeEntry(data: TimeEntryCreate): Promise<TimeEntry> {
     const formData = new FormData();
@@ -151,6 +172,7 @@ export const listEmployees = (activeOnly?: boolean) => employeeServiceInstance.l
 export const getEmployeeById = (id: string) => employeeServiceInstance.getEmployeeById(id);
 export const updateEmployee = (id: string, data: Partial<EmployeeRegisterData>) => employeeServiceInstance.updateEmployee(id, data);
 export const deleteEmployee = (id: string) => employeeServiceInstance.deleteEmployee(id);
+export const deleteEmployeeComplete = (id: string) => employeeServiceInstance.deleteEmployeeComplete(id);
 export const createTimeEntry = (data: TimeEntryCreate) => employeeServiceInstance.createTimeEntry(data);
 export const listTimeEntries = (employeeId?: string, startDate?: string, endDate?: string) => employeeServiceInstance.listTimeEntries(employeeId, startDate, endDate);
 

@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
   EMPLOYEES: '/api/employees/',
   EMPLOYEE_BY_ID: '/api/employees',
   UPDATE_EMPLOYEE: '/api/employees',
+  DELETE_EMPLOYEE_COMPLETE: '/api/employees',
   TIME_ENTRY: '/api/employees/time-entry',
   TIME_ENTRY_MANUAL: '/api/employees/time-entry/manual',
   TIME_ENTRY_UPDATE: '/api/employees/time-entry',
