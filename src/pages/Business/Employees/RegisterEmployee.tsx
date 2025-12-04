@@ -56,6 +56,94 @@ const RegisterEmployee: React.FC = () => {
     }
   };
 
+  // Comprimir imagen para reducir el tamaño del archivo
+  const compressImage = (file: File, maxSizeMB: number = 1): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      // Si el archivo ya es pequeño, no comprimir
+      const maxSizeBytes = maxSizeMB * 1024 * 1024;
+      if (file.size <= maxSizeBytes) {
+        resolve(file);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Reducir dimensiones si son muy grandes (max 1200px en el lado más largo)
+          const maxDimension = 1200;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
+            } else {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('No se pudo obtener el contexto del canvas'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convertir a blob con calidad ajustable
+          let quality = 0.8;
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Error al comprimir la imagen'));
+                return;
+              }
+
+              // Si aún es muy grande después de comprimir, reducir calidad
+              if (blob.size > maxSizeBytes) {
+                quality = 0.6;
+                canvas.toBlob(
+                  (blob2) => {
+                    if (!blob2) {
+                      reject(new Error('Error al comprimir la imagen'));
+                      return;
+                    }
+                    const compressedFile = new File([blob2], file.name, {
+                      type: 'image/jpeg',
+                      lastModified: Date.now(),
+                    });
+                    resolve(compressedFile);
+                  },
+                  'image/jpeg',
+                  quality
+                );
+              } else {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => reject(new Error('Error al cargar la imagen'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Error al leer el archivo'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value} = e.target;
     
@@ -68,24 +156,50 @@ const RegisterEmployee: React.FC = () => {
     }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>, photoNumber: 1 | 2) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, photoNumber: 1 | 2) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      showToast('Por favor selecciona un archivo de imagen válido', 'error');
+      return;
+    }
+
+    // Validar tamaño (máximo 10MB antes de comprimir)
+    const maxSizeBeforeCompress = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSizeBeforeCompress) {
+      showToast('La imagen es demasiado grande. Por favor selecciona una imagen más pequeña (máximo 10MB)', 'error');
+      return;
+    }
+
+    try {
+      // Comprimir imagen (máximo 1MB después de comprimir)
+      const compressedFile = await compressImage(file, 1);
+
       if (photoNumber === 1) {
-        setFormData(prev => ({ ...prev, face_image: file }));
+        setFormData(prev => ({ ...prev, face_image: compressedFile }));
         const reader = new FileReader();
         reader.onloadend = () => {
           setPhotoPreview(reader.result as string);
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(compressedFile);
       } else {
-        setFormData(prev => ({ ...prev, face_image_2: file }));
+        setFormData(prev => ({ ...prev, face_image_2: compressedFile }));
         const reader = new FileReader();
         reader.onloadend = () => {
           setPhotoPreview2(reader.result as string);
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(compressedFile);
       }
+
+      // Mostrar mensaje si se comprimió
+      if (file.size !== compressedFile.size) {
+        const reduction = ((file.size - compressedFile.size) / file.size * 100).toFixed(0);
+        showToast(`Imagen comprimida (reducción del ${reduction}%)`, 'success');
+      }
+    } catch (error: any) {
+      showToast(`Error al procesar la imagen: ${error.message}`, 'error');
     }
   };
 
@@ -103,6 +217,14 @@ const RegisterEmployee: React.FC = () => {
       return;
     }
 
+    // Validar tamaño total de las imágenes
+    const totalSize = (formData.face_image?.size || 0) + (formData.face_image_2?.size || 0);
+    const maxTotalSize = 2 * 1024 * 1024; // 2MB total
+    if (totalSize > maxTotalSize) {
+      showToast('El tamaño total de las imágenes es muy grande. Por favor, inténtalo de nuevo con imágenes más pequeñas.', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -116,7 +238,12 @@ const RegisterEmployee: React.FC = () => {
       showToast('Empleado registrado exitosamente', 'success');
       navigate('/business/employees');
     } catch (error: any) {
-      showToast(formatErrorMessage(error), 'error');
+      // Mensaje específico para error 502
+      if (error.response?.status === 502 || error.code === 'ERR_NETWORK') {
+        showToast('Error 502: El servidor no está disponible. Por favor, verifica tu conexión e intenta nuevamente. Si el problema persiste, contacta al administrador.', 'error');
+      } else {
+        showToast(formatErrorMessage(error), 'error');
+      }
     } finally {
       setLoading(false);
     }
