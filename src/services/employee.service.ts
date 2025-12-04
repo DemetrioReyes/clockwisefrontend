@@ -42,9 +42,8 @@ class EmployeeService {
     }
 
     const response = await api.post<Employee>(API_ENDPOINTS.EMPLOYEES, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
     });
     return response.data;
   }
@@ -106,9 +105,8 @@ class EmployeeService {
     }, null, 2));
 
     const response = await api.post<TimeEntry>(API_ENDPOINTS.TIME_ENTRY, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
     });
     
     console.log('Respuesta del servidor:', JSON.stringify(response.data, null, 2));
