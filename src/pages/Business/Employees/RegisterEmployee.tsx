@@ -14,6 +14,7 @@ const RegisterEmployee: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoPreview2, setPhotoPreview2] = useState<string | null>(null);
+  const [photoPreview3, setPhotoPreview3] = useState<string | null>(null);
   const [formData, setFormData] = useState<EmployeeRegisterData>({
     first_name: '',
     last_name: '',
@@ -156,7 +157,7 @@ const RegisterEmployee: React.FC = () => {
     }
   };
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, photoNumber: 1 | 2) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, photoNumber: 1 | 2 | 3) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -184,11 +185,18 @@ const RegisterEmployee: React.FC = () => {
           setPhotoPreview(reader.result as string);
         };
         reader.readAsDataURL(compressedFile);
-      } else {
+      } else if (photoNumber === 2) {
         setFormData(prev => ({ ...prev, face_image_2: compressedFile }));
         const reader = new FileReader();
         reader.onloadend = () => {
           setPhotoPreview2(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      } else {
+        setFormData(prev => ({ ...prev, face_image_3: compressedFile }));
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreview3(reader.result as string);
         };
         reader.readAsDataURL(compressedFile);
       }
@@ -217,9 +225,14 @@ const RegisterEmployee: React.FC = () => {
       return;
     }
 
+    if (!formData.face_image_3) {
+      showToast('La tercera foto es requerida para un mejor reconocimiento y reducir errores', 'error');
+      return;
+    }
+
     // Validar tamaño total de las imágenes
-    const totalSize = (formData.face_image?.size || 0) + (formData.face_image_2?.size || 0);
-    const maxTotalSize = 2 * 1024 * 1024; // 2MB total
+    const totalSize = (formData.face_image?.size || 0) + (formData.face_image_2?.size || 0) + (formData.face_image_3?.size || 0);
+    const maxTotalSize = 3 * 1024 * 1024; // 3MB total (1MB por foto)
     if (totalSize > maxTotalSize) {
       showToast('El tamaño total de las imágenes es muy grande. Por favor, inténtalo de nuevo con imágenes más pequeñas.', 'error');
       return;
@@ -622,7 +635,7 @@ const RegisterEmployee: React.FC = () => {
               Tome una foto de frente y otra desde un ángulo lateral.
             </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Primera Foto */}
               <div className="border rounded-lg p-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -686,12 +699,45 @@ const RegisterEmployee: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Tercera Foto */}
+              <div className="border rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Foto 3 - Vista Alternativa * <span className="text-red-500">Requerida</span>
+                </label>
+                <div className="flex flex-col items-center space-y-4">
+                  {photoPreview3 ? (
+                    <img src={photoPreview3} alt="Preview Foto 3" className="w-32 h-32 rounded-full object-cover border-2 border-blue-500" />
+                  ) : (
+                    <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                      <Camera className="w-12 h-12 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="w-full">
+                    <label className="cursor-pointer inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                      <Camera className="w-5 h-5 mr-2" />
+                      Subir Tercera Foto
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoChange(e, 3)}
+                        className="hidden"
+                        required
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      Vista desde otro ángulo o con diferente iluminación
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
               <p className="text-sm text-blue-800">
-                <strong>💡 Consejo:</strong> Para mejores resultados, asegúrese de que ambas fotos tengan buena iluminación 
-                y muestren claramente el rostro del empleado desde ángulos diferentes.
+                <strong>💡 Consejo:</strong> Para mejores resultados, asegúrese de que las tres fotos tengan buena iluminación 
+                y muestren claramente el rostro del empleado desde ángulos diferentes. Esto mejorará significativamente 
+                el reconocimiento facial y reducirá errores de identificación.
               </p>
             </div>
           </div>

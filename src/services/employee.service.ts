@@ -41,6 +41,10 @@ class EmployeeService {
       formData.append('face_image_2', data.face_image_2);
     }
 
+    if (data.face_image_3) {
+      formData.append('face_image_3', data.face_image_3);
+    }
+
     const response = await api.post<Employee>(API_ENDPOINTS.EMPLOYEES, formData, {
       maxContentLength: Infinity,
       maxBodyLength: Infinity,

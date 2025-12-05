@@ -130,6 +130,7 @@ export interface EmployeeRegisterData {
   receives_meal_benefit?: boolean;
   face_image?: File;
   face_image_2?: File;
+  face_image_3?: File;
 }
 
 // Deduction Types
