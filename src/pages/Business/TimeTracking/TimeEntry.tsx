@@ -7,7 +7,7 @@ import { formatErrorMessage } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import employeeService from '../../../services/employee.service';
 import { TimeEntry as TimeEntryType, Business, TimeSummary, Employee, TimeEntryManualCreate, TimeEntryUpdate, TimeEntryDelete } from '../../../types';
-import { Clock, Camera, Calendar, Users, Edit2, Plus, Trash2 } from 'lucide-react';
+import { Clock, Camera, Calendar, Users, Edit2, Plus, Trash2, ArrowRight, ArrowDown, Minus, CheckCircle2, XCircle, Coffee, PlayCircle, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import Modal from '../../../components/Common/Modal';
 import { formatDateTimeUS } from '../../../utils/dateFormat';
 
@@ -104,6 +104,15 @@ const TimeEntry: React.FC = () => {
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  
+  // Estados para colapsar/expandir
+  const [expandedEmployees, setExpandedEmployees] = useState<Record<string, boolean>>({});
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [dateFilter, setDateFilter] = useState({
+    start_date: '',
+    end_date: '',
+  });
 
   useEffect(() => {
     loadEmployees();
@@ -222,7 +231,10 @@ const TimeEntry: React.FC = () => {
         }
       });
 
-      // Calcular horas por día
+      // Calcular horas por día y agrupar por semana
+      const dailyHours: Record<string, number> = {};
+      const weeklyHours: Record<string, number> = {};
+
       Object.entries(dayMap).forEach(([date, day]) => {
         if (day.checkIn && day.checkOut) {
           const checkInTime = day.checkIn.record_time 
@@ -295,18 +307,39 @@ const TimeEntry: React.FC = () => {
             // Calcular horas trabajadas (check-out - check-in - breaks)
             const hours = ((checkOutTime - checkInTime) / (1000 * 60 * 60)) - breakTime;
             
+            // Solo contar horas positivas (ignorar errores de datos)
             if (hours > 0) {
+              dailyHours[date] = hours;
               totalHours += hours;
-              
-              // Considerar horas regulares (8 horas) y extra (>8 horas)
-              if (hours <= 8) {
-                regularHours += hours;
-              } else {
-                regularHours += 8;
-                overtimeHours += (hours - 8);
+
+              // Calcular semana (lunes a domingo)
+              const checkInDate = new Date(checkInTime);
+              const dayOfWeek = checkInDate.getDay(); // 0 = domingo, 1 = lunes, etc.
+              const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convertir domingo a 6
+              const monday = new Date(checkInDate);
+              monday.setDate(checkInDate.getDate() - daysSinceMonday);
+              monday.setHours(0, 0, 0, 0);
+              const weekKey = monday.toISOString().split('T')[0];
+
+              if (!weeklyHours[weekKey]) {
+                weeklyHours[weekKey] = 0;
               }
+              weeklyHours[weekKey] += hours;
             }
           }
+        }
+      });
+
+      // Calcular regular y overtime por semana (40 horas semanales)
+      const OVERTIME_THRESHOLD = 40; // Horas semanales antes de overtime
+      Object.values(weeklyHours).forEach((weekTotal) => {
+        if (weekTotal <= OVERTIME_THRESHOLD) {
+          // Todas las horas de la semana son regulares
+          regularHours += weekTotal;
+        } else {
+          // Las primeras 40 horas son regulares, el resto es overtime
+          regularHours += OVERTIME_THRESHOLD;
+          overtimeHours += (weekTotal - OVERTIME_THRESHOLD);
         }
       });
 
@@ -526,6 +559,59 @@ const TimeEntry: React.FC = () => {
       return t('needs_correction') || 'Necesita Corrección';
     }
     return t('closed') || 'Cerrada';
+  };
+
+  const toggleEmployee = (employeeKey: string) => {
+    setExpandedEmployees(prev => ({
+      ...prev,
+      [employeeKey]: !prev[employeeKey]
+    }));
+  };
+
+  const toggleDay = (dayKey: string) => {
+    setExpandedDays(prev => ({
+      ...prev,
+      [dayKey]: !prev[dayKey]
+    }));
+  };
+
+  // Expandir automáticamente el primer empleado y el primer día al cargar
+  useEffect(() => {
+    if (timeEntries.length > 0 && Object.keys(expandedEmployees).length === 0) {
+      const firstEntry = timeEntries[0];
+      const employeeKey = `${firstEntry.employee_id}_${firstEntry.employee_name}`;
+      const dateTime = firstEntry.record_time || firstEntry.timestamp;
+      if (dateTime) {
+        const date = new Date(dateTime).toISOString().split('T')[0];
+        const dayKey = `${employeeKey}_${date}`;
+        setExpandedEmployees({ [employeeKey]: true });
+        setExpandedDays({ [dayKey]: true });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeEntries]);
+
+  // Filtrar registros por fecha si hay filtros aplicados
+  const getFilteredEntries = () => {
+    if (!dateFilter.start_date && !dateFilter.end_date) {
+      return timeEntries;
+    }
+    
+    return timeEntries.filter(entry => {
+      const dateTime = entry.record_time || entry.timestamp;
+      if (!dateTime) return false;
+      
+      const entryDate = new Date(dateTime).toISOString().split('T')[0];
+      
+      if (dateFilter.start_date && entryDate < dateFilter.start_date) {
+        return false;
+      }
+      if (dateFilter.end_date && entryDate > dateFilter.end_date) {
+        return false;
+      }
+      
+      return true;
+    });
   };
 
   return (
@@ -778,22 +864,25 @@ const TimeEntry: React.FC = () => {
           </div>
         )}
 
-        {/* Lista de Registros Detallados - Solo mostrar si hay datos del endpoint GET */}
+        {/* Lista de Registros Detallados - Vista Moderna */}
         {timeEntries.length > 0 && (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <div className="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-semibold">{t('detailed_time_records')}</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Clock className="w-6 h-6" />
+                {t('detailed_time_records')}
+              </h2>
+              <p className="text-sm text-blue-100 mt-1">
                 {t('total_records', { count: timeEntries.length })}
               </p>
             </div>
             <button
               onClick={handleOpenAddModal}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="flex items-center space-x-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl"
             >
               <Plus className="w-4 h-4" />
-              <span>{t('add_manual_record') || 'Agregar Registro Manual'}</span>
+              <span className="font-semibold">{t('add_manual_record') || 'Agregar Registro Manual'}</span>
             </button>
           </div>
 
@@ -802,133 +891,363 @@ const TimeEntry: React.FC = () => {
               <LoadingSpinner />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('employee')}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('type')}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('date_time')}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('session_status') || 'Estado'}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('confidence')}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('device')}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('actions') || 'Acciones'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {timeEntries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {entry.employee_name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {entry.employee_code}
-                        </div>
-                        {entry.is_manual_correction && (
-                          <div className="text-xs text-orange-600 mt-1">
-                            {t('manual_correction') || 'Corrección Manual'}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRecordTypeBadge(entry.record_type)}`}>
-                          {getRecordTypeLabel(entry.record_type, t)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {(() => {
-                          const dateTime = entry.record_time || entry.timestamp;
-                          if (!dateTime) return '-';
-                          try {
-                            const date = new Date(dateTime);
-                            if (isNaN(date.getTime())) return '-';
-                            return formatDateTimeUS(date);
-                          } catch {
-                            return '-';
-                          }
-                        })()}
-                        {entry.old_record_time && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {t('previous') || 'Anterior'}: {formatDateTimeUS(entry.old_record_time)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {entry.session_status && (
-                          <div className="space-y-1">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getSessionStatusBadge(entry)}`}>
-                              {getSessionStatusLabel(entry)}
-                            </span>
-                            {entry.hours_since_checkin !== null && entry.hours_since_checkin !== undefined && (
-                              <div className="text-xs text-gray-600 mt-1">
-                                {entry.hours_since_checkin.toFixed(1)}h
+            <div className="p-6">
+              {/* Filtros de Fecha */}
+              <div className="mb-6">
+                <button
+                  onClick={() => setShowDateFilter(!showDateFilter)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
+                >
+                  <Filter className="w-4 h-4" />
+                  {showDateFilter ? 'Ocultar Filtros' : 'Filtrar por Fecha'}
+                </button>
+                
+                {showDateFilter && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 flex gap-4 items-end">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fecha Inicio
+                      </label>
+                      <input
+                        type="date"
+                        value={dateFilter.start_date}
+                        onChange={(e) => setDateFilter({ ...dateFilter, start_date: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fecha Fin
+                      </label>
+                      <input
+                        type="date"
+                        value={dateFilter.end_date}
+                        onChange={(e) => setDateFilter({ ...dateFilter, end_date: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setDateFilter({ start_date: '', end_date: '' })}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {(() => {
+                const filteredEntries = getFilteredEntries();
+                
+                if (filteredEntries.length === 0) {
+                  return (
+                    <div className="text-center py-12">
+                      <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 text-lg font-medium">
+                        {dateFilter.start_date || dateFilter.end_date 
+                          ? 'No hay registros en el rango de fechas seleccionado'
+                          : 'No hay registros de tiempo disponibles'}
+                      </p>
+                    </div>
+                  );
+                }
+
+                // Agrupar registros por empleado y día
+                const groupedEntries: Record<string, Record<string, TimeEntryType[]>> = {};
+                
+                filteredEntries.forEach((entry) => {
+                  const employeeKey = `${entry.employee_id}_${entry.employee_name}`;
+                  const dateTime = entry.record_time || entry.timestamp;
+                  if (!dateTime) return;
+                  
+                  const date = new Date(dateTime).toISOString().split('T')[0];
+                  
+                  if (!groupedEntries[employeeKey]) {
+                    groupedEntries[employeeKey] = {};
+                  }
+                  if (!groupedEntries[employeeKey][date]) {
+                    groupedEntries[employeeKey][date] = [];
+                  }
+                  groupedEntries[employeeKey][date].push(entry);
+                });
+
+                // Ordenar registros dentro de cada día por tiempo
+                Object.keys(groupedEntries).forEach((employeeKey) => {
+                  Object.keys(groupedEntries[employeeKey]).forEach((date) => {
+                    groupedEntries[employeeKey][date].sort((a, b) => {
+                      const timeA = new Date(a.record_time || a.timestamp || 0).getTime();
+                      const timeB = new Date(b.record_time || b.timestamp || 0).getTime();
+                      return timeA - timeB;
+                    });
+                  });
+                });
+
+                return (
+                  <div className="space-y-6">
+                    {Object.entries(groupedEntries).map(([employeeKey, dates]) => {
+                      const [employeeId, employeeName] = employeeKey.split('_');
+                      const firstEntry = Object.values(dates)[0]?.[0];
+                      const employeeCode = firstEntry?.employee_code || '';
+                      
+                      const isEmployeeExpanded = expandedEmployees[employeeKey] ?? false;
+                      const daysCount = Object.keys(dates).length;
+                      const totalRecords = Object.values(dates).reduce((sum, dayEntries) => sum + dayEntries.length, 0);
+
+                      return (
+                        <div key={employeeKey} className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+                          {/* Header del Empleado - Clickeable */}
+                          <button
+                            onClick={() => toggleEmployee(employeeKey)}
+                            className="w-full flex items-center justify-between p-6 hover:bg-blue-100/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl shadow-lg">
+                                <Users className="w-6 h-6 text-white" />
                               </div>
-                            )}
-                            {entry.message && (
-                              <div className="text-xs text-gray-500 mt-1 max-w-xs">
-                                {translateBackendMessage(entry.message)}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {(() => {
-                          const confidence = entry.face_confidence || entry.confidence;
-                          if (confidence === undefined || confidence === null) {
-                            return <span className="text-gray-400">-</span>;
-                          }
-                          return (
-                            <div className="flex items-center">
-                              <div className="text-sm text-gray-900">
-                                {(confidence * 100).toFixed(1)}%
+                              <div className="text-left">
+                                <h3 className="text-lg font-bold text-gray-900">{employeeName}</h3>
+                                <p className="text-sm text-gray-600">{employeeCode}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {daysCount} {daysCount === 1 ? 'día' : 'días'} • {totalRecords} {totalRecords === 1 ? 'registro' : 'registros'}
+                                </p>
                               </div>
                             </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {entry.device_info || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => handleOpenEditModal(entry)}
-                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                            title={t('edit_record') || 'Editar registro'}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            <span>{t('edit') || 'Editar'}</span>
+                            <div className="flex items-center gap-2">
+                              {isEmployeeExpanded ? (
+                                <ChevronUp className="w-5 h-5 text-gray-600" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-gray-600" />
+                              )}
+                            </div>
                           </button>
-                          <button
-                            onClick={() => handleOpenDeleteModal(entry)}
-                            className="text-red-600 hover:text-red-800 flex items-center space-x-1"
-                            title={t('delete_record') || 'Eliminar registro'}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span>{t('delete') || 'Eliminar'}</span>
-                          </button>
+
+                          {/* Contenido del Empleado - Colapsable */}
+                          {isEmployeeExpanded && (
+                          <div className="px-6 pb-6">
+
+                            {/* Registros por Día */}
+                            <div className="space-y-3">
+                              {Object.entries(dates)
+                                .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
+                                .map(([date, entries]) => {
+                                  const dayKey = `${employeeKey}_${date}`;
+                                  const isDayExpanded = expandedDays[dayKey] ?? false;
+                                  const dateObj = new Date(date);
+                                  const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                  });
+                                  const shortDate = dateObj.toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  });
+
+                                  // Encontrar pares de registros relacionados
+                                  const checkIn = entries.find(e => e.record_type === 'check_in');
+                                  const checkOut = entries.find(e => e.record_type === 'check_out');
+                                  const breaks = entries.filter(e => 
+                                    e.record_type === 'break_start' || e.record_type === 'break_end'
+                                  );
+
+                                  return (
+                                    <div key={date} className="bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
+                                      {/* Header del Día - Clickeable */}
+                                      <button
+                                        onClick={() => toggleDay(dayKey)}
+                                        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <Calendar className="w-5 h-5 text-blue-600" />
+                                          <div className="text-left">
+                                            <h4 className="font-semibold text-gray-900">{formattedDate}</h4>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                              {entries.length} {entries.length === 1 ? 'registro' : 'registros'}
+                                              {breaks.length > 0 && ` • ${breaks.length / 2} ${breaks.length / 2 === 1 ? 'break' : 'breaks'}`}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                          {/* Resumen rápido del día */}
+                                          {checkIn && checkOut && (
+                                            <div className="hidden md:flex items-center gap-2 text-xs text-gray-600">
+                                              <CheckCircle2 className="w-3 h-3 text-green-600" />
+                                              <span>{new Date(checkIn.record_time || checkIn.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                              <ArrowRight className="w-3 h-3" />
+                                              <XCircle className="w-3 h-3 text-red-600" />
+                                              <span>{new Date(checkOut.record_time || checkOut.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                          )}
+                                          {isDayExpanded ? (
+                                            <ChevronUp className="w-5 h-5 text-gray-600" />
+                                          ) : (
+                                            <ChevronDown className="w-5 h-5 text-gray-600" />
+                                          )}
+                                        </div>
+                                      </button>
+
+                                      {/* Contenido del Día - Colapsable */}
+                                      {isDayExpanded && (
+                                      <div className="p-5 pt-0">
+
+                                        {/* Timeline Visual */}
+                                        <div className="relative pl-8 space-y-3 mt-4">
+                                      {/* Línea vertical de conexión */}
+                                      <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-400 via-purple-400 to-green-400"></div>
+
+                                      {entries.map((entry, index) => {
+                                        const dateTime = entry.record_time || entry.timestamp;
+                                        const time = dateTime ? new Date(dateTime).toLocaleTimeString('en-US', { 
+                                          hour: '2-digit', 
+                                          minute: '2-digit' 
+                                        }) : '-';
+                                        
+                                        const isCheckIn = entry.record_type === 'check_in';
+                                        const isCheckOut = entry.record_type === 'check_out';
+                                        const isBreakStart = entry.record_type === 'break_start';
+                                        const isBreakEnd = entry.record_type === 'break_end';
+
+                                        // Determinar color y icono según tipo
+                                        let bgColor = '';
+                                        let icon = null;
+                                        let borderColor = '';
+
+                                        if (isCheckIn) {
+                                          bgColor = 'bg-gradient-to-br from-green-50 to-emerald-50';
+                                          borderColor = 'border-green-400';
+                                          icon = <CheckCircle2 className="w-5 h-5 text-green-600" />;
+                                        } else if (isCheckOut) {
+                                          bgColor = 'bg-gradient-to-br from-red-50 to-pink-50';
+                                          borderColor = 'border-red-400';
+                                          icon = <XCircle className="w-5 h-5 text-red-600" />;
+                                        } else if (isBreakStart) {
+                                          bgColor = 'bg-gradient-to-br from-yellow-50 to-orange-50';
+                                          borderColor = 'border-yellow-400';
+                                          icon = <Coffee className="w-5 h-5 text-yellow-600" />;
+                                        } else if (isBreakEnd) {
+                                          bgColor = 'bg-gradient-to-br from-blue-50 to-indigo-50';
+                                          borderColor = 'border-blue-400';
+                                          icon = <PlayCircle className="w-5 h-5 text-blue-600" />;
+                                        }
+
+                                        return (
+                                          <div key={entry.id} className="relative">
+                                            {/* Punto en la línea */}
+                                            <div className={`absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 ${borderColor} bg-white shadow-lg z-10`}></div>
+                                            
+                                            {/* Card del Registro */}
+                                            <div className={`ml-6 ${bgColor} rounded-lg p-4 border-2 ${borderColor} shadow-md hover:shadow-lg transition-all`}>
+                                              <div className="flex items-start justify-between">
+                                                <div className="flex items-start gap-3 flex-1">
+                                                  <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                    {icon}
+                                                  </div>
+                                                  <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                      <span className={`px-3 py-1 text-xs font-bold rounded-full ${getRecordTypeBadge(entry.record_type)}`}>
+                                                        {getRecordTypeLabel(entry.record_type, t)}
+                                                      </span>
+                                                      {entry.is_manual_correction && (
+                                                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                                                          {t('manual_correction') || 'Manual'}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-1">
+                                                      <Clock className="w-4 h-4 text-gray-500" />
+                                                      {time}
+                                                    </div>
+                                                    {entry.session_status && (
+                                                      <div className="mb-2">
+                                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getSessionStatusBadge(entry)}`}>
+                                                          {getSessionStatusLabel(entry)}
+                                                        </span>
+                                                      </div>
+                                                    )}
+                                                    {entry.message && (
+                                                      <p className="text-xs text-gray-600 mt-1 italic">
+                                                        {translateBackendMessage(entry.message)}
+                                                      </p>
+                                                    )}
+                                                    {(entry.face_confidence || entry.confidence) && (
+                                                      <div className="mt-2 flex items-center gap-2">
+                                                        <div className="text-xs text-gray-600">
+                                                          {t('confidence')}: <span className="font-semibold">{((entry.face_confidence || entry.confidence || 0) * 100).toFixed(1)}%</span>
+                                                        </div>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                
+                                                {/* Acciones */}
+                                                <div className="flex items-center gap-2 ml-4">
+                                                  <button
+                                                    onClick={() => handleOpenEditModal(entry)}
+                                                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                                    title={t('edit_record') || 'Editar registro'}
+                                                  >
+                                                    <Edit2 className="w-4 h-4" />
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleOpenDeleteModal(entry)}
+                                                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                                    title={t('delete_record') || 'Eliminar registro'}
+                                                  >
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                        {/* Resumen del Día */}
+                                        {checkIn && checkOut && (
+                                          <div className="mt-4 pt-4 border-t border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3">
+                                            <div className="flex items-center justify-between text-sm">
+                                              <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-2">
+                                                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                                  <span className="text-gray-700 font-medium">{t('check_in')}:</span>
+                                                  <span className="text-gray-900 font-semibold">
+                                                    {new Date(checkIn.record_time || checkIn.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                  </span>
+                                                </div>
+                                                <ArrowRight className="w-4 h-4 text-gray-400" />
+                                                <div className="flex items-center gap-2">
+                                                  <XCircle className="w-4 h-4 text-red-600" />
+                                                  <span className="text-gray-700 font-medium">{t('check_out')}:</span>
+                                                  <span className="text-gray-900 font-semibold">
+                                                    {new Date(checkOut.record_time || checkOut.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              {breaks.length > 0 && (
+                                                <div className="text-xs text-gray-600">
+                                                  {breaks.length / 2} {t('breaks') || 'breaks'}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                          )}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
