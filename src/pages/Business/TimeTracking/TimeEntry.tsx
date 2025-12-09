@@ -7,7 +7,7 @@ import { formatErrorMessage } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import employeeService from '../../../services/employee.service';
 import { TimeEntry as TimeEntryType, Business, TimeSummary, Employee, TimeEntryManualCreate, TimeEntryUpdate, TimeEntryDelete } from '../../../types';
-import { Clock, Camera, Calendar, Users, Edit2, Plus, Trash2, ArrowRight, ArrowDown, Minus, CheckCircle2, XCircle, Coffee, PlayCircle, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { Clock, Camera, Calendar, Users, Edit2, Plus, Trash2, ArrowRight, CheckCircle2, XCircle, Coffee, PlayCircle, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import Modal from '../../../components/Common/Modal';
 import { formatDateTimeUS } from '../../../utils/dateFormat';
 
@@ -985,7 +985,9 @@ const TimeEntry: React.FC = () => {
                 return (
                   <div className="space-y-6">
                     {Object.entries(groupedEntries).map(([employeeKey, dates]) => {
-                      const [employeeId, employeeName] = employeeKey.split('_');
+                      // Separar employee_id y employee_name del key
+                      const parts = employeeKey.split('_');
+                      const employeeName = parts.slice(1).join('_'); // En caso de que el nombre tenga guiones bajos
                       const firstEntry = Object.values(dates)[0]?.[0];
                       const employeeCode = firstEntry?.employee_code || '';
                       
@@ -1038,11 +1040,6 @@ const TimeEntry: React.FC = () => {
                                     year: 'numeric', 
                                     month: 'long', 
                                     day: 'numeric' 
-                                  });
-                                  const shortDate = dateObj.toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric',
-                                    year: 'numeric'
                                   });
 
                                   // Encontrar pares de registros relacionados
