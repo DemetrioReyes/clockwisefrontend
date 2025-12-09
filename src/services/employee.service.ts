@@ -164,6 +164,14 @@ class EmployeeService {
     const response = await api.put(`${API_ENDPOINTS.TIME_ENTRY_UPDATE}/${recordId}`, data);
     return response.data;
   }
+
+  /**
+   * Elimina un registro de tiempo existente
+   */
+  async deleteTimeEntry(recordId: string, data: import('../types').TimeEntryDelete): Promise<any> {
+    const response = await api.delete(`${API_ENDPOINTS.TIME_ENTRY_DELETE}/${recordId}`, { data });
+    return response.data;
+  }
 }
 
 const employeeServiceInstance = new EmployeeService();
@@ -179,5 +187,6 @@ export const deleteEmployee = (id: string) => employeeServiceInstance.deleteEmpl
 export const deleteEmployeeComplete = (id: string) => employeeServiceInstance.deleteEmployeeComplete(id);
 export const createTimeEntry = (data: TimeEntryCreate) => employeeServiceInstance.createTimeEntry(data);
 export const listTimeEntries = (employeeId?: string, startDate?: string, endDate?: string) => employeeServiceInstance.listTimeEntries(employeeId, startDate, endDate);
+export const deleteTimeEntry = (recordId: string, data: import('../types').TimeEntryDelete) => employeeServiceInstance.deleteTimeEntry(recordId, data);
 
 export default employeeServiceInstance;

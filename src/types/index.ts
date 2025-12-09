@@ -239,6 +239,10 @@ export interface TimeEntryUpdate {
   notes?: string;
 }
 
+export interface TimeEntryDelete {
+  notes?: string;
+}
+
 // Payroll Types
 export interface TipCreditInfo {
   applicable: boolean;

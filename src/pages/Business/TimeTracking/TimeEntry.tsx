@@ -6,8 +6,8 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 import { formatErrorMessage } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import employeeService from '../../../services/employee.service';
-import { TimeEntry as TimeEntryType, Business, TimeSummary, Employee, TimeEntryManualCreate, TimeEntryUpdate } from '../../../types';
-import { Clock, Camera, Calendar, Users, Edit2, Plus } from 'lucide-react';
+import { TimeEntry as TimeEntryType, Business, TimeSummary, Employee, TimeEntryManualCreate, TimeEntryUpdate, TimeEntryDelete } from '../../../types';
+import { Clock, Camera, Calendar, Users, Edit2, Plus, Trash2 } from 'lucide-react';
 import Modal from '../../../components/Common/Modal';
 
 const getRecordTypeBadge = (type: string) => {
@@ -85,7 +85,9 @@ const TimeEntry: React.FC = () => {
   // Estados para corrección manual
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntryType | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<TimeEntryType | null>(null);
   const [manualForm, setManualForm] = useState<TimeEntryManualCreate>({
     employee_id: '',
     record_type: 'check_in',
@@ -96,7 +98,11 @@ const TimeEntry: React.FC = () => {
     new_record_time: '',
     notes: '',
   });
+  const [deleteForm, setDeleteForm] = useState<TimeEntryDelete>({
+    notes: '',
+  });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadEmployees();
@@ -467,6 +473,37 @@ const TimeEntry: React.FC = () => {
       showToast(errorMessage, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenDeleteModal = (entry: TimeEntryType) => {
+    setDeletingEntry(entry);
+    setDeleteForm({ notes: '' });
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletingEntry(null);
+    setDeleteForm({ notes: '' });
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!deletingEntry) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await employeeService.deleteTimeEntry(deletingEntry.id, deleteForm);
+      showToast(t('record_deleted_successfully') || 'Registro eliminado exitosamente', 'success');
+      handleCloseDeleteModal();
+      loadTimeEntries();
+    } catch (error: any) {
+      const errorMessage = formatErrorMessage(error);
+      showToast(errorMessage, 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -881,14 +918,24 @@ const TimeEntry: React.FC = () => {
                         {entry.device_info || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => handleOpenEditModal(entry)}
-                          className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                          title={t('edit_record') || 'Editar registro'}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                          <span>{t('edit') || 'Editar'}</span>
-                        </button>
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => handleOpenEditModal(entry)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            title={t('edit_record') || 'Editar registro'}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                            <span>{t('edit') || 'Editar'}</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenDeleteModal(entry)}
+                            className="text-red-600 hover:text-red-800 flex items-center space-x-1"
+                            title={t('delete_record') || 'Eliminar registro'}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>{t('delete') || 'Eliminar'}</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1063,6 +1110,100 @@ const TimeEntry: React.FC = () => {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
                   {saving ? t('saving') || 'Guardando...' : t('save') || 'Guardar'}
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+
+        {/* Modal para eliminar registro */}
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={handleCloseDeleteModal}
+          title={t('delete_record') || 'Eliminar Registro'}
+        >
+          {deletingEntry && (
+            <div className="space-y-4">
+              <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <Trash2 className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">
+                      {t('delete_record_warning') || '¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <strong>{t('employee')}:</strong> {deletingEntry.employee_name} ({deletingEntry.employee_code})
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  <strong>{t('type')}:</strong> {getRecordTypeLabel(deletingEntry.record_type, t)}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  <strong>{t('date_time')}:</strong>{' '}
+                  {(() => {
+                    const dateTime = deletingEntry.record_time || deletingEntry.timestamp;
+                    if (!dateTime) return '-';
+                    try {
+                      const date = new Date(dateTime);
+                      if (isNaN(date.getTime())) return '-';
+                      return date.toLocaleString('es-ES', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      });
+                    } catch {
+                      return '-';
+                    }
+                  })()}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('notes') || 'Notas'} ({t('optional') || 'Opcional'})
+                </label>
+                <textarea
+                  value={deleteForm.notes}
+                  onChange={(e) => setDeleteForm({ ...deleteForm, notes: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-red-500 focus:border-red-500"
+                  rows={3}
+                  placeholder={t('delete_notes_placeholder') || 'Razón por la que se elimina este registro...'}
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={handleCloseDeleteModal}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {t('cancel') || 'Cancelar'}
+                </button>
+                <button
+                  onClick={handleDeleteEntry}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  {deleting ? (
+                    <>
+                      <LoadingSpinner />
+                      <span>{t('deleting_record') || 'Eliminando...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>{t('delete') || 'Eliminar'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
