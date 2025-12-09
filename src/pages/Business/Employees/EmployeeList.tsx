@@ -302,7 +302,7 @@ const EmployeeList: React.FC = () => {
                                 {employee.first_name} {employee.last_name}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {t('hire_date')}: {new Date(employee.hire_date).toLocaleDateString()}
+                                {t('hire_date')}: {new Date(employee.hire_date).toLocaleDateString('en-US')}
                               </div>
                             </div>
                           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout/Layout';
 import { formatErrorMessage } from '../../services/api';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
@@ -25,6 +25,7 @@ const BusinessDashboard: React.FC = () => {
   const { showToast } = useToast();
   const { user } = useAuth();
   const { t, language } = useLanguage();
+  const navigate = useNavigate();
 
   // Función para traducir mensajes del backend
   const translateBackendMessage = (message: string | null | undefined): string => {
@@ -243,7 +244,10 @@ const BusinessDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div 
+                className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => navigate('/business/pdf-generation')}
+              >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <DollarSign className="h-8 w-8 text-orange-600" />
@@ -258,7 +262,10 @@ const BusinessDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div 
+                className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => navigate('/business/reports')}
+              >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <AlertTriangle className={`h-8 w-8 ${breakComplianceTotal > 0 ? 'text-red-600' : 'text-green-600'}`} />
@@ -275,7 +282,10 @@ const BusinessDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div 
+                className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => navigate('/business/time-entry')}
+              >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <Edit2 className={`h-8 w-8 ${timeEntriesNeedingCorrection.length > 0 ? 'text-orange-600' : 'text-green-600'}`} />
@@ -416,7 +426,7 @@ const BusinessDashboard: React.FC = () => {
 
                         const dateTime = entry.record_time || entry.timestamp;
                         const formattedDateTime = dateTime
-                          ? new Date(dateTime).toLocaleString('es-ES', {
+                          ? new Date(dateTime).toLocaleString('en-US', {
                               year: 'numeric',
                               month: '2-digit',
                               day: '2-digit',
@@ -556,7 +566,7 @@ const BusinessDashboard: React.FC = () => {
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">
                                   {alert.violation_date
-                                    ? new Date(alert.violation_date).toLocaleDateString('es-ES', {
+                                    ? new Date(alert.violation_date).toLocaleDateString('en-US', {
                                         year: 'numeric',
                                         month: 'short',
                                         day: 'numeric',

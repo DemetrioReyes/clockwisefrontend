@@ -303,7 +303,7 @@ const ReportTips: React.FC = () => {
                     <p className="text-sm font-medium text-gray-900 mb-1">{incident.incident_name}</p>
                     <p className="text-sm text-gray-600 mb-1">{incident.description || '-'}</p>
                     <p className="text-xs text-gray-400">
-                      {new Date(incident.incident_date).toLocaleDateString()}
+                      {new Date(incident.incident_date).toLocaleDateString('en-US')}
                     </p>
                   </div>
                 ))}

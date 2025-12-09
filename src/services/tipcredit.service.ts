@@ -13,7 +13,12 @@ export const tipcreditService = {
     if (activeOnly !== undefined) params.active_only = activeOnly;
 
     const response = await api.get('/api/tip-credit/', { params });
-    return response.data;
+    // El backend retorna TipCreditConfigListResponse con { configs: [...], total_count: ... }
+    const data = response.data;
+    if (data && Array.isArray(data.configs)) {
+      return data.configs;
+    }
+    return Array.isArray(data) ? data : [];
   },
 
   createTenantConfig: async (data: TipCreditConfigCreate): Promise<TipCreditConfig> => {
@@ -46,6 +51,10 @@ export const tipcreditService = {
     return response.data;
   },
 
+  deleteConfig: async (configId: string): Promise<void> => {
+    await api.delete(`/api/tip-credit/${configId}`);
+  },
+  
   deactivateConfig: async (configId: string): Promise<void> => {
     await api.delete(`/api/tip-credit/${configId}`);
   },

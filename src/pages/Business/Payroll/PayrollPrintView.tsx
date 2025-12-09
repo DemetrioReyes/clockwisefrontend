@@ -45,6 +45,7 @@ const PayrollPrintView: React.FC = () => {
   const [uploadingSignedPdf, setUploadingSignedPdf] = useState<Record<string, boolean>>({});
   const [uploadedSignedPdfs, setUploadedSignedPdfs] = useState<Record<string, UploadSignedPayrollResponse | null>>({});
   const [activeEmployeeIndex, setActiveEmployeeIndex] = useState(0);
+  const [employeePaymentInfo, setEmployeePaymentInfo] = useState<Record<string, { payment_method?: string; bank_account_number?: string; bank_routing_number?: string }>>({});
 
   const locale = language === 'es' ? 'es-ES' : 'en-US';
 
@@ -71,7 +72,7 @@ const PayrollPrintView: React.FC = () => {
   const formatHoursValue = (value: number) => hoursFormatter.format(Number.isFinite(value) ? value : 0);
   const formatDateOnly = (value: string) =>
     value
-      ? new Date(value).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })
+      ? new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
       : '-';
 
   const parseNumber = (value: any): number => {
@@ -121,6 +122,9 @@ const PayrollPrintView: React.FC = () => {
       if (data.calculations && data.payroll?.period_start && data.payroll?.period_end) {
         await loadEmployeeTimeEntries(data.calculations, data.payroll.period_start, data.payroll.period_end);
       }
+      
+      // Cargar información de pago de cada empleado
+      await loadEmployeePaymentInfo(data.calculations);
     } catch (error) {
       console.error('Error cargando nómina:', error);
     } finally {
@@ -146,6 +150,27 @@ const PayrollPrintView: React.FC = () => {
     }
     
     setEmployeeTimeEntries(timeEntriesMap);
+  };
+
+  const loadEmployeePaymentInfo = async (calculations: any[]) => {
+    const paymentInfoMap: Record<string, { payment_method?: string; bank_account_number?: string; bank_routing_number?: string }> = {};
+    
+    for (const calc of calculations) {
+      try {
+        const employee = await employeeService.getEmployeeById(calc.employee_id);
+        if (employee) {
+          paymentInfoMap[calc.employee_id] = {
+            payment_method: employee.payment_method,
+            bank_account_number: employee.bank_account_number,
+            bank_routing_number: employee.bank_routing_number,
+          };
+        }
+      } catch (error) {
+        console.error(`Error cargando información de pago para empleado ${calc.employee_id}:`, error);
+      }
+    }
+    
+    setEmployeePaymentInfo(paymentInfoMap);
   };
 
   const processTimeEntriesByDay = (entries: any[]) => {
@@ -880,7 +905,7 @@ const PayrollPrintView: React.FC = () => {
             <div className="text-right">
               <h2 className="text-2xl font-bold text-blue-600 mb-2">{t('payroll_receipt')}</h2>
               <p className="text-sm text-gray-500">ID: {payroll.id.substring(0, 8)}...</p>
-              <p className="text-sm text-gray-500">{t('created')}: {new Date(payroll.created_at).toLocaleDateString('es-ES')}</p>
+              <p className="text-sm text-gray-500">{t('created')}: {new Date(payroll.created_at).toLocaleDateString('en-US')}</p>
             </div>
           </div>
           
@@ -1024,7 +1049,7 @@ const PayrollPrintView: React.FC = () => {
                   <div className="text-right">
                     <h2 className="text-2xl font-bold text-blue-600 mb-2">{t('payroll_receipt')}</h2>
                     <p className="text-sm text-gray-500">ID: {payroll.id.substring(0, 8)}...</p>
-                    <p className="text-sm text-gray-500">{t('created')}: {new Date(payroll.created_at).toLocaleDateString('es-ES')}</p>
+                    <p className="text-sm text-gray-500">{t('created')}: {new Date(payroll.created_at).toLocaleDateString('en-US')}</p>
                   </div>
                 </div>
                 
@@ -1107,7 +1132,7 @@ const PayrollPrintView: React.FC = () => {
                             {employeeTimeEntries[calc.employee_id].map((dayEntry: any, idx: number) => (
                               <tr key={idx} className="border-b border-gray-200">
                                 <td className="py-2 px-2">
-                                  {new Date(dayEntry.date).toLocaleDateString('es-ES', {
+                                  {new Date(dayEntry.date).toLocaleDateString('en-US', {
                                     weekday: 'short',
                                     day: 'numeric',
                                     month: 'short'
@@ -1296,6 +1321,52 @@ const PayrollPrintView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Información de Método de Pago */}
+                {employeePaymentInfo[calc.employee_id] && (
+                  <div className="mt-4 bg-blue-50 p-4 rounded-lg border-2 border-blue-300">
+                    <h4 className="font-semibold text-lg mb-3 text-gray-800">{t('payment_method')}</h4>
+                    {employeePaymentInfo[calc.employee_id].payment_method === 'cash' ? (
+                      <div className="text-gray-700">
+                        <p className="font-semibold text-lg">{t('cash')}</p>
+                        <p className="text-sm text-gray-600 mt-1">{t('payment_will_be_made_in_cash')}</p>
+                      </div>
+                    ) : employeePaymentInfo[calc.employee_id].payment_method === 'transfer' || 
+                         employeePaymentInfo[calc.employee_id].payment_method === 'check' ? (
+                      <div className="text-gray-700">
+                        <p className="font-semibold text-lg mb-2">{employeePaymentInfo[calc.employee_id].payment_method === 'transfer' ? t('bank_transfer') : t('check')}</p>
+                        {employeePaymentInfo[calc.employee_id].bank_account_number && (
+                          <p className="text-sm">
+                            <span className="font-semibold">{t('account_number')}:</span>{' '}
+                            {employeePaymentInfo[calc.employee_id].bank_account_number}
+                          </p>
+                        )}
+                        {employeePaymentInfo[calc.employee_id].bank_routing_number && (
+                          <p className="text-sm">
+                            <span className="font-semibold">{t('routing_number')}:</span>{' '}
+                            {employeePaymentInfo[calc.employee_id].bank_routing_number}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-gray-700">
+                        <p className="font-semibold text-lg">{employeePaymentInfo[calc.employee_id].payment_method || t('payment_method')}</p>
+                        {employeePaymentInfo[calc.employee_id].bank_account_number && (
+                          <p className="text-sm">
+                            <span className="font-semibold">{t('account_number')}:</span>{' '}
+                            {employeePaymentInfo[calc.employee_id].bank_account_number}
+                          </p>
+                        )}
+                        {employeePaymentInfo[calc.employee_id].bank_routing_number && (
+                          <p className="text-sm">
+                            <span className="font-semibold">{t('routing_number')}:</span>{' '}
+                            {employeePaymentInfo[calc.employee_id].bank_routing_number}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Sección de Firma Digital */}
                 <div className="mt-6 pt-4 border-t-2 border-gray-300">
                   <div className="bg-blue-50 p-4 rounded-lg">
@@ -1478,7 +1549,7 @@ const PayrollPrintView: React.FC = () => {
                     <p className="font-semibold mb-1">{t('employer')}: {companyName}</p>
                     {businessAddress && <p>{businessAddress}</p>}
                     <p className="mt-2 italic">{t('informational_receipt')}</p>
-                    <p className="text-right mt-2">{t('generated')}: {new Date().toLocaleDateString('es-ES', {
+                    <p className="text-right mt-2">{t('generated')}: {new Date().toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
@@ -1506,7 +1577,7 @@ const PayrollPrintView: React.FC = () => {
             <div className="text-right">
               <p className="text-gray-500">{t('generated_by')}</p>
               <p className="text-gray-500">{t('payroll_id')}: {payroll.id}</p>
-              <p className="text-gray-500">{t('generation_date')}: {new Date().toLocaleDateString('es-ES', { 
+              <p className="text-gray-500">{t('generation_date')}: {new Date().toLocaleDateString('en-US', { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric',

@@ -9,6 +9,7 @@ import { pdfService } from '../../../services/pdf.service';
 import { signaturesService } from '../../../services/signatures.service';
 import { Printer, Eye, FileText, Trash2, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import Modal from '../../../components/Common/Modal';
 
 const PDFGeneration = () => {
   const navigate = useNavigate();
@@ -21,6 +22,9 @@ const PDFGeneration = () => {
   const [selectedPayrollId, setSelectedPayrollId] = useState<string>('');
   const [checkingSignatures, setCheckingSignatures] = useState(false);
   const [hasSignatures, setHasSignatures] = useState<boolean | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [payrollToDelete, setPayrollToDelete] = useState<string | null>(null);
+  const [payrollToDeletePeriod, setPayrollToDeletePeriod] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -161,28 +165,39 @@ const PDFGeneration = () => {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const handleDeletePayroll = async (payrollId: string, period: string) => {
-    const confirmMessage = t('confirm_delete_payroll', { period });
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+  const handleOpenDeleteModal = (payrollId: string, period: string) => {
+    setPayrollToDelete(payrollId);
+    setPayrollToDeletePeriod(period);
+    setShowDeleteModal(true);
+  };
 
-    setDeletingPayrollId(payrollId);
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setPayrollToDelete(null);
+    setPayrollToDeletePeriod('');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!payrollToDelete) return;
+
+    setDeletingPayrollId(payrollToDelete);
     try {
-      await payrollService.deletePayroll(payrollId);
+      await payrollService.deletePayroll(payrollToDelete);
+      
       showToast(t('payroll_deleted_successfully'), 'success');
       
-      // Remover de la lista local
-      setPayrolls(prev => prev.filter(p => p.id !== payrollId));
-      
       // Si la nómina eliminada estaba seleccionada, limpiar la selección
-      if (selectedPayrollId === payrollId) {
+      if (selectedPayrollId === payrollToDelete) {
         setSelectedPayrollId('');
+        setHasSignatures(null);
       }
+      
+      // Recargar la lista completa para asegurar que los cambios se reflejen
+      await loadData();
+      
+      // Cerrar el modal
+      handleCloseDeleteModal();
     } catch (error: any) {
-      console.error('Error eliminando nómina:', error);
-      console.error('Response data:', error.response?.data);
       const errorMessage = formatErrorMessage(error);
       showToast(errorMessage, 'error');
     } finally {
@@ -390,7 +405,12 @@ const PDFGeneration = () => {
                               {t('view_payroll')}
                             </button>
                             <button
-                              onClick={() => handleDeletePayroll(payroll.id, `${payroll.period_start} - ${payroll.period_end}`)}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleOpenDeleteModal(payroll.id, `${payroll.period_start} - ${payroll.period_end}`);
+                              }}
                               disabled={deletingPayrollId === payroll.id}
                               className="text-red-600 hover:text-red-800 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                               title={t('delete_payroll_title')}
@@ -415,6 +435,34 @@ const PDFGeneration = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de confirmación para eliminar nómina */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={handleCloseDeleteModal}
+        title={t('delete_payroll_title')}
+      >
+        <div className="p-4">
+          <p className="text-gray-700 mb-4">
+            {t('confirm_delete_payroll', { period: payrollToDeletePeriod })}
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={handleCloseDeleteModal}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+            >
+              {t('cancel')}
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={deletingPayrollId !== null}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deletingPayrollId ? t('deleting') : t('delete')}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </Layout>
   );
 };

@@ -220,7 +220,7 @@ const SickLeaveManagement = () => {
     const usageDate = currentUsage.usage_date || new Date().toISOString();
     const invoiceId = `sickleave-${slugify(usageDate)}-${slugify(currentUsage.employee_code || 'empleado')}`;
     const documentName = currentUsage.document_name || t('sick_leave_default_document_name', {
-      date: new Date(usageDate).toLocaleDateString('es-ES'),
+      date: new Date(usageDate).toLocaleDateString('en-US'),
     });
     const employeeCode = currentUsage.employee_code || 'Empleado';
 
@@ -478,7 +478,7 @@ const SickLeaveManagement = () => {
                         <div className="flex items-center gap-3 mb-2">
                           <Calendar className="w-4 h-4 text-gray-500" />
                           <p className="text-base font-bold text-gray-900">
-                            {new Date(usage.usage_date).toLocaleDateString('es-ES', {
+                            {new Date(usage.usage_date).toLocaleDateString('en-US', {
                               weekday: 'long',
                               year: 'numeric',
                               month: 'long',
@@ -494,7 +494,7 @@ const SickLeaveManagement = () => {
                           </div>
                         )}
                         <div className="ml-7 text-xs text-gray-500">
-                          <span>{t('created')}: {new Date(usage.created_at).toLocaleDateString('es-ES', {
+                          <span>{t('created')}: {new Date(usage.created_at).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric',

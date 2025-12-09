@@ -16,6 +16,10 @@ export const API_ENDPOINTS = {
   DISABLE_BUSINESS: '/api/business',
   RESET_BUSINESS_PASSWORD: '/api/business',
   DELETE_BUSINESS_COMPLETE: '/api/business',
+  BUSINESS_SEARCH: '/api/business/search',
+  BUSINESS_RECENT_ACTIVITY: '/api/business/recent-activity',
+  BUSINESS_EXPORT: '/api/business/export',
+  BUSINESS_NOTIFICATIONS: '/api/business/notifications',
 
   // Employees
   EMPLOYEES: '/api/employees/',
@@ -95,6 +99,11 @@ export const API_ENDPOINTS = {
   TIP_CREDIT_CALCULATE: '/api/tip-credit/calculate-shortfall',
   TIP_CREDIT_UPDATE: '/api/tip-credit',
   TIP_CREDIT_DELETE: '/api/tip-credit',
+  // Super Admin Tip Credit
+  SUPER_ADMIN_TIP_CREDIT_LIST_ALL: '/api/tip-credit/super-admin/all',
+  SUPER_ADMIN_TIP_CREDIT_CREATE: '/api/tip-credit/super-admin/create',
+  SUPER_ADMIN_TIP_CREDIT_UPDATE: '/api/tip-credit/super-admin',
+  SUPER_ADMIN_TIP_CREDIT_DELETE: '/api/tip-credit/super-admin',
 
   // Meal Benefit Configuration
   MEAL_BENEFIT_CURRENT: '/api/meal-benefit/current',

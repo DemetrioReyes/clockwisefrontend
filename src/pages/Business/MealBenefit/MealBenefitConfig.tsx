@@ -243,11 +243,11 @@ const MealBenefitConfig = () => {
                           <Calendar className="w-4 h-4 mr-1" />
                           <div>
                             <div>
-                              {t('meal_benefit_from')}: {new Date(config.effective_date).toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US')}
+                              {t('meal_benefit_from')}: {new Date(config.effective_date).toLocaleDateString('en-US')}
                             </div>
                             {config.end_date && (
                               <div className="text-xs">
-                                {t('meal_benefit_to')}: {new Date(config.end_date).toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US')}
+                                {t('meal_benefit_to')}: {new Date(config.end_date).toLocaleDateString('en-US')}
                               </div>
                             )}
                           </div>

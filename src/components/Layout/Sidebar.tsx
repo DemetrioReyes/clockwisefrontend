@@ -33,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userType }) => {
     { path: '/super-admin/dashboard', label: t('dashboard'), icon: LayoutDashboard },
     { path: '/super-admin/businesses', label: t('businesses'), icon: Building2 },
     { path: '/super-admin/register-business', label: t('register_business'), icon: UserPlus },
+    { path: '/super-admin/tip-credit', label: 'Tip Credit Config', icon: DollarSign },
   ];
 
   const businessLinks = [
@@ -53,37 +54,83 @@ const Sidebar: React.FC<SidebarProps> = ({ userType }) => {
   const links = userType === 'super_admin' ? superAdminLinks : businessLinks;
 
   return (
-    <div className="w-64 bg-gray-900 text-white min-h-screen fixed left-0 top-0">
-      <div className="p-6">
-        <div className="flex items-center justify-center mb-2">
-          <img 
-            src="/logo.png" 
-            alt="Smart Punch Logo" 
-            className="h-10 w-auto"
-          />
+    <div className="w-64 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white min-h-screen fixed left-0 top-0 shadow-2xl border-r border-gray-700">
+      {/* Header */}
+      <div className="p-6 border-b border-gray-700">
+        <div className="flex items-center justify-center mb-3">
+          <div className="p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl shadow-lg">
+            <img 
+              src="/logo.png" 
+              alt="Smart Punch Logo" 
+              className="h-8 w-auto"
+            />
+          </div>
         </div>
-        <p className="text-sm text-gray-400 mt-1 text-center">
-          {userType === 'super_admin' ? t('super_admin') : t('business_portal')}
-        </p>
+        <div className="text-center">
+          <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+            {userType === 'super_admin' ? 'Super Admin' : 'Business Portal'}
+          </p>
+          <div className="mt-2 h-1 w-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full mx-auto"></div>
+        </div>
       </div>
 
-      <nav className="mt-6">
-        {links.map((link) => {
+      {/* Navigation */}
+      <nav className="mt-4 px-3">
+        {links.map((link, index) => {
           const Icon = link.icon;
+          const active = isActive(link.path);
+          
           return (
             <Link
               key={link.path}
               to={link.path}
-              className={`flex items-center px-6 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors ${
-                isActive(link.path) ? 'bg-gray-800 text-white border-l-4 border-blue-500' : ''
+              className={`group relative flex items-center px-4 py-3 mb-1 rounded-lg transition-all duration-200 ${
+                active
+                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/50'
+                  : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
               }`}
             >
-              <Icon className="w-5 h-5 mr-3" />
-              <span>{link.label}</span>
+              {/* Active indicator */}
+              {active && (
+                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"></div>
+              )}
+              
+              {/* Icon */}
+              <div className={`relative z-10 ${
+                active 
+                  ? 'text-white' 
+                  : 'text-gray-400 group-hover:text-white'
+              }`}>
+                <Icon className={`w-5 h-5 transition-transform duration-200 ${
+                  active ? 'scale-110' : 'group-hover:scale-110'
+                }`} />
+              </div>
+              
+              {/* Label */}
+              <span className={`ml-3 text-sm font-medium transition-all duration-200 ${
+                active ? 'text-white font-semibold' : 'text-gray-300 group-hover:text-white'
+              }`}>
+                {link.label}
+              </span>
+              
+              {/* Hover effect */}
+              {!active && (
+                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-600/0 to-blue-600/0 group-hover:from-purple-600/10 group-hover:to-blue-600/10 transition-all duration-200"></div>
+              )}
             </Link>
           );
         })}
       </nav>
+
+      {/* Footer decoration */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Sistema Activo</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

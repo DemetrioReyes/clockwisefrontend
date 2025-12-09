@@ -44,6 +44,7 @@ export interface Business {
   email: string;
   is_active: boolean;
   created_at: string;
+  employee_count?: number;
 }
 
 export interface BusinessRegisterData {
@@ -483,6 +484,8 @@ export interface SignatureCreate {
 export interface PayRate {
   id: string;
   employee_id: string;
+  employee_code?: string;
+  employee_name?: string;
   tenant_id: string;
   regular_rate: number;
   overtime_rate: number;

@@ -8,8 +8,11 @@ class BusinessService {
     return response.data;
   }
 
-  async listBusinesses(): Promise<Business[]> {
-    const response = await api.get<Business[]>(API_ENDPOINTS.LIST_BUSINESSES);
+  async listBusinesses(active_only?: boolean): Promise<Business[]> {
+    const params = active_only !== undefined ? { active_only } : {};
+    const response = await api.get<Business[]>(API_ENDPOINTS.LIST_BUSINESSES, {
+      params
+    });
     return response.data;
   }
 
@@ -58,6 +61,45 @@ class BusinessService {
       deleted_records: any;
       total_deleted: number;
     }>(`${API_ENDPOINTS.DELETE_BUSINESS_COMPLETE}/${id}/complete`);
+    return response.data;
+  }
+
+  async searchBusinesses(params: {
+    search_term?: string;
+    is_active?: boolean;
+    billing_cycle?: string;
+    created_after?: string;
+    created_before?: string;
+    limit?: number;
+  }): Promise<Business[]> {
+    const response = await api.get<Business[]>(API_ENDPOINTS.BUSINESS_SEARCH, { params });
+    return response.data;
+  }
+
+  async getRecentActivity(limit: number = 10): Promise<{ activities: any[]; total: number }> {
+    const response = await api.get<{ activities: any[]; total: number }>(
+      API_ENDPOINTS.BUSINESS_RECENT_ACTIVITY,
+      { params: { limit } }
+    );
+    return response.data;
+  }
+
+  async exportBusinesses(): Promise<Blob> {
+    const response = await api.get(API_ENDPOINTS.BUSINESS_EXPORT, {
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  async getNotifications(): Promise<{ notifications: any[]; total: number; unread_count: number }> {
+    const response = await api.get<{ notifications: any[]; total: number; unread_count: number }>(
+      API_ENDPOINTS.BUSINESS_NOTIFICATIONS
+    );
+    return response.data;
+  }
+
+  async getActivityDetails(activityId: string): Promise<any> {
+    const response = await api.get<any>(`${API_ENDPOINTS.BUSINESS_BY_ID}/activity/${activityId}`);
     return response.data;
   }
 }

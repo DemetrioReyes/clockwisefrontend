@@ -16,6 +16,7 @@ const SuperAdminLogin = lazy(() => import('./pages/SuperAdmin/Login'));
 const SuperAdminDashboard = lazy(() => import('./pages/SuperAdmin/Dashboard'));
 const RegisterBusiness = lazy(() => import('./pages/SuperAdmin/RegisterBusiness'));
 const BusinessList = lazy(() => import('./pages/SuperAdmin/BusinessList'));
+const TipCreditManagement = lazy(() => import('./pages/SuperAdmin/TipCreditManagement'));
 
 // Business Pages (lazy)
 const BusinessLogin = lazy(() => import('./pages/Business/Login'));
@@ -83,6 +84,14 @@ function App() {
               element={
                 <ProtectedRoute requiredUserType="super_admin">
                   <RegisterBusiness />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/super-admin/tip-credit"
+              element={
+                <ProtectedRoute requiredUserType="super_admin">
+                  <TipCreditManagement />
                 </ProtectedRoute>
               }
             />

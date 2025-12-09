@@ -7,10 +7,15 @@ import { formatErrorMessage } from '../../../services/api';
 import { payratesService } from '../../../services/payrates.service';
 import { PayRate } from '../../../types';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { Trash2 } from 'lucide-react';
+import Modal from '../../../components/Common/Modal';
 
 const PayRatesList = () => {
   const [payRates, setPayRates] = useState<PayRate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingRate, setDeletingRate] = useState<PayRate | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { t, language } = useLanguage();
@@ -38,12 +43,38 @@ const PayRatesList = () => {
   const loadPayRates = async () => {
     setLoading(true);
     try {
-      const data = await payratesService.listAllPayRates(true);
+      const data = await payratesService.listAllPayRates(false); // Mostrar todas, incluyendo inactivas
       setPayRates(data.pay_rates || data);
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenDeleteModal = (rate: PayRate) => {
+    setDeletingRate(rate);
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletingRate(null);
+  };
+
+  const handleDeletePayRate = async () => {
+    if (!deletingRate) return;
+
+    setDeleting(true);
+    try {
+      await payratesService.deletePayRate(deletingRate.id);
+      showToast(t('pay_rate_deleted_successfully') || 'Pay rate deleted successfully', 'success');
+      handleCloseDeleteModal();
+      loadPayRates(); // Recargar la lista
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -99,6 +130,9 @@ const PayRatesList = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t('status_table_payrate')}
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('actions')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -117,7 +151,7 @@ const PayRatesList = () => {
                         {rate.spread_hours_enabled ? t('yes_with_hours', { hours: rate.spread_hours_threshold }) : t('no_label')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(rate.effective_date).toLocaleDateString()}
+                        {new Date(rate.effective_date).toLocaleDateString('en-US')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -128,6 +162,16 @@ const PayRatesList = () => {
                           {rate.is_active ? t('active_status') : t('inactive_status')}
                         </span>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleOpenDeleteModal(rate)}
+                          className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                          title={t('delete_pay_rate') || 'Delete pay rate'}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>{t('delete')}</span>
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -135,6 +179,52 @@ const PayRatesList = () => {
             )}
           </div>
         )}
+
+        {/* Modal de confirmación para eliminar */}
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={handleCloseDeleteModal}
+          title={t('delete_pay_rate') || 'Delete Pay Rate'}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              {t('delete_pay_rate_confirmation') || 'Are you sure you want to delete this pay rate configuration?'}
+            </p>
+            
+            {deletingRate && (
+              <div className="bg-gray-50 p-4 rounded-md">
+                <div className="text-sm">
+                  <p className="font-medium text-gray-900">
+                    {t('employee')}: {deletingRate.employee_name || deletingRate.employee_code}
+                  </p>
+                  <p className="text-gray-600 mt-1">
+                    {t('regular_rate_table')}: {formatCurrency(deletingRate.regular_rate)}/{t('hours_short_label')}
+                  </p>
+                  <p className="text-gray-600">
+                    {t('effective_date_table')}: {new Date(deletingRate.effective_date).toLocaleDateString('en-US')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={handleCloseDeleteModal}
+                disabled={deleting}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={handleDeletePayRate}
+                disabled={deleting}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? (t('deleting') || 'Deleting...') : (t('delete') || 'Delete')}
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );

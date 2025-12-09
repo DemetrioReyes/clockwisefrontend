@@ -8,6 +8,8 @@ import { formatErrorMessage } from '../../../services/api';
 import { deductionsService } from '../../../services/deductions.service';
 import { getEmployees } from '../../../services/employee.service';
 import { Deduction, Employee } from '../../../types';
+import { Edit2, Trash2 } from 'lucide-react';
+import Modal from '../../../components/Common/Modal';
 
 interface DeductionConfig {
   federal_tax: number;
@@ -23,11 +25,25 @@ const DeductionsList = () => {
   const [loading, setLoading] = useState(false);
   const [settingUp, setSettingUp] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingDeduction, setEditingDeduction] = useState<Deduction | null>(null);
+  const [deletingDeduction, setDeletingDeduction] = useState<Deduction | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [deductionConfig, setDeductionConfig] = useState<DeductionConfig>({
     federal_tax: 12,
     state_tax: 5,
     social_security: 6.2,
     medicare: 1.45,
+  });
+  const [editForm, setEditForm] = useState({
+    deduction_name: '',
+    is_percentage: true,
+    deduction_percentage: '',
+    deduction_fixed_amount: '',
+    effective_date: '',
+    end_date: '',
   });
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -62,10 +78,17 @@ const DeductionsList = () => {
     setLoading(true);
     try {
       const data = await deductionsService.getEmployeeDeductions(employeeId);
+      console.log('Deducciones recibidas del backend:', data);
       const deductionsList = Array.isArray(data) ? data : ((data as any)?.deductions || []);
+      console.log('Deducciones procesadas:', deductionsList);
       setDeductions(deductionsList);
+      if (deductionsList.length === 0) {
+        console.warn('No se encontraron deducciones para el empleado:', employeeId);
+      }
     } catch (error: any) {
-      console.log('Error cargando deducciones:', error);
+      console.error('Error cargando deducciones:', error);
+      console.error('Detalles del error:', error.response?.data || error.message);
+      showToast(formatErrorMessage(error), 'error');
       setDeductions([]);
     } finally {
       setLoading(false);
@@ -177,6 +200,106 @@ const DeductionsList = () => {
     return labels[type] || type;
   };
 
+  const handleOpenEditModal = (deduction: Deduction) => {
+    setEditingDeduction(deduction);
+    setEditForm({
+      deduction_name: deduction.deduction_name,
+      is_percentage: deduction.is_percentage,
+      deduction_percentage: deduction.is_percentage 
+        ? (typeof deduction.deduction_percentage === 'number' 
+            ? (deduction.deduction_percentage * 100).toString() 
+            : (parseFloat(deduction.deduction_percentage || '0') * 100).toString())
+        : '',
+      deduction_fixed_amount: !deduction.is_percentage
+        ? (typeof deduction.deduction_fixed_amount === 'number' 
+            ? deduction.deduction_fixed_amount.toString() 
+            : deduction.deduction_fixed_amount || '')
+        : '',
+      effective_date: deduction.effective_date,
+      end_date: deduction.end_date || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setEditingDeduction(null);
+    setEditForm({
+      deduction_name: '',
+      is_percentage: true,
+      deduction_percentage: '',
+      deduction_fixed_amount: '',
+      effective_date: '',
+      end_date: '',
+    });
+  };
+
+  const handleUpdateDeduction = async () => {
+    if (!editingDeduction) return;
+
+    setSaving(true);
+    try {
+      const updateData: any = {
+        deduction_name: editForm.deduction_name,
+        is_percentage: editForm.is_percentage,
+        effective_date: editForm.effective_date,
+      };
+
+      if (editForm.is_percentage) {
+        updateData.deduction_percentage = parseFloat(editForm.deduction_percentage) / 100;
+        updateData.deduction_fixed_amount = null;
+      } else {
+        updateData.deduction_fixed_amount = parseFloat(editForm.deduction_fixed_amount);
+        updateData.deduction_percentage = null;
+      }
+
+      if (editForm.end_date) {
+        updateData.end_date = editForm.end_date;
+      } else {
+        updateData.end_date = null;
+      }
+
+      await deductionsService.updateDeduction(editingDeduction.id, updateData);
+      showToast(t('deduction_updated_successfully') || 'Deduction updated successfully', 'success');
+      handleCloseEditModal();
+      if (selectedEmployee) {
+        loadDeductions(selectedEmployee);
+      }
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOpenDeleteModal = (deduction: Deduction) => {
+    setDeletingDeduction(deduction);
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletingDeduction(null);
+  };
+
+  const handleDeleteDeduction = async () => {
+    if (!deletingDeduction) return;
+
+    setDeleting(true);
+    try {
+      await deductionsService.deleteDeduction(deletingDeduction.id);
+      showToast(t('deduction_deleted_successfully') || 'Deduction deleted successfully', 'success');
+      handleCloseDeleteModal();
+      if (selectedEmployee) {
+        loadDeductions(selectedEmployee);
+      }
+    } catch (error: any) {
+      showToast(formatErrorMessage(error), 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -259,6 +382,9 @@ const DeductionsList = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t('status')}
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('actions')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -280,7 +406,7 @@ const DeductionsList = () => {
                               : parseFloat(deduction.deduction_fixed_amount || '0').toFixed(2)}`}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(deduction.effective_date).toLocaleDateString()}
+                        {new Date(deduction.effective_date).toLocaleDateString('en-US')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -292,6 +418,26 @@ const DeductionsList = () => {
                         >
                           {deduction.is_active ? t('active') : t('inactive')}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleOpenEditModal(deduction)}
+                            className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                            title={t('edit_deduction') || 'Edit deduction'}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                            <span>{t('edit')}</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenDeleteModal(deduction)}
+                            className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                            title={t('delete_deduction') || 'Delete deduction'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span>{t('delete')}</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -449,6 +595,194 @@ const DeductionsList = () => {
             </div>
           </div>
         )}
+
+        {/* Modal de edición */}
+        <Modal
+          isOpen={showEditModal}
+          onClose={handleCloseEditModal}
+          title={t('edit_deduction') || 'Edit Deduction'}
+        >
+          <div className="space-y-4">
+            {editingDeduction && (
+              <>
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">{t('type')}:</span> {getDeductionTypeLabel(editingDeduction.deduction_type)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('name')} *
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.deduction_name}
+                    onChange={(e) => setEditForm({ ...editForm, deduction_name: e.target.value })}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('type_of_deduction') || 'Type of Deduction'}
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        checked={editForm.is_percentage}
+                        onChange={() => setEditForm({ ...editForm, is_percentage: true, deduction_fixed_amount: '' })}
+                        className="mr-2"
+                      />
+                      {t('percentage') || 'Percentage'}
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        checked={!editForm.is_percentage}
+                        onChange={() => setEditForm({ ...editForm, is_percentage: false, deduction_percentage: '' })}
+                        className="mr-2"
+                      />
+                      {t('fixed_amount') || 'Fixed Amount'}
+                    </label>
+                  </div>
+                </div>
+
+                {editForm.is_percentage ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('percentage') || 'Percentage'} (%) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={editForm.deduction_percentage}
+                      onChange={(e) => setEditForm({ ...editForm, deduction_percentage: e.target.value })}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('fixed_amount') || 'Fixed Amount'} ($) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editForm.deduction_fixed_amount}
+                      onChange={(e) => setEditForm({ ...editForm, deduction_fixed_amount: e.target.value })}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      required
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('effective_date_deduction')} *
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.effective_date}
+                    onChange={(e) => setEditForm({ ...editForm, effective_date: e.target.value })}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('end_date') || 'End Date'} ({t('optional') || 'Optional'})
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.end_date}
+                    onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={handleCloseEditModal}
+                    disabled={saving}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button
+                    onClick={handleUpdateDeduction}
+                    disabled={saving}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {saving ? (t('saving') || 'Saving...') : (t('save') || 'Save')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
+
+        {/* Modal de eliminación */}
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={handleCloseDeleteModal}
+          title={t('delete_deduction') || 'Delete Deduction'}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              {t('delete_deduction_confirmation') || 'Are you sure you want to delete this deduction? This action cannot be undone.'}
+            </p>
+            
+            {deletingDeduction && (
+              <div className="bg-gray-50 p-4 rounded-md">
+                <div className="text-sm">
+                  <p className="font-medium text-gray-900">
+                    {t('name')}: {deletingDeduction.deduction_name}
+                  </p>
+                  <p className="text-gray-600 mt-1">
+                    {t('type')}: {getDeductionTypeLabel(deletingDeduction.deduction_type)}
+                  </p>
+                  <p className="text-gray-600">
+                    {t('amount')}: {deletingDeduction.is_percentage
+                      ? `${(typeof deletingDeduction.deduction_percentage === 'number' 
+                          ? deletingDeduction.deduction_percentage * 100 
+                          : parseFloat(deletingDeduction.deduction_percentage || '0') * 100).toFixed(2)}%`
+                      : `$${typeof deletingDeduction.deduction_fixed_amount === 'number' 
+                          ? deletingDeduction.deduction_fixed_amount.toFixed(2) 
+                          : parseFloat(deletingDeduction.deduction_fixed_amount || '0').toFixed(2)}`}
+                  </p>
+                  <p className="text-gray-600">
+                    {t('effective_date_deduction')}: {new Date(deletingDeduction.effective_date).toLocaleDateString('en-US')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={handleCloseDeleteModal}
+                disabled={deleting}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={handleDeleteDeduction}
+                disabled={deleting}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? (t('deleting') || 'Deleting...') : (t('delete') || 'Delete')}
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );

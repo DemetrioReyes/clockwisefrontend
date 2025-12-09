@@ -47,7 +47,7 @@ const Reports: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<ReportTab>('attendance');
   
-  const locale = language === 'es' ? 'es-ES' : 'en-US';
+  // Removed locale variable - all dates now use 'en-US' format (MM/DD/YYYY)
 
   // Attendance Report State
   const [attendanceData, setAttendanceData] = useState<AttendanceReportItem[]>([]);
@@ -318,7 +318,7 @@ const Reports: React.FC = () => {
           const weekStart = new Date(weekKey);
           const weekEnd = new Date(weekStart);
           weekEnd.setDate(weekEnd.getDate() + 6);
-          const weekLabel = `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+          const weekLabel = `${weekStart.toLocaleDateString('en-US')} - ${weekEnd.toLocaleDateString('en-US')}`;
           
           const { totalHours, regularHours, overtimeHours } = calculateHoursFromEntries(weekMap[weekKey]);
           summaryMap[weekKey] = {
@@ -546,16 +546,16 @@ const Reports: React.FC = () => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
     });
   };
 
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString(locale, {
+    return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -1102,7 +1102,7 @@ const Reports: React.FC = () => {
                   const employee = documentsEmployees.find((emp) => emp.id === doc.employee_id);
                   const createdAt = doc.created_at ? new Date(doc.created_at) : null;
                   const formattedDate = createdAt
-                    ? createdAt.toLocaleDateString(locale, {
+                    ? createdAt.toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',

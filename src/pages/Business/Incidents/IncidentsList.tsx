@@ -161,7 +161,7 @@ const IncidentsList = () => {
                         {incident.amount ? `$${incident.amount}` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(incident.incident_date).toLocaleDateString()}
+                        {new Date(incident.incident_date).toLocaleDateString('en-US')}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {incident.description || '-'}

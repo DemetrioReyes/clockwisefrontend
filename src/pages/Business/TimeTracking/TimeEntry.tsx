@@ -9,6 +9,7 @@ import employeeService from '../../../services/employee.service';
 import { TimeEntry as TimeEntryType, Business, TimeSummary, Employee, TimeEntryManualCreate, TimeEntryUpdate, TimeEntryDelete } from '../../../types';
 import { Clock, Camera, Calendar, Users, Edit2, Plus, Trash2 } from 'lucide-react';
 import Modal from '../../../components/Common/Modal';
+import { formatDateTimeUS } from '../../../utils/dateFormat';
 
 const getRecordTypeBadge = (type: string) => {
   const badges: { [key: string]: string } = {
@@ -856,27 +857,14 @@ const TimeEntry: React.FC = () => {
                           try {
                             const date = new Date(dateTime);
                             if (isNaN(date.getTime())) return '-';
-                            return date.toLocaleString('es-ES', {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit'
-                            });
+                            return formatDateTimeUS(date);
                           } catch {
                             return '-';
                           }
                         })()}
                         {entry.old_record_time && (
                           <div className="text-xs text-gray-400 mt-1">
-                            {t('previous') || 'Anterior'}: {new Date(entry.old_record_time).toLocaleString('es-ES', {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
+                            {t('previous') || 'Anterior'}: {formatDateTimeUS(entry.old_record_time)}
                           </div>
                         )}
                       </td>
@@ -1056,14 +1044,7 @@ const TimeEntry: React.FC = () => {
                     try {
                       const date = new Date(dateTime);
                       if (isNaN(date.getTime())) return '-';
-                      return date.toLocaleString('es-ES', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                      });
+                      return formatDateTimeUS(date);
                     } catch {
                       return '-';
                     }
@@ -1152,14 +1133,7 @@ const TimeEntry: React.FC = () => {
                     try {
                       const date = new Date(dateTime);
                       if (isNaN(date.getTime())) return '-';
-                      return date.toLocaleString('es-ES', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                      });
+                      return formatDateTimeUS(date);
                     } catch {
                       return '-';
                     }

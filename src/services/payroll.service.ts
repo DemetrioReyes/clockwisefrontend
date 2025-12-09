@@ -65,7 +65,8 @@ class PayrollService {
    * Eliminar/cancelar nómina
    */
   async deletePayroll(payrollId: string): Promise<void> {
-    await api.delete(`${API_ENDPOINTS.PAYROLL_BY_ID}/${payrollId}`);
+    const response = await api.delete(`${API_ENDPOINTS.PAYROLL_BY_ID}/${payrollId}`);
+    return response.data;
   }
 
   /**
