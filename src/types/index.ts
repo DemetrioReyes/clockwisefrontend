@@ -204,8 +204,14 @@ export interface TimeEntry {
   employee_code?: string;
   position?: string;
   record_type: RecordType;
-  record_time?: string; // Campo del API GET
+  record_time?: string; // Campo del API GET (ISO format)
   timestamp?: string; // Campo del API POST (mantener compatibilidad)
+  // Nuevos campos de fecha formateada del backend
+  record_date?: string; // Fecha separada: "2025-12-09"
+  record_time_only?: string; // Hora separada: "18:43:32"
+  record_datetime?: string; // Formato completo: "2025-12-09 18:43:32" (EXACTO de BD)
+  display_date?: string; // Fecha ya formateada: "December 9, 2025" - USAR ESTE
+  display_time?: string; // Hora ya formateada: "6:43 PM" - USAR ESTE
   face_confidence?: number; // Campo del API GET
   confidence?: number; // Campo del API POST (mantener compatibilidad)
   device_info?: string;

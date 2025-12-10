@@ -11,6 +11,30 @@ import { Clock, Camera, Calendar, Users, Edit2, Plus, Trash2, ArrowRight, CheckC
 import Modal from '../../../components/Common/Modal';
 import { formatDateTimeUS } from '../../../utils/dateFormat';
 
+// Helper para parsear fecha/hora sin problemas de zona horaria
+const parseDateTimeSafe = (dateTimeStr: string | undefined): number | null => {
+  if (!dateTimeStr) return null;
+  
+  // Si viene en formato "2025-12-09 18:43:32" (record_datetime)
+  if (dateTimeStr.includes(' ') && !dateTimeStr.includes('T')) {
+    const [datePart, timePart] = dateTimeStr.split(' ');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hours, minutes, seconds] = (timePart || '00:00:00').split(':').map(Number);
+    return new Date(year, month - 1, day, hours, minutes, seconds || 0).getTime();
+  }
+  
+  // Si viene en formato ISO "2025-12-09T18:43:32"
+  if (dateTimeStr.includes('T')) {
+    const [datePart, timePart] = dateTimeStr.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const timeClean = timePart.split('.')[0].split('+')[0]; // Remover milisegundos y zona horaria
+    const [hours, minutes, seconds] = timeClean.split(':').map(Number);
+    return new Date(year, month - 1, day, hours, minutes, seconds || 0).getTime();
+  }
+  
+  return null;
+};
+
 const getRecordTypeBadge = (type: string) => {
   const badges: { [key: string]: string } = {
     check_in: 'bg-green-100 text-green-800',
@@ -138,6 +162,40 @@ const TimeEntry: React.FC = () => {
         filters.start_date || undefined,
         filters.end_date || undefined
       );
+      
+      // 🔍 CONSOLE LOG PARA DEBUG - Ver qué recibimos del backend
+      console.log('\n' + '='.repeat(80));
+      console.log('📥 DATOS RECIBIDOS DEL BACKEND (loadTimeEntries)');
+      console.log('='.repeat(80));
+      console.log('Total registros recibidos:', Array.isArray(data) ? data.length : 0);
+      
+      if (Array.isArray(data) && data.length > 0) {
+        console.log('\n📋 PRIMER REGISTRO (ejemplo completo):');
+        console.log(JSON.stringify(data[0], null, 2));
+        
+        console.log('\n🔍 CAMPOS DE FECHA DEL PRIMER REGISTRO:');
+        const firstRecord = data[0];
+        console.log('  - record_time:', firstRecord.record_time);
+        console.log('  - record_date:', firstRecord.record_date);
+        console.log('  - record_time_only:', firstRecord.record_time_only);
+        console.log('  - record_datetime:', firstRecord.record_datetime);
+        console.log('  - display_date:', firstRecord.display_date);
+        console.log('  - display_time:', firstRecord.display_time);
+        console.log('  - timestamp:', firstRecord.timestamp);
+        
+        console.log('\n🔍 TODOS LOS REGISTROS (solo campos de fecha):');
+        data.forEach((entry: TimeEntryType, index: number) => {
+          console.log(`\n  Registro ${index + 1} (${entry.record_type}):`);
+          console.log('    record_time:', entry.record_time);
+          console.log('    record_date:', entry.record_date);
+          console.log('    record_time_only:', entry.record_time_only);
+          console.log('    display_date:', entry.display_date);
+          console.log('    display_time:', entry.display_time);
+        });
+      }
+      
+      console.log('='.repeat(80) + '\n');
+      
       setTimeEntries(Array.isArray(data) ? data : []);
     } catch (error: any) {
       console.log('Error al cargar time entries:', error);
@@ -202,11 +260,12 @@ const TimeEntry: React.FC = () => {
       const dayMap: Record<string, { checkIn?: TimeEntryType; checkOut?: TimeEntryType }> = {};
 
       emp.check_ins.forEach((checkIn) => {
-        const date = checkIn.record_time 
-          ? new Date(checkIn.record_time).toISOString().split('T')[0]
+        // ✅ USAR record_date directamente del backend (sin conversiones)
+        const date = checkIn.record_date || (checkIn.record_time 
+          ? checkIn.record_time.split('T')[0]
           : checkIn.timestamp 
-          ? new Date(checkIn.timestamp).toISOString().split('T')[0]
-          : null;
+          ? checkIn.timestamp.split('T')[0]
+          : null);
         
         if (date && !dayMap[date]) {
           dayMap[date] = {};
@@ -217,11 +276,12 @@ const TimeEntry: React.FC = () => {
       });
 
       emp.check_outs.forEach((checkOut) => {
-        const date = checkOut.record_time 
-          ? new Date(checkOut.record_time).toISOString().split('T')[0]
+        // ✅ USAR record_date directamente del backend (sin conversiones)
+        const date = checkOut.record_date || (checkOut.record_time 
+          ? checkOut.record_time.split('T')[0]
           : checkOut.timestamp 
-          ? new Date(checkOut.timestamp).toISOString().split('T')[0]
-          : null;
+          ? checkOut.timestamp.split('T')[0]
+          : null);
         
         if (date && !dayMap[date]) {
           dayMap[date] = {};
@@ -237,35 +297,34 @@ const TimeEntry: React.FC = () => {
 
       Object.entries(dayMap).forEach(([date, day]) => {
         if (day.checkIn && day.checkOut) {
-          const checkInTime = day.checkIn.record_time 
-            ? new Date(day.checkIn.record_time).getTime()
-            : day.checkIn.timestamp 
-            ? new Date(day.checkIn.timestamp).getTime()
-            : null;
+          // ✅ USAR record_datetime primero (formato exacto de BD), luego record_time
+          const checkInTime = parseDateTimeSafe(day.checkIn.record_datetime) 
+            || parseDateTimeSafe(day.checkIn.record_time)
+            || parseDateTimeSafe(day.checkIn.timestamp);
           
-          const checkOutTime = day.checkOut.record_time 
-            ? new Date(day.checkOut.record_time).getTime()
-            : day.checkOut.timestamp 
-            ? new Date(day.checkOut.timestamp).getTime()
-            : null;
+          const checkOutTime = parseDateTimeSafe(day.checkOut.record_datetime)
+            || parseDateTimeSafe(day.checkOut.record_time)
+            || parseDateTimeSafe(day.checkOut.timestamp);
 
           if (checkInTime && checkOutTime) {
             // Encontrar breaks del mismo día
             const dayBreakStarts = emp.break_starts.filter((bs) => {
-              const bsDate = bs.record_time 
-                ? new Date(bs.record_time).toISOString().split('T')[0]
+              // ✅ USAR record_date directamente del backend (sin conversiones)
+              const bsDate = bs.record_date || (bs.record_time 
+                ? bs.record_time.split('T')[0]
                 : bs.timestamp 
-                ? new Date(bs.timestamp).toISOString().split('T')[0]
-                : null;
+                ? bs.timestamp.split('T')[0]
+                : null);
               return bsDate === date;
             });
 
             const dayBreakEnds = emp.break_ends.filter((be) => {
-              const beDate = be.record_time 
-                ? new Date(be.record_time).toISOString().split('T')[0]
+              // ✅ USAR record_date directamente del backend (sin conversiones)
+              const beDate = be.record_date || (be.record_time 
+                ? be.record_time.split('T')[0]
                 : be.timestamp 
-                ? new Date(be.timestamp).toISOString().split('T')[0]
-                : null;
+                ? be.timestamp.split('T')[0]
+                : null);
               return beDate === date;
             });
 
@@ -273,30 +332,22 @@ const TimeEntry: React.FC = () => {
             let breakTime = 0;
             dayBreakStarts.forEach((breakStart) => {
               const breakEnd = dayBreakEnds.find((be) => {
-                const bsTime = breakStart.record_time 
-                  ? new Date(breakStart.record_time).getTime()
-                  : breakStart.timestamp 
-                  ? new Date(breakStart.timestamp).getTime()
-                  : null;
-                const beTime = be.record_time 
-                  ? new Date(be.record_time).getTime()
-                  : be.timestamp 
-                  ? new Date(be.timestamp).getTime()
-                  : null;
+                const bsTime = parseDateTimeSafe(breakStart.record_datetime)
+                  || parseDateTimeSafe(breakStart.record_time)
+                  || parseDateTimeSafe(breakStart.timestamp);
+                const beTime = parseDateTimeSafe(be.record_datetime)
+                  || parseDateTimeSafe(be.record_time)
+                  || parseDateTimeSafe(be.timestamp);
                 return bsTime && beTime && beTime > bsTime;
               });
 
               if (breakEnd) {
-                const bsTime = breakStart.record_time 
-                  ? new Date(breakStart.record_time).getTime()
-                  : breakStart.timestamp 
-                  ? new Date(breakStart.timestamp).getTime()
-                  : null;
-                const beTime = breakEnd.record_time 
-                  ? new Date(breakEnd.record_time).getTime()
-                  : breakEnd.timestamp 
-                  ? new Date(breakEnd.timestamp).getTime()
-                  : null;
+                const bsTime = parseDateTimeSafe(breakStart.record_datetime)
+                  || parseDateTimeSafe(breakStart.record_time)
+                  || parseDateTimeSafe(breakStart.timestamp);
+                const beTime = parseDateTimeSafe(breakEnd.record_datetime)
+                  || parseDateTimeSafe(breakEnd.record_time)
+                  || parseDateTimeSafe(breakEnd.timestamp);
                 
                 if (bsTime && beTime) {
                   breakTime += (beTime - bsTime) / (1000 * 60 * 60);
@@ -312,14 +363,24 @@ const TimeEntry: React.FC = () => {
               dailyHours[date] = hours;
               totalHours += hours;
 
-              // Calcular semana (lunes a domingo)
-              const checkInDate = new Date(checkInTime);
-              const dayOfWeek = checkInDate.getDay(); // 0 = domingo, 1 = lunes, etc.
+              // Calcular semana (lunes a domingo) usando la fecha del registro directamente
+              const checkInDateObj = new Date(checkInTime);
+              const dayOfWeek = checkInDateObj.getDay(); // 0 = domingo, 1 = lunes, etc.
               const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convertir domingo a 6
-              const monday = new Date(checkInDate);
-              monday.setDate(checkInDate.getDate() - daysSinceMonday);
+              const monday = new Date(checkInDateObj);
+              monday.setDate(checkInDateObj.getDate() - daysSinceMonday);
               monday.setHours(0, 0, 0, 0);
-              const weekKey = monday.toISOString().split('T')[0];
+              // Usar record_date del checkIn si está disponible para el weekKey
+              const weekKey = day.checkIn.record_date 
+                ? (() => {
+                    const [year, month, dayNum] = day.checkIn.record_date.split('-').map(Number);
+                    const checkInDateLocal = new Date(year, month - 1, dayNum);
+                    const dayOfWeekLocal = checkInDateLocal.getDay();
+                    const daysSinceMondayLocal = dayOfWeekLocal === 0 ? 6 : dayOfWeekLocal - 1;
+                    const mondayLocal = new Date(year, month - 1, dayNum - daysSinceMondayLocal);
+                    return `${mondayLocal.getFullYear()}-${String(mondayLocal.getMonth() + 1).padStart(2, '0')}-${String(mondayLocal.getDate()).padStart(2, '0')}`;
+                  })()
+                : monday.toISOString().split('T')[0];
 
               if (!weeklyHours[weekKey]) {
                 weeklyHours[weekKey] = 0;
@@ -580,9 +641,13 @@ const TimeEntry: React.FC = () => {
     if (timeEntries.length > 0 && Object.keys(expandedEmployees).length === 0) {
       const firstEntry = timeEntries[0];
       const employeeKey = `${firstEntry.employee_id}_${firstEntry.employee_name}`;
-      const dateTime = firstEntry.record_time || firstEntry.timestamp;
-      if (dateTime) {
-        const date = new Date(dateTime).toISOString().split('T')[0];
+      // ✅ USAR record_date directamente del backend (sin conversiones)
+      const date = firstEntry.record_date || (() => {
+        const dateTime = firstEntry.record_time || firstEntry.timestamp;
+        if (!dateTime) return null;
+        return dateTime.split('T')[0] || dateTime.split(' ')[0];
+      })();
+      if (date) {
         const dayKey = `${employeeKey}_${date}`;
         setExpandedEmployees({ [employeeKey]: true });
         setExpandedDays({ [dayKey]: true });
@@ -598,10 +663,13 @@ const TimeEntry: React.FC = () => {
     }
     
     return timeEntries.filter(entry => {
-      const dateTime = entry.record_time || entry.timestamp;
-      if (!dateTime) return false;
-      
-      const entryDate = new Date(dateTime).toISOString().split('T')[0];
+      // ✅ USAR record_date directamente del backend (sin conversiones)
+      const entryDate = entry.record_date || (() => {
+        const dateTime = entry.record_time || entry.timestamp;
+        if (!dateTime) return null;
+        return dateTime.split('T')[0] || dateTime.split(' ')[0];
+      })();
+      if (!entryDate) return false;
       
       if (dateFilter.start_date && entryDate < dateFilter.start_date) {
         return false;
@@ -957,10 +1025,15 @@ const TimeEntry: React.FC = () => {
                 
                 filteredEntries.forEach((entry) => {
                   const employeeKey = `${entry.employee_id}_${entry.employee_name}`;
-                  const dateTime = entry.record_time || entry.timestamp;
-                  if (!dateTime) return;
-                  
-                  const date = new Date(dateTime).toISOString().split('T')[0];
+                  // ✅ USAR record_date directamente del backend (sin conversiones)
+                  const date = entry.record_date || (() => {
+                    // Fallback solo si no existe record_date
+                    const dateTime = entry.record_time || entry.timestamp;
+                    if (!dateTime) return null;
+                    // Extraer fecha directamente del string sin usar new Date()
+                    return dateTime.split('T')[0] || dateTime.split(' ')[0];
+                  })();
+                  if (!date) return;
                   
                   if (!groupedEntries[employeeKey]) {
                     groupedEntries[employeeKey] = {};
@@ -975,8 +1048,14 @@ const TimeEntry: React.FC = () => {
                 Object.keys(groupedEntries).forEach((employeeKey) => {
                   Object.keys(groupedEntries[employeeKey]).forEach((date) => {
                     groupedEntries[employeeKey][date].sort((a, b) => {
-                      const timeA = new Date(a.record_time || a.timestamp || 0).getTime();
-                      const timeB = new Date(b.record_time || b.timestamp || 0).getTime();
+                      const timeA = parseDateTimeSafe(a.record_datetime)
+                        || parseDateTimeSafe(a.record_time)
+                        || parseDateTimeSafe(a.timestamp)
+                        || 0;
+                      const timeB = parseDateTimeSafe(b.record_datetime)
+                        || parseDateTimeSafe(b.record_time)
+                        || parseDateTimeSafe(b.timestamp)
+                        || 0;
                       return timeA - timeB;
                     });
                   });
@@ -1034,13 +1113,25 @@ const TimeEntry: React.FC = () => {
                                 .map(([date, entries]) => {
                                   const dayKey = `${employeeKey}_${date}`;
                                   const isDayExpanded = expandedDays[dayKey] ?? false;
-                                  const dateObj = new Date(date);
-                                  const formattedDate = dateObj.toLocaleDateString('en-US', { 
-                                    weekday: 'long', 
-                                    year: 'numeric', 
-                                    month: 'long', 
-                                    day: 'numeric' 
-                                  });
+                                  // 🔍 CONSOLE LOG PARA DEBUG
+                                  const firstEntry = entries[0];
+                                  if (firstEntry) {
+                                    console.log('\n📅 FORMATEANDO FECHA DEL DÍA:');
+                                    console.log('  date (string):', date);
+                                    console.log('  entry.display_date:', firstEntry.display_date);
+                                    console.log('  entry.record_date:', firstEntry.record_date);
+                                  }
+                                  
+                                  // ✅ SOLUCIÓN: Usar display_date directamente del backend (sin conversiones)
+                                  // Si no está disponible, formatear desde record_date (que ya es la fecha correcta)
+                                  const formattedDate = entries[0]?.display_date || (() => {
+                                    // Parsear record_date directamente (formato: "2025-12-09")
+                                    const [year, month, day] = date.split('-').map(Number);
+                                    const dateObj = new Date(year, month - 1, day); // Crear fecha local sin conversión de zona horaria
+                                    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                                    return `${weekdays[dateObj.getDay()]}, ${months[dateObj.getMonth()]} ${dateObj.getDate()}, ${dateObj.getFullYear()}`;
+                                  })();
 
                                   // Encontrar pares de registros relacionados
                                   const checkIn = entries.find(e => e.record_type === 'check_in');
@@ -1071,10 +1162,22 @@ const TimeEntry: React.FC = () => {
                                           {checkIn && checkOut && (
                                             <div className="hidden md:flex items-center gap-2 text-xs text-gray-600">
                                               <CheckCircle2 className="w-3 h-3 text-green-600" />
-                                              <span>{new Date(checkIn.record_time || checkIn.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                              <span>
+                                                {checkIn.display_time || (checkIn.record_time_only ? (() => {
+                                                  const [h, m] = checkIn.record_time_only.split(':');
+                                                  const h12 = parseInt(h) % 12 || 12;
+                                                  return `${h12}:${m} ${parseInt(h) >= 12 ? 'PM' : 'AM'}`;
+                                                })() : '-')}
+                                              </span>
                                               <ArrowRight className="w-3 h-3" />
                                               <XCircle className="w-3 h-3 text-red-600" />
-                                              <span>{new Date(checkOut.record_time || checkOut.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                              <span>
+                                                {checkOut.display_time || (checkOut.record_time_only ? (() => {
+                                                  const [h, m] = checkOut.record_time_only.split(':');
+                                                  const h12 = parseInt(h) % 12 || 12;
+                                                  return `${h12}:${m} ${parseInt(h) >= 12 ? 'PM' : 'AM'}`;
+                                                })() : '-')}
+                                              </span>
                                             </div>
                                           )}
                                           {isDayExpanded ? (
@@ -1095,11 +1198,56 @@ const TimeEntry: React.FC = () => {
                                       <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-400 via-purple-400 to-green-400"></div>
 
                                       {entries.map((entry, index) => {
-                                        const dateTime = entry.record_time || entry.timestamp;
-                                        const time = dateTime ? new Date(dateTime).toLocaleTimeString('en-US', { 
-                                          hour: '2-digit', 
-                                          minute: '2-digit' 
-                                        }) : '-';
+                                        // 🔍 CONSOLE LOG PARA DEBUG - Ver qué estamos usando para mostrar
+                                        if (index === 0) {
+                                          console.log('\n' + '='.repeat(80));
+                                          console.log('🎨 RENDERIZANDO REGISTRO - Campos disponibles:');
+                                          console.log('='.repeat(80));
+                                          console.log('  entry.record_time:', entry.record_time);
+                                          console.log('  entry.record_date:', entry.record_date);
+                                          console.log('  entry.record_time_only:', entry.record_time_only);
+                                          console.log('  entry.display_date:', entry.display_date);
+                                          console.log('  entry.display_time:', entry.display_time);
+                                          console.log('  entry.timestamp:', entry.timestamp);
+                                          
+                                          const dateTime = entry.record_time || entry.timestamp;
+                                          console.log('\n  🔄 CONVERSIÓN ACTUAL:');
+                                          console.log('    dateTime usado:', dateTime);
+                                          if (dateTime) {
+                                            const dateObj = new Date(dateTime);
+                                            console.log('    new Date(dateTime):', dateObj);
+                                            console.log('    toISOString():', dateObj.toISOString());
+                                            console.log('    toLocaleTimeString():', dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+                                            console.log('    toLocaleDateString():', dateObj.toLocaleDateString('en-US'));
+                                          }
+                                          console.log('='.repeat(80) + '\n');
+                                        }
+                                        
+                                        // ✅ SOLUCIÓN: Usar display_time directamente del backend (sin conversiones)
+                                        // Si no está disponible, formatear desde record_time_only manualmente
+                                        const time = entry.display_time || (() => {
+                                          if (entry.record_time_only) {
+                                            // Formatear desde record_time_only (formato: "18:43:32")
+                                            const [hours, minutes] = entry.record_time_only.split(':');
+                                            const hour12 = parseInt(hours) % 12 || 12;
+                                            const ampm = parseInt(hours) >= 12 ? 'PM' : 'AM';
+                                            return `${hour12}:${minutes} ${ampm}`;
+                                          }
+                                          // Fallback solo si no hay nada
+                                          const dateTime = entry.record_time || entry.timestamp;
+                                          if (!dateTime) return '-';
+                                          // Extraer hora directamente del string sin usar new Date()
+                                          const timePart = dateTime.includes('T') 
+                                            ? dateTime.split('T')[1]?.split('.')[0]?.split('+')[0]
+                                            : dateTime.split(' ')[1]?.split('.')[0];
+                                          if (timePart) {
+                                            const [h, m] = timePart.split(':');
+                                            const h12 = parseInt(h) % 12 || 12;
+                                            const ap = parseInt(h) >= 12 ? 'PM' : 'AM';
+                                            return `${h12}:${m} ${ap}`;
+                                          }
+                                          return '-';
+                                        })();
                                         
                                         const isCheckIn = entry.record_type === 'check_in';
                                         const isCheckOut = entry.record_type === 'check_out';
@@ -1211,7 +1359,11 @@ const TimeEntry: React.FC = () => {
                                                   <CheckCircle2 className="w-4 h-4 text-green-600" />
                                                   <span className="text-gray-700 font-medium">{t('check_in')}:</span>
                                                   <span className="text-gray-900 font-semibold">
-                                                    {new Date(checkIn.record_time || checkIn.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                    {checkIn.display_time || (checkIn.record_time_only ? (() => {
+                                                      const [h, m] = checkIn.record_time_only.split(':');
+                                                      const h12 = parseInt(h) % 12 || 12;
+                                                      return `${h12}:${m} ${parseInt(h) >= 12 ? 'PM' : 'AM'}`;
+                                                    })() : '-')}
                                                   </span>
                                                 </div>
                                                 <ArrowRight className="w-4 h-4 text-gray-400" />
@@ -1219,7 +1371,11 @@ const TimeEntry: React.FC = () => {
                                                   <XCircle className="w-4 h-4 text-red-600" />
                                                   <span className="text-gray-700 font-medium">{t('check_out')}:</span>
                                                   <span className="text-gray-900 font-semibold">
-                                                    {new Date(checkOut.record_time || checkOut.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                    {checkOut.display_time || (checkOut.record_time_only ? (() => {
+                                                      const [h, m] = checkOut.record_time_only.split(':');
+                                                      const h12 = parseInt(h) % 12 || 12;
+                                                      return `${h12}:${m} ${parseInt(h) >= 12 ? 'PM' : 'AM'}`;
+                                                    })() : '-')}
                                                   </span>
                                                 </div>
                                               </div>
