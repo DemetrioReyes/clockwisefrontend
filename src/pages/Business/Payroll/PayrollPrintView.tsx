@@ -203,9 +203,14 @@ const PayrollPrintView: React.FC = () => {
                       <span className="font-semibold">${calc.overtime_pay}</span>
                     </div>
                   )}
-                  {parseFloat(calc.spread_hours_pay) > 0 && (
+                  {parseFloat(calc.spread_hours_pay || 0) > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-700">Spread Hours Pay</span>
+                      <span className="text-gray-700">
+                        Spread of Hours
+                        {calc.spread_hours_hours && calc.spread_hours_rate 
+                          ? ` (${calc.spread_hours_hours}h × $${calc.spread_hours_rate})`
+                          : ''}
+                      </span>
                       <span className="font-semibold">${calc.spread_hours_pay}</span>
                     </div>
                   )}
