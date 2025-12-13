@@ -44,6 +44,7 @@ export interface Business {
   email: string;
   is_active: boolean;
   created_at: string;
+  employee_count?: number;
 }
 
 export interface BusinessRegisterData {
@@ -97,6 +98,7 @@ export interface Employee {
   tip_credit_cash_wage?: number;
   tip_credit_amount?: number;
   state_minimum_wage?: number;
+  receives_meal_benefit?: boolean;
   face_image_path?: string;
   is_active: boolean;
   created_at: string;
@@ -126,7 +128,10 @@ export interface EmployeeRegisterData {
   bank_routing_number?: string;
   bank_account_type?: BankAccountType;
   state_minimum_wage?: number;
+  receives_meal_benefit?: boolean;
   face_image?: File;
+  face_image_2?: File;
+  face_image_3?: File;
 }
 
 // Deduction Types
@@ -159,7 +164,7 @@ export interface DeductionCreate {
 }
 
 // Incident Types
-export type IncidentType = 'bonus' | 'penalty' | 'tips_reported' | 'warning' | 'advance' | 'other';
+export type IncidentType = 'bonus' | 'penalty' | 'tips_reported' | 'warning' | 'advance' | 'other' | 'food_gift';
 
 export interface Incident {
   id: string;
@@ -197,11 +202,29 @@ export interface TimeEntry {
   employee_id: string;
   employee_name?: string;
   employee_code?: string;
+  position?: string;
   record_type: RecordType;
-  timestamp: string;
-  confidence?: number;
+  record_time?: string; // Campo del API GET (ISO format)
+  timestamp?: string; // Campo del API POST (mantener compatibilidad)
+  // Nuevos campos de fecha formateada del backend
+  record_date?: string; // Fecha separada: "2025-12-09"
+  record_time_only?: string; // Hora separada: "18:43:32"
+  record_datetime?: string; // Formato completo: "2025-12-09 18:43:32" (EXACTO de BD)
+  display_date?: string; // Fecha ya formateada: "December 9, 2025" - USAR ESTE
+  display_time?: string; // Hora ya formateada: "6:43 PM" - USAR ESTE
+  face_confidence?: number; // Campo del API GET
+  confidence?: number; // Campo del API POST (mantener compatibilidad)
   device_info?: string;
-  created_at: string;
+  created_at?: string;
+  // Campos de sesión y corrección
+  session_status?: 'active_session' | 'needs_correction' | 'closed';
+  needs_correction?: boolean;
+  hours_since_checkin?: number | null;
+  message?: string | null;
+  is_manual_correction?: boolean;
+  correction_notes?: string;
+  corrected_by?: string;
+  old_record_time?: string;
 }
 
 export interface TimeEntryCreate {
@@ -209,6 +232,22 @@ export interface TimeEntryCreate {
   tenant_id: string;
   record_type: RecordType;
   device_info?: string;
+}
+
+export interface TimeEntryManualCreate {
+  employee_id: string;
+  record_type: RecordType;
+  record_time: string; // ISO 8601 format: YYYY-MM-DDTHH:MM:SS
+  notes?: string;
+}
+
+export interface TimeEntryUpdate {
+  new_record_time: string; // ISO 8601 format: YYYY-MM-DDTHH:MM:SS
+  notes?: string;
+}
+
+export interface TimeEntryDelete {
+  notes?: string;
 }
 
 // Payroll Types
@@ -239,6 +278,9 @@ export interface PayrollCalculation {
   total_bonus: string;
   total_penalty: string;
   other_income: string;
+  food_gift_credit?: string;
+  paid_sick_leave_hours?: string;
+  paid_sick_leave_amount?: string;
   adjusted_gross_pay: string;
   federal_tax: string;
   state_tax: string;
@@ -266,9 +308,13 @@ export interface PayrollResponse {
     created_at: string;
     updated_at: string;
     description: string | null;
+    total_food_gift_credit?: string;
+    total_paid_sick_leave_hours?: string;
+    total_paid_sick_leave_amount?: string;
   };
   calculations: PayrollCalculation[];
   time_summaries: TimeSummary[];
+  sick_leave_payments?: SickLeavePayment[];
 }
 
 export interface TimeSummary {
@@ -306,6 +352,9 @@ export interface PayrollListItem {
   created_at: string;
   updated_at: string;
   description: string | null;
+  total_food_gift_credit?: string;
+  total_paid_sick_leave_hours?: string;
+  total_paid_sick_leave_amount?: string;
 }
 
 export interface PayrollListResponse {
@@ -335,6 +384,65 @@ export interface PDFResponse {
   pdf_path: string;
 }
 
+export interface UploadSignedPayrollPayload {
+  payroll_id: string;
+  employee_id: string;
+  invoice_id: string;
+  file: File;
+}
+
+export interface UploadSignedPayrollResponse {
+  id?: string;
+  payroll_id?: string;
+  employee_id?: string;
+  invoice_id?: string;
+  pdf_filename?: string;
+  signed_pdf_filename?: string;
+  signed_pdf_url?: string;
+  message?: string;
+  [key: string]: any;
+}
+
+export interface PayrollDocument {
+  id?: string;
+  payroll_id?: string;
+  employee_id?: string;
+  employee_code?: string;
+  employee_name?: string;
+  invoice_id?: string;
+  document_name?: string;
+  pdf_filename?: string;
+  download_url?: string;
+  created_at?: string;
+  uploaded_at?: string;
+  signed_at?: string;
+  uploaded_by?: string;
+  period_start?: string;
+  period_end?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface PayrollDocumentFilters {
+  employee_id?: string;
+  payroll_id?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+}
+
+export interface SickLeavePayment {
+  id?: string;
+  employee_id: string;
+  employee_code?: string;
+  employee_name?: string;
+  usage_id?: string;
+  usage_date?: string;
+  hours_paid?: string | number;
+  amount_paid?: string | number;
+  paid_at?: string;
+  note?: string;
+}
+
 // Digital Signature Types
 export type SignatureType = 'drawn' | 'typed' | 'digital' | 'biometric';
 
@@ -344,6 +452,10 @@ export interface SignatureMetadata {
   user_agent?: string;
   signed_location?: string;
   timestamp?: string;
+  payroll_id?: string;
+  invoice_id?: string;
+  employee_id?: string;
+  tenant_id?: string;
   geolocation?: {
     latitude: number;
     longitude: number;
@@ -360,6 +472,8 @@ export interface DigitalSignature {
   signature_metadata?: SignatureMetadata;
   signed_at: string;
   is_valid: boolean;
+  payroll_id?: string;
+  invoice_id?: string;
   invalidated_at?: string;
   invalidated_by?: string;
   invalidation_reason?: string;
@@ -376,6 +490,8 @@ export interface SignatureCreate {
 export interface PayRate {
   id: string;
   employee_id: string;
+  employee_code?: string;
+  employee_name?: string;
   tenant_id: string;
   regular_rate: number;
   overtime_rate: number;
@@ -442,6 +558,44 @@ export interface SickLeaveUsageCreate {
   requires_approval?: boolean;
 }
 
+export interface UploadSickLeaveDocumentPayload {
+  sick_leave_usage_id: string;
+  employee_id: string;
+  document_name: string;
+  file: File;
+}
+
+export interface UploadSickLeaveDocumentResponse {
+  id?: string;
+  sick_leave_usage_id?: string;
+  employee_id?: string;
+  document_name?: string;
+  document_filename?: string;
+  document_url?: string;
+  message?: string;
+  [key: string]: any;
+}
+
+export interface SickLeaveDocument {
+  id: string;
+  sick_leave_usage_id: string;
+  employee_id: string;
+  employee_code?: string;
+  document_name: string;
+  document_filename?: string;
+  document_url?: string;
+  created_at: string;
+  uploaded_by?: string;
+}
+
+export interface SickLeaveDocumentFilters {
+  employee_id?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+  page?: number;
+}
+
 // Report Types
 export interface AttendanceReport {
   employee_id: string;
@@ -462,6 +616,9 @@ export interface PayrollReport {
   total_gross_pay: number;
   total_deductions: number;
   total_net_pay: number;
+  total_food_gift_credit?: number;
+  total_paid_sick_leave_hours?: number;
+  total_paid_sick_leave_amount?: number;
   tip_credit_summary?: {
     total_tips_required: number;
     total_tips_reported: number;
@@ -481,13 +638,17 @@ export interface SickLeaveReport {
 export interface BreakComplianceAlert {
   id: string;
   employee_id: string;
+  employee_code?: string;
   employee_name: string;
-  date: string;
-  hours_worked: number;
-  break_taken: boolean;
-  break_duration_minutes?: number;
+  tenant_id?: string;
+  violation_date: string;
+  deficit_minutes: number;
+  severity: 'high' | 'medium' | 'low';
   status: 'pending' | 'resolved';
-  resolution_notes?: string;
+  resolved_by?: string | null;
+  resolution_notes?: string | null;
+  resolved_at?: string | null;
+  created_at: string;
 }
 
 export interface BreakComplianceResponse {
@@ -592,6 +753,49 @@ export interface TipCreditShortfall {
   tips_reported: number;
   shortfall: number;
   config_used: TipCreditConfig;
+}
+
+// Meal Benefit Types
+export interface MealBenefitConfig {
+  id: string;
+  tenant_id?: string;
+  config_name: string;
+  employee_type: EmployeeType;
+  min_hours_threshold: number;
+  credit_amount: number;
+  effective_date: string;
+  end_date?: string;
+  is_active: boolean;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MealBenefitConfigCreate {
+  config_name: string;
+  employee_type: EmployeeType;
+  min_hours_threshold: number;
+  credit_amount: number;
+  effective_date: string;
+  end_date?: string;
+  notes?: string;
+}
+
+export interface MealBenefitConfigUpdate {
+  config_name?: string;
+  min_hours_threshold?: number;
+  credit_amount?: number;
+  effective_date?: string;
+  end_date?: string;
+  is_active?: boolean;
+  notes?: string;
+}
+
+export interface MealBenefitConfigResponse {
+  config: MealBenefitConfig;
+  is_global: boolean;
+  source: string;
 }
 
 // UI State Types

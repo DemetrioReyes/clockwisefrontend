@@ -1,6 +1,6 @@
 import api from './api';
 import { API_ENDPOINTS } from '../config/api';
-import { AttendanceReport, PayrollReport, SickLeaveReport, BreakComplianceAlert, QuickStats } from '../types';
+import { AttendanceReport, PayrollReport, SickLeaveReport, QuickStats } from '../types';
 
 export const reportsService = {
   getAttendanceReport: async (
@@ -30,10 +30,18 @@ export const reportsService = {
   },
 
   getSickLeaveReport: async (year: number, employeeId?: string): Promise<SickLeaveReport[]> => {
-    const response = await api.post(API_ENDPOINTS.SICK_LEAVE_REPORT, {
-      year,
-      employee_id: employeeId,
-    });
+    // Asegurar que el año sea un número válido
+    const validYear = year && !isNaN(year) && year > 0 ? year : new Date().getFullYear();
+    
+    const requestBody: any = {
+      year: validYear,
+    };
+    
+    if (employeeId) {
+      requestBody.employee_id = employeeId;
+    }
+    
+    const response = await api.post(API_ENDPOINTS.SICK_LEAVE_REPORT, requestBody);
     return response.data;
   },
 
@@ -60,6 +68,13 @@ export const reportsService = {
     if (status) params.status = status;
 
     const response = await api.get(API_ENDPOINTS.BREAK_COMPLIANCE_ALERTS, { params });
+    return response.data;
+  },
+
+  resolveBreakComplianceAlert: async (alertId: string, resolutionNotes: string): Promise<any> => {
+    const response = await api.post(`${API_ENDPOINTS.BREAK_COMPLIANCE_ALERT_RESOLVE}/${alertId}/resolve`, {
+      resolution_notes: resolutionNotes,
+    });
     return response.data;
   },
 

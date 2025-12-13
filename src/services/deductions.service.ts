@@ -14,6 +14,15 @@ export const deductionsService = {
     return response.data;
   },
 
+  updateDeduction: async (deductionId: string, data: Partial<DeductionCreate>): Promise<Deduction> => {
+    const response = await api.put(`${API_ENDPOINTS.EMPLOYEE_DEDUCTIONS}/${deductionId}`, data);
+    return response.data;
+  },
+
+  deleteDeduction: async (deductionId: string): Promise<void> => {
+    await api.delete(`${API_ENDPOINTS.EMPLOYEE_DEDUCTIONS}/${deductionId}`);
+  },
+
   setupStandardDeductions: async (employeeId: string, effectiveDate: string): Promise<Deduction[]> => {
     const response = await api.post(API_ENDPOINTS.SETUP_STANDARD_DEDUCTIONS, {
       employee_id: employeeId,

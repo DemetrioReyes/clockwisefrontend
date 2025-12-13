@@ -3,9 +3,17 @@ import { API_BASE_URL } from '../config/api';
 
 // Helper function to format API error messages
 export const formatErrorMessage = (error: any): string => {
-  // Handle network errors
+  // Handle network errors (CORS, timeout, etc.)
   if (!error.response) {
+    if (error.code === 'ERR_NETWORK' || error.message.includes('CORS')) {
+      return 'Error de conexión: El servidor no está respondiendo o hay un problema de CORS. Verifica que el backend esté funcionando.';
+    }
     return error.message || 'Error de conexión con el servidor';
+  }
+  
+  // Handle 502 Bad Gateway
+  if (error.response.status === 502) {
+    return 'Error 502: El servidor backend no está disponible. Por favor, contacta al administrador.';
   }
 
   // Handle errors without data
@@ -71,6 +79,13 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Si es FormData, dejar que axios establezca el Content-Type automáticamente con boundary
+    // Si ya está establecido como 'multipart/form-data', axios lo sobrescribirá con el boundary correcto
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers['Content-Type'];
+    }
+    
     return config;
   },
   (error: AxiosError) => {

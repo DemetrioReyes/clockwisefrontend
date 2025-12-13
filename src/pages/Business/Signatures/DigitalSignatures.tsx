@@ -5,6 +5,7 @@ import { useToast } from '../../../components/Common/Toast';
 import { formatErrorMessage } from '../../../services/api';
 import { signaturesService } from '../../../services/signatures.service';
 import { pdfService } from '../../../services/pdf.service';
+import payrollService from '../../../services/payroll.service';
 import SignatureCanvas from 'react-signature-canvas';
 
 const DigitalSignatures = () => {
@@ -15,21 +16,68 @@ const DigitalSignatures = () => {
   const sigPadRef = useRef<any>(null);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    loadPDFHistory();
-  }, []);
-
   const loadPDFHistory = async () => {
     setLoading(true);
     try {
-      const data = await pdfService.getPDFHistory(undefined, undefined, 20);
-      setPdfHistory(data);
+      // Primero obtener todas las nóminas con status "approved"
+      const payrollsResponse = await payrollService.listPayrolls('approved', 100);
+      
+      // Extraer el array de nóminas de la respuesta
+      let approvedPayrolls: any[] = [];
+      if (Array.isArray(payrollsResponse)) {
+        approvedPayrolls = payrollsResponse;
+      } else if (payrollsResponse && typeof payrollsResponse === 'object') {
+        approvedPayrolls = payrollsResponse.payrolls || payrollsResponse.data || payrollsResponse.results || [];
+      }
+
+      if (approvedPayrolls.length === 0) {
+        setPdfHistory([]);
+        setLoading(false);
+        return;
+      }
+
+      // Obtener todos los PDFs de las nóminas aprobadas
+      const allPDFs: any[] = [];
+      
+      for (const payroll of approvedPayrolls) {
+        try {
+          const pdfData = await pdfService.getPDFHistory(undefined, payroll.id, 100);
+          let pdfArray: any[] = [];
+          if (Array.isArray(pdfData)) {
+            pdfArray = pdfData;
+          } else if (pdfData && typeof pdfData === 'object') {
+            const pdfObj = pdfData as any;
+            pdfArray = pdfObj.items || pdfObj.data || pdfObj.results || [];
+          }
+          
+          // Agregar información de la nómina a cada PDF
+          const pdfsWithPayrollInfo = pdfArray.map((pdf: any) => ({
+            ...pdf,
+            payroll_id: payroll.id,
+            payroll_period: `${payroll.period_start} - ${payroll.period_end}`,
+            payroll_status: payroll.status,
+          }));
+          
+          allPDFs.push(...pdfsWithPayrollInfo);
+        } catch (error) {
+          // Si hay error al obtener PDFs de una nómina, continuar con la siguiente
+          console.error(`Error obteniendo PDFs para nómina ${payroll.id}:`, error);
+        }
+      }
+
+      setPdfHistory(allPDFs);
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
+      setPdfHistory([]); // Asegurar que siempre sea un array incluso en error
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadPDFHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const clearSignature = () => {
     sigPadRef.current?.clear();
@@ -94,10 +142,10 @@ const DigitalSignatures = () => {
                 onChange={(e) => setSelectedPDF(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
-                <option value="">Seleccione un PDF</option>
+                <option value="">Seleccione un PDF para firmar</option>
                 {pdfHistory.map((pdf) => (
-                  <option key={pdf.id} value={pdf.pdf_filename}>
-                    {pdf.pdf_filename}
+                  <option key={pdf.id || pdf.pdf_filename} value={pdf.pdf_filename}>
+                    {pdf.pdf_filename} {pdf.payroll_period ? `(${pdf.payroll_period})` : ''}
                   </option>
                 ))}
               </select>
@@ -139,27 +187,43 @@ const DigitalSignatures = () => {
         </div>
 
         <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">PDFs Disponibles</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Nóminas Aprobadas para Firmar
+          </h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Solo se muestran nóminas con status "approved" que están listas para ser firmadas por los empleados.
+          </p>
           {loading ? (
             <LoadingSpinner />
           ) : pdfHistory.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No hay PDFs generados</p>
+            <p className="text-gray-500 text-center py-8">
+              No hay nóminas aprobadas disponibles para firmar
+            </p>
           ) : (
             <div className="space-y-2">
               {pdfHistory.map((pdf) => (
                 <div
-                  key={pdf.id}
+                  key={pdf.id || pdf.pdf_filename}
                   className="flex items-center justify-between p-3 border border-gray-200 rounded-md hover:bg-gray-50"
                 >
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">{pdf.pdf_filename}</p>
-                    <p className="text-xs text-gray-500">
-                      Generado: {new Date(pdf.created_at).toLocaleString()}
-                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {pdf.payroll_period && (
+                        <span className="text-xs text-gray-500">
+                          Período: {pdf.payroll_period}
+                        </span>
+                      )}
+                      {pdf.created_at && (
+                        <span className="text-xs text-gray-500">
+                          Generado: {new Date(pdf.created_at).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => setSelectedPDF(pdf.pdf_filename)}
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    className="ml-4 text-sm text-blue-600 hover:text-blue-800 font-medium"
                   >
                     Seleccionar
                   </button>

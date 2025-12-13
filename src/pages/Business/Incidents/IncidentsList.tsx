@@ -55,6 +55,7 @@ const IncidentsList = () => {
       bonus: 'Bono',
       penalty: 'Penalización',
       tips_reported: 'Propinas Reportadas',
+      food_gift: 'Regalo de comida',
       warning: 'Advertencia',
       advance: 'Adelanto',
       other: 'Otro',
@@ -67,6 +68,7 @@ const IncidentsList = () => {
       bonus: 'bg-green-100 text-green-800',
       penalty: 'bg-red-100 text-red-800',
       tips_reported: 'bg-blue-100 text-blue-800',
+      food_gift: 'bg-emerald-100 text-emerald-800',
       warning: 'bg-yellow-100 text-yellow-800',
       advance: 'bg-purple-100 text-purple-800',
       other: 'bg-gray-100 text-gray-800',
@@ -159,7 +161,7 @@ const IncidentsList = () => {
                         {incident.amount ? `$${incident.amount}` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(incident.incident_date).toLocaleDateString()}
+                        {new Date(incident.incident_date).toLocaleDateString('en-US')}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {incident.description || '-'}

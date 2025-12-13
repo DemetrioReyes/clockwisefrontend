@@ -1,5 +1,5 @@
-// URL de ngrok (HTTPS)
-export const API_BASE_URL = 'https://ac2fe07f3596.ngrok-free.app';
+// URL del API desde variable de entorno
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 export const API_ENDPOINTS = {
   // Super Admin
@@ -13,12 +13,23 @@ export const API_ENDPOINTS = {
   LIST_BUSINESSES: '/api/business/',
   BUSINESS_BY_ID: '/api/business',
   UPDATE_BUSINESS: '/api/business',
+  DISABLE_BUSINESS: '/api/business',
+  RESET_BUSINESS_PASSWORD: '/api/business',
+  DELETE_BUSINESS_COMPLETE: '/api/business',
+  BUSINESS_SEARCH: '/api/business/search',
+  BUSINESS_RECENT_ACTIVITY: '/api/business/recent-activity',
+  BUSINESS_EXPORT: '/api/business/export',
+  BUSINESS_NOTIFICATIONS: '/api/business/notifications',
 
   // Employees
   EMPLOYEES: '/api/employees/',
   EMPLOYEE_BY_ID: '/api/employees',
   UPDATE_EMPLOYEE: '/api/employees',
+  DELETE_EMPLOYEE_COMPLETE: '/api/employees',
   TIME_ENTRY: '/api/employees/time-entry',
+  TIME_ENTRY_MANUAL: '/api/employees/time-entry/manual',
+  TIME_ENTRY_UPDATE: '/api/employees/time-entry',
+  TIME_ENTRY_DELETE: '/api/employees/time-entry',
 
   // Deductions & Tips
   EMPLOYEE_DEDUCTIONS: '/api/employee-deductions/deductions',
@@ -44,6 +55,7 @@ export const API_ENDPOINTS = {
 
   // Break Compliance
   BREAK_COMPLIANCE_ALERTS: '/api/break-compliance/alerts',
+  BREAK_COMPLIANCE_ALERT_RESOLVE: '/api/break-compliance/alerts',
   BREAK_COMPLIANCE_DASHBOARD: '/api/break-compliance/dashboard',
 
   // PDF Generation
@@ -51,6 +63,8 @@ export const API_ENDPOINTS = {
   GENERATE_PDF_DETAILED: '/api/pdf-payroll/generate-detailed',
   DOWNLOAD_PDF: '/api/pdf-payroll/download',
   PDF_HISTORY: '/api/pdf-payroll/history',
+  UPLOAD_SIGNED_PDF: '/api/pdf-payroll/upload',
+  PAYROLL_SIGNED_DOCUMENTS: '/api/pdf-payroll/documents',
 
   // Digital Signatures
   SIGN_DOCUMENT: '/api/digital-signatures/',
@@ -68,7 +82,11 @@ export const API_ENDPOINTS = {
 
   // Sick Leave
   SICK_LEAVE_SUMMARY: '/api/sick-leave/summary',
+  SICK_LEAVE_LIST: '/api/sick-leave/list',
   SICK_LEAVE_USAGE: '/api/sick-leave/usage',
+  SICK_LEAVE_USAGE_HISTORY: '/api/sick-leave/usage/employee',
+  SICK_LEAVE_UPLOAD_DOCUMENT: '/api/sick-leave/documents/upload',
+  SICK_LEAVE_DOCUMENTS: '/api/sick-leave/documents',
   PENDING_SICK_LEAVE: '/api/sick-leave/usage/pending',
   APPROVE_SICK_LEAVE: '/api/sick-leave/usage',
   ACCUMULATE_SICK_LEAVE: '/api/sick-leave/accumulate-all',
@@ -81,4 +99,17 @@ export const API_ENDPOINTS = {
   TIP_CREDIT_CALCULATE: '/api/tip-credit/calculate-shortfall',
   TIP_CREDIT_UPDATE: '/api/tip-credit',
   TIP_CREDIT_DELETE: '/api/tip-credit',
+  // Super Admin Tip Credit
+  SUPER_ADMIN_TIP_CREDIT_LIST_ALL: '/api/tip-credit/super-admin/all',
+  SUPER_ADMIN_TIP_CREDIT_CREATE: '/api/tip-credit/super-admin/create',
+  SUPER_ADMIN_TIP_CREDIT_UPDATE: '/api/tip-credit/super-admin',
+  SUPER_ADMIN_TIP_CREDIT_DELETE: '/api/tip-credit/super-admin',
+
+  // Meal Benefit Configuration
+  MEAL_BENEFIT_CURRENT: '/api/meal-benefit/current',
+  MEAL_BENEFIT_LIST: '/api/meal-benefit/',
+  MEAL_BENEFIT_CREATE: '/api/meal-benefit/',
+  MEAL_BENEFIT_BY_ID: '/api/meal-benefit',
+  MEAL_BENEFIT_UPDATE: '/api/meal-benefit',
+  MEAL_BENEFIT_DELETE: '/api/meal-benefit',
 };

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import { formatErrorMessage } from '../../../services/api';
 import { deductionsService } from '../../../services/deductions.service';
 import { getEmployees } from '../../../services/employee.service';
@@ -13,6 +14,7 @@ const CreateDeduction = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const [formData, setFormData] = useState({
     employee_id: '',
@@ -27,6 +29,7 @@ const CreateDeduction = () => {
 
   useEffect(() => {
     loadEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadEmployees = async () => {
@@ -62,7 +65,7 @@ const CreateDeduction = () => {
       }
 
       await deductionsService.createDeduction(data);
-      showToast('Deducción creada exitosamente', 'success');
+      showToast(t('deduction_created_successfully'), 'success');
       navigate('/business/deductions');
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
@@ -76,17 +79,17 @@ const CreateDeduction = () => {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
-            Nueva Deducción
+            {t('new_deduction')}
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Agregue una nueva deducción para un empleado
+            {t('add_new_deduction_description')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-6">
           <div>
             <label htmlFor="employee_id" className="block text-sm font-medium text-gray-700">
-              Empleado *
+              {t('employee')} *
             </label>
             <select
               id="employee_id"
@@ -95,7 +98,7 @@ const CreateDeduction = () => {
               onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
-              <option value="">Seleccione un empleado</option>
+              <option value="">{t('select_employee_placeholder_deductions')}</option>
               {employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {employee.first_name} {employee.last_name} - {employee.employee_code}
@@ -106,7 +109,7 @@ const CreateDeduction = () => {
 
           <div>
             <label htmlFor="deduction_type" className="block text-sm font-medium text-gray-700">
-              Tipo de Deducción *
+              {t('deduction_type')} *
             </label>
             <select
               id="deduction_type"
@@ -115,20 +118,20 @@ const CreateDeduction = () => {
               onChange={(e) => setFormData({ ...formData, deduction_type: e.target.value as DeductionType })}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
-              <option value="federal_tax">Impuesto Federal</option>
-              <option value="state_tax">Impuesto Estatal</option>
-              <option value="social_security">Seguro Social</option>
-              <option value="medicare">Medicare</option>
-              <option value="health_insurance">Seguro Médico</option>
-              <option value="retirement">Retiro/401k</option>
-              <option value="union_dues">Cuotas Sindicales</option>
-              <option value="other">Otro</option>
+              <option value="federal_tax">{t('federal_tax_type')}</option>
+              <option value="state_tax">{t('state_tax_type')}</option>
+              <option value="social_security">{t('social_security_type')}</option>
+              <option value="medicare">{t('medicare_type')}</option>
+              <option value="health_insurance">{t('health_insurance')}</option>
+              <option value="retirement">{t('retirement')}</option>
+              <option value="union_dues">{t('union_dues')}</option>
+              <option value="other">{t('other_type')}</option>
             </select>
           </div>
 
           <div>
             <label htmlFor="deduction_name" className="block text-sm font-medium text-gray-700">
-              Nombre de la Deducción *
+              {t('deduction_name')} *
             </label>
             <input
               type="text"
@@ -137,13 +140,13 @@ const CreateDeduction = () => {
               value={formData.deduction_name}
               onChange={(e) => setFormData({ ...formData, deduction_name: e.target.value })}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="Ej: Impuesto Federal sobre Ingresos"
+              placeholder={t('example_federal_tax')}
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipo de Monto *
+              {t('amount_type')} *
             </label>
             <div className="space-y-2">
               <div className="flex items-center">
@@ -155,7 +158,7 @@ const CreateDeduction = () => {
                   className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
                 />
                 <label htmlFor="percentage" className="ml-3 block text-sm font-medium text-gray-700">
-                  Porcentaje
+                  {t('percentage_label')}
                 </label>
               </div>
               <div className="flex items-center">
@@ -167,7 +170,7 @@ const CreateDeduction = () => {
                   className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
                 />
                 <label htmlFor="fixed" className="ml-3 block text-sm font-medium text-gray-700">
-                  Monto Fijo
+                  {t('fixed_amount_label')}
                 </label>
               </div>
             </div>
@@ -176,7 +179,7 @@ const CreateDeduction = () => {
           {formData.is_percentage ? (
             <div>
               <label htmlFor="deduction_percentage" className="block text-sm font-medium text-gray-700">
-                Porcentaje (%) *
+                {t('percentage_field')} *
               </label>
               <input
                 type="number"
@@ -188,13 +191,13 @@ const CreateDeduction = () => {
                 value={formData.deduction_percentage}
                 onChange={(e) => setFormData({ ...formData, deduction_percentage: e.target.value })}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Ej: 12.00"
+                placeholder={t('example_percentage')}
               />
             </div>
           ) : (
             <div>
               <label htmlFor="deduction_amount" className="block text-sm font-medium text-gray-700">
-                Monto Fijo ($) *
+                {t('fixed_amount_field')} *
               </label>
               <input
                 type="number"
@@ -205,7 +208,7 @@ const CreateDeduction = () => {
                 value={formData.deduction_amount}
                 onChange={(e) => setFormData({ ...formData, deduction_amount: e.target.value })}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Ej: 50.00"
+                placeholder={t('example_fixed_amount')}
               />
             </div>
           )}
@@ -213,7 +216,7 @@ const CreateDeduction = () => {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <label htmlFor="effective_date" className="block text-sm font-medium text-gray-700">
-                Fecha Efectiva *
+                {t('effective_date_deduction')} *
               </label>
               <input
                 type="date"
@@ -227,7 +230,7 @@ const CreateDeduction = () => {
 
             <div>
               <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">
-                Fecha de Fin (Opcional)
+                {t('end_date_optional')}
               </label>
               <input
                 type="date"
@@ -245,15 +248,15 @@ const CreateDeduction = () => {
               onClick={() => navigate('/business/deductions')}
               className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading && <LoadingSpinner />}
-              {loading ? 'Creando...' : 'Crear Deducción'}
+              {loading && <LoadingSpinner size="sm" />}
+              {loading ? t('creating') : t('create_deduction')}
             </button>
           </div>
         </form>

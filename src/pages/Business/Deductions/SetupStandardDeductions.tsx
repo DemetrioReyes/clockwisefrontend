@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import { formatErrorMessage } from '../../../services/api';
 import { deductionsService } from '../../../services/deductions.service';
 import { getEmployees } from '../../../services/employee.service';
@@ -13,6 +14,7 @@ const SetupStandardDeductions = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const [formData, setFormData] = useState({
     employee_id: '',
@@ -21,6 +23,7 @@ const SetupStandardDeductions = () => {
 
   useEffect(() => {
     loadEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadEmployees = async () => {
@@ -38,7 +41,7 @@ const SetupStandardDeductions = () => {
 
     try {
       await deductionsService.setupStandardDeductions(formData.employee_id, formData.effective_date);
-      showToast('Deducciones estándar configuradas exitosamente', 'success');
+      showToast(t('standard_deductions_configured'), 'success');
       navigate('/business/deductions');
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
@@ -52,10 +55,10 @@ const SetupStandardDeductions = () => {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
-            Configurar Deducciones Estándar
+            {t('setup_standard_deductions_title')}
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Configura automáticamente las deducciones estándar (Federal 12%, Estatal 5%, Seguro Social 6.2%, Medicare 1.45%)
+            {t('automatically_configure_description')}
           </p>
         </div>
 
@@ -69,14 +72,14 @@ const SetupStandardDeductions = () => {
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-blue-800">
-                  Deducciones que se crearán:
+                  {t('deductions_that_will_be_created')}
                 </h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>Impuesto Federal: 12%</li>
-                    <li>Impuesto Estatal (NY): 5%</li>
-                    <li>Seguro Social: 6.2%</li>
-                    <li>Medicare: 1.45%</li>
+                    <li>{t('federal_tax_percent')}</li>
+                    <li>{t('state_tax_percent')}</li>
+                    <li>{t('social_security_percent')}</li>
+                    <li>{t('medicare_percent')}</li>
                   </ul>
                 </div>
               </div>
@@ -85,7 +88,7 @@ const SetupStandardDeductions = () => {
 
           <div>
             <label htmlFor="employee_id" className="block text-sm font-medium text-gray-700">
-              Empleado *
+              {t('employee')} *
             </label>
             <select
               id="employee_id"
@@ -94,7 +97,7 @@ const SetupStandardDeductions = () => {
               onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
-              <option value="">Seleccione un empleado</option>
+              <option value="">{t('select_employee_placeholder_deductions')}</option>
               {employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {employee.first_name} {employee.last_name} - {employee.employee_code}
@@ -105,7 +108,7 @@ const SetupStandardDeductions = () => {
 
           <div>
             <label htmlFor="effective_date" className="block text-sm font-medium text-gray-700">
-              Fecha Efectiva *
+              {t('effective_date_deduction')} *
             </label>
             <input
               type="date"
@@ -123,15 +126,15 @@ const SetupStandardDeductions = () => {
               onClick={() => navigate('/business/deductions')}
               className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              Cancelar
+              {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading && <LoadingSpinner />}
-              {loading ? 'Configurando...' : 'Configurar Deducciones'}
+              {loading && <LoadingSpinner size="sm" />}
+              {loading ? t('setting_up') : t('configure_standard_deductions')}
             </button>
           </div>
         </form>

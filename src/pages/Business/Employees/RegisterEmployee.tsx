@@ -13,6 +13,8 @@ const RegisterEmployee: React.FC = () => {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoPreview2, setPhotoPreview2] = useState<string | null>(null);
+  const [photoPreview3, setPhotoPreview3] = useState<string | null>(null);
   const [formData, setFormData] = useState<EmployeeRegisterData>({
     first_name: '',
     last_name: '',
@@ -37,6 +39,7 @@ const RegisterEmployee: React.FC = () => {
     bank_routing_number: '',
     bank_account_type: 'checking',
     state_minimum_wage: 16.50,
+    receives_meal_benefit: false,
   });
 
   // Formatear teléfono automáticamente a XXX-XXX-XXXX
@@ -54,6 +57,94 @@ const RegisterEmployee: React.FC = () => {
     }
   };
 
+  // Comprimir imagen para reducir el tamaño del archivo
+  const compressImage = (file: File, maxSizeMB: number = 1): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      // Si el archivo ya es pequeño, no comprimir
+      const maxSizeBytes = maxSizeMB * 1024 * 1024;
+      if (file.size <= maxSizeBytes) {
+        resolve(file);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Reducir dimensiones si son muy grandes (max 1200px en el lado más largo)
+          const maxDimension = 1200;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
+            } else {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('No se pudo obtener el contexto del canvas'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convertir a blob con calidad ajustable
+          let quality = 0.8;
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Error al comprimir la imagen'));
+                return;
+              }
+
+              // Si aún es muy grande después de comprimir, reducir calidad
+              if (blob.size > maxSizeBytes) {
+                quality = 0.6;
+                canvas.toBlob(
+                  (blob2) => {
+                    if (!blob2) {
+                      reject(new Error('Error al comprimir la imagen'));
+                      return;
+                    }
+                    const compressedFile = new File([blob2], file.name, {
+                      type: 'image/jpeg',
+                      lastModified: Date.now(),
+                    });
+                    resolve(compressedFile);
+                  },
+                  'image/jpeg',
+                  quality
+                );
+              } else {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => reject(new Error('Error al cargar la imagen'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Error al leer el archivo'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value} = e.target;
     
@@ -66,20 +157,87 @@ const RegisterEmployee: React.FC = () => {
     }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, photoNumber: 1 | 2 | 3) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setFormData(prev => ({ ...prev, face_image: file }));
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      showToast('Por favor selecciona un archivo de imagen válido', 'error');
+      return;
+    }
+
+    // Validar tamaño (máximo 10MB antes de comprimir)
+    const maxSizeBeforeCompress = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSizeBeforeCompress) {
+      showToast('La imagen es demasiado grande. Por favor selecciona una imagen más pequeña (máximo 10MB)', 'error');
+      return;
+    }
+
+    try {
+      // Comprimir imagen (máximo 1MB después de comprimir)
+      const compressedFile = await compressImage(file, 1);
+
+      if (photoNumber === 1) {
+        setFormData(prev => ({ ...prev, face_image: compressedFile }));
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      } else if (photoNumber === 2) {
+        setFormData(prev => ({ ...prev, face_image_2: compressedFile }));
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreview2(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      } else {
+        setFormData(prev => ({ ...prev, face_image_3: compressedFile }));
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreview3(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      }
+
+      // Mostrar mensaje si se comprimió
+      if (file.size !== compressedFile.size) {
+        const reduction = ((file.size - compressedFile.size) / file.size * 100).toFixed(0);
+        showToast(`Imagen comprimida (reducción del ${reduction}%)`, 'success');
+      }
+    } catch (error: any) {
+      showToast(`Error al procesar la imagen: ${error.message}`, 'error');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar que ambas fotos estén presentes
+    if (!formData.face_image) {
+      showToast('La primera foto es requerida para el reconocimiento facial', 'error');
+      return;
+    }
+    
+    if (!formData.face_image_2) {
+      showToast('La segunda foto es requerida para mejorar el reconocimiento facial', 'error');
+      return;
+    }
+
+    if (!formData.face_image_3) {
+      showToast('La tercera foto es requerida para un mejor reconocimiento y reducir errores', 'error');
+      return;
+    }
+
+    // Validar tamaño total de las imágenes
+    const totalSize = (formData.face_image?.size || 0) + (formData.face_image_2?.size || 0) + (formData.face_image_3?.size || 0);
+    const maxTotalSize = 3 * 1024 * 1024; // 3MB total (1MB por foto)
+    if (totalSize > maxTotalSize) {
+      showToast('El tamaño total de las imágenes es muy grande. Por favor, inténtalo de nuevo con imágenes más pequeñas.', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -93,7 +251,12 @@ const RegisterEmployee: React.FC = () => {
       showToast('Empleado registrado exitosamente', 'success');
       navigate('/business/employees');
     } catch (error: any) {
-      showToast(formatErrorMessage(error), 'error');
+      // Mensaje específico para error 502
+      if (error.response?.status === 502 || error.code === 'ERR_NETWORK') {
+        showToast('Error 502: El servidor no está disponible. Por favor, verifica tu conexión e intenta nuevamente. Si el problema persiste, contacta al administrador.', 'error');
+      } else {
+        showToast(formatErrorMessage(error), 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -435,30 +598,147 @@ const RegisterEmployee: React.FC = () => {
             </div>
           )}
 
-          {/* Foto Facial */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Foto para Reconocimiento Facial</h3>
-            <div className="flex items-center space-x-4">
-              {photoPreview ? (
-                <img src={photoPreview} alt="Preview" className="w-32 h-32 rounded-full object-cover" />
-              ) : (
-                <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-                  <Camera className="w-12 h-12 text-gray-400" />
-                </div>
-              )}
-              <div className="flex-1">
-                <label className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  <Camera className="w-5 h-5 mr-2" />
-                  Subir Foto
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoChange}
-                    className="hidden"
-                  />
+          {/* Beneficio de Comida */}
+          <div className="bg-emerald-50 border-l-4 border-emerald-400 p-6 rounded">
+            <h3 className="text-lg font-semibold mb-4 text-emerald-900">Beneficio de Comida (Crédito Automático)</h3>
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="receives_meal_benefit"
+                  name="receives_meal_benefit"
+                  checked={formData.receives_meal_benefit || false}
+                  onChange={(e) => setFormData(prev => ({ ...prev, receives_meal_benefit: e.target.checked }))}
+                  className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <label htmlFor="receives_meal_benefit" className="ml-3 text-sm font-medium text-gray-700">
+                  Este empleado recibe crédito de comida automático
                 </label>
-                <p className="text-sm text-gray-500 mt-2">Requerido para control de tiempo</p>
               </div>
+              <div className="bg-emerald-100 p-4 rounded">
+                <p className="text-sm text-emerald-800 font-semibold mb-2">Cómo funciona:</p>
+                <ul className="text-xs text-emerald-700 space-y-1 list-disc list-inside">
+                  <li>El crédito se calcula automáticamente en cada período de nómina</li>
+                  <li>Se aplica si el empleado trabaja las horas mínimas configuradas para su tipo</li>
+                  <li>El crédito es <strong>imponible</strong> (se suma al gross_pay)</li>
+                  <li>La configuración se gestiona en "Configuración de Beneficio de Comida"</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Fotos para Reconocimiento Facial */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Fotos para Reconocimiento Facial</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Se requieren <strong>2 fotos desde diferentes ángulos</strong> para mejorar la precisión del reconocimiento facial. 
+              Tome una foto de frente y otra desde un ángulo lateral.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Primera Foto */}
+              <div className="border rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Foto 1 - Vista Frontal * <span className="text-red-500">Requerida</span>
+                </label>
+                <div className="flex flex-col items-center space-y-4">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Preview Foto 1" className="w-32 h-32 rounded-full object-cover border-2 border-blue-500" />
+                  ) : (
+                    <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                      <Camera className="w-12 h-12 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="w-full">
+                    <label className="cursor-pointer inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                      <Camera className="w-5 h-5 mr-2" />
+                      Subir Foto Frontal
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoChange(e, 1)}
+                        className="hidden"
+                        required
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      Vista frontal del rostro
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Segunda Foto */}
+              <div className="border rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Foto 2 - Vista Lateral * <span className="text-red-500">Requerida</span>
+                </label>
+                <div className="flex flex-col items-center space-y-4">
+                  {photoPreview2 ? (
+                    <img src={photoPreview2} alt="Preview Foto 2" className="w-32 h-32 rounded-full object-cover border-2 border-blue-500" />
+                  ) : (
+                    <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                      <Camera className="w-12 h-12 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="w-full">
+                    <label className="cursor-pointer inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                      <Camera className="w-5 h-5 mr-2" />
+                      Subir Foto Lateral
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoChange(e, 2)}
+                        className="hidden"
+                        required
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      Vista lateral o desde otro ángulo
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tercera Foto */}
+              <div className="border rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Foto 3 - Vista Alternativa * <span className="text-red-500">Requerida</span>
+                </label>
+                <div className="flex flex-col items-center space-y-4">
+                  {photoPreview3 ? (
+                    <img src={photoPreview3} alt="Preview Foto 3" className="w-32 h-32 rounded-full object-cover border-2 border-blue-500" />
+                  ) : (
+                    <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                      <Camera className="w-12 h-12 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="w-full">
+                    <label className="cursor-pointer inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                      <Camera className="w-5 h-5 mr-2" />
+                      Subir Tercera Foto
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoChange(e, 3)}
+                        className="hidden"
+                        required
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      Vista desde otro ángulo o con diferente iluminación
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+              <p className="text-sm text-blue-800">
+                <strong>💡 Consejo:</strong> Para mejores resultados, asegúrese de que las tres fotos tengan buena iluminación 
+                y muestren claramente el rostro del empleado desde ángulos diferentes. Esto mejorará significativamente 
+                el reconocimiento facial y reducirá errores de identificación.
+              </p>
             </div>
           </div>
 

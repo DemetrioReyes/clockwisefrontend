@@ -47,7 +47,9 @@ class PayrollService {
    * Status: draft, calculated, approved, paid
    */
   async updatePayrollStatus(payrollId: string, status: 'draft' | 'calculated' | 'approved' | 'paid'): Promise<any> {
-    const response = await api.put(`${API_ENDPOINTS.UPDATE_PAYROLL_STATUS}/${payrollId}/status`, { status });
+    const response = await api.put(`${API_ENDPOINTS.PAYROLL_BY_ID}/${payrollId}/status`, null, {
+      params: { new_status: status }
+    });
     return response.data;
   }
 
@@ -63,7 +65,8 @@ class PayrollService {
    * Eliminar/cancelar nómina
    */
   async deletePayroll(payrollId: string): Promise<void> {
-    await api.delete(`${API_ENDPOINTS.PAYROLL_BY_ID}/${payrollId}`);
+    const response = await api.delete(`${API_ENDPOINTS.PAYROLL_BY_ID}/${payrollId}`);
+    return response.data;
   }
 
   /**
@@ -71,6 +74,20 @@ class PayrollService {
    */
   async updatePayroll(payrollId: string, data: Partial<PayrollRequest>): Promise<any> {
     const response = await api.put(`${API_ENDPOINTS.PAYROLL_BY_ID}/${payrollId}`, data);
+    return response.data;
+  }
+
+  /**
+   * Obtener desglose diario correcto de registros de tiempo para un empleado
+   */
+  async getEmployeeDailyBreakdown(
+    employeeId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<any> {
+    const response = await api.get(`/api/payroll/employee/${employeeId}/daily-breakdown`, {
+      params: { start_date: startDate, end_date: endDate }
+    });
     return response.data;
   }
 }

@@ -5,14 +5,26 @@ import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
 import { formatErrorMessage } from '../../../services/api';
 import payrollService from '../../../services/payroll.service';
-import { Printer, Eye, FileText } from 'lucide-react';
+import { pdfService } from '../../../services/pdf.service';
+import { signaturesService } from '../../../services/signatures.service';
+import { Printer, Eye, FileText, Trash2, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../../../contexts/LanguageContext';
+import Modal from '../../../components/Common/Modal';
 
 const PDFGeneration = () => {
   const navigate = useNavigate();
   const [payrolls, setPayrolls] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [deletingPayrollId, setDeletingPayrollId] = useState<string | null>(null);
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [selectedPayrollId, setSelectedPayrollId] = useState<string>('');
+  const [checkingSignatures, setCheckingSignatures] = useState(false);
+  const [hasSignatures, setHasSignatures] = useState<boolean | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [payrollToDelete, setPayrollToDelete] = useState<string | null>(null);
+  const [payrollToDeletePeriod, setPayrollToDeletePeriod] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -37,19 +49,168 @@ const PDFGeneration = () => {
     }
   };
 
+  const checkPayrollSignatures = async (payrollId: string) => {
+    setCheckingSignatures(true);
+    setHasSignatures(null);
+    
+    try {
+      // Obtener todos los PDFs de esta nómina
+      const pdfData = await pdfService.getPDFHistory(undefined, payrollId, 100);
+      let pdfArray: any[] = [];
+      if (Array.isArray(pdfData)) {
+        pdfArray = pdfData;
+      } else if (pdfData && typeof pdfData === 'object') {
+        const pdfObj = pdfData as any;
+        pdfArray = pdfObj.items || pdfObj.data || pdfObj.results || [];
+      }
+
+      if (pdfArray.length === 0) {
+        setHasSignatures(false);
+        return false;
+      }
+
+      // Verificar si al menos un PDF tiene firma
+      let hasAnySignature = false;
+      for (const pdf of pdfArray) {
+        try {
+          if (pdf.pdf_filename) {
+            // Verificar si existe firma (no necesitamos el resultado, solo verificar que no lance 404)
+            await signaturesService.getPDFSignature(pdf.pdf_filename);
+            hasAnySignature = true;
+            break; // Si encontramos al menos una firma, no necesitamos seguir
+          }
+        } catch (error: any) {
+          // Si el error es 404, significa que no hay firma para este PDF
+          if (error.response?.status === 404) {
+            continue;
+          }
+          // Otros errores los ignoramos y continuamos
+        }
+      }
+
+      setHasSignatures(hasAnySignature);
+      return hasAnySignature;
+    } catch (error: any) {
+      console.error('Error verificando firmas:', error);
+      setHasSignatures(false);
+      return false;
+    } finally {
+      setCheckingSignatures(false);
+    }
+  };
+
+  const handlePayrollSelect = async (payrollId: string) => {
+    setSelectedPayrollId(payrollId);
+    if (payrollId) {
+      await checkPayrollSignatures(payrollId);
+    } else {
+      setHasSignatures(null);
+    }
+  };
+
   const handleViewPrintable = () => {
     if (!selectedPayrollId) {
-      showToast('Por favor seleccione una nómina', 'error');
+      showToast(t('please_select_payroll'), 'error');
       return;
     }
+    
+    // Permitir ver la nómina siempre, incluso sin firmas (para que la firmen)
     navigate(`/business/payroll/print/${selectedPayrollId}`);
+  };
+
+  const handlePrintOrSave = () => {
+    if (!selectedPayrollId) {
+      showToast(t('please_select_payroll'), 'error');
+      return;
+    }
+    
+    // Solo bloquear imprimir/guardar si no tiene firmas
+    if (!hasSignatures) {
+      showToast(t('payroll_no_signatures_error'), 'error');
+      return;
+    }
+    
+    navigate(`/business/payroll/print/${selectedPayrollId}`);
+  };
+
+  const handleStatusChange = async (payrollId: string, newStatus: string) => {
+    setUpdatingStatus(payrollId);
+    try {
+      await payrollService.updatePayrollStatus(payrollId, newStatus as 'draft' | 'calculated' | 'approved' | 'paid');
+      showToast(t('payroll_status_updated_pdf'), 'success');
+      // Actualizar el estado local
+      setPayrolls(prev => prev.map(p => 
+        p.id === payrollId ? { ...p, status: newStatus } : p
+      ));
+    } catch (error: any) {
+      console.error('Error actualizando estado:', error);
+      console.error('Response data:', error.response?.data);
+      console.error('Detail array:', error.response?.data?.detail);
+      if (error.response?.data?.detail && Array.isArray(error.response.data.detail)) {
+        console.error('Detalles del error:', JSON.stringify(error.response.data.detail, null, 2));
+      }
+      const errorMessage = formatErrorMessage(error);
+      showToast(errorMessage, 'error');
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      draft: 'bg-gray-100 text-gray-800',
+      calculated: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-blue-100 text-blue-800',
+      paid: 'bg-green-100 text-green-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const handleOpenDeleteModal = (payrollId: string, period: string) => {
+    setPayrollToDelete(payrollId);
+    setPayrollToDeletePeriod(period);
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setPayrollToDelete(null);
+    setPayrollToDeletePeriod('');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!payrollToDelete) return;
+
+    setDeletingPayrollId(payrollToDelete);
+    try {
+      await payrollService.deletePayroll(payrollToDelete);
+      
+      showToast(t('payroll_deleted_successfully'), 'success');
+      
+      // Si la nómina eliminada estaba seleccionada, limpiar la selección
+      if (selectedPayrollId === payrollToDelete) {
+        setSelectedPayrollId('');
+        setHasSignatures(null);
+      }
+      
+      // Recargar la lista completa para asegurar que los cambios se reflejen
+      await loadData();
+      
+      // Cerrar el modal
+      handleCloseDeleteModal();
+    } catch (error: any) {
+      const errorMessage = formatErrorMessage(error);
+      showToast(errorMessage, 'error');
+    } finally {
+      setDeletingPayrollId(null);
+    }
   };
 
   if (loading) {
     return (
       <Layout>
         <div className="flex justify-center py-12">
-          <LoadingSpinner size="lg" text="Cargando nóminas..." />
+          <LoadingSpinner size="lg" text={t('loading_payrolls')} />
         </div>
       </Layout>
     );
@@ -59,8 +220,8 @@ const PDFGeneration = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Imprimir Recibos de Nómina</h1>
-          <p className="text-gray-600 mt-2">Seleccione una nómina para ver e imprimir los recibos de pago</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('print_payroll_receipts')}</h1>
+          <p className="text-gray-600 mt-2">{t('print_payroll_receipts_description')}</p>
         </div>
 
         <div className="bg-white shadow rounded-lg p-6">
@@ -68,13 +229,13 @@ const PDFGeneration = () => {
             <div className="flex">
               <FileText className="w-5 h-5 text-blue-600 mr-2" />
               <div>
-                <h3 className="text-sm font-medium text-blue-800">💡 Cómo Funciona</h3>
+                <h3 className="text-sm font-medium text-blue-800">{t('how_it_works')}</h3>
                 <div className="mt-2 text-sm text-blue-700">
-                  <p>1. Selecciona una nómina guardada de la lista</p>
-                  <p>2. Click en "Ver Imprimible"</p>
-                  <p>3. Se abrirá una vista profesional de recibos</p>
-                  <p>4. Click en "Imprimir" o presiona Ctrl+P (Cmd+P en Mac)</p>
-                  <p>5. Selecciona "Guardar como PDF" para descargarlo a tu PC</p>
+                  <p>{t('pdf_step1')}</p>
+                  <p>{t('pdf_step2')}</p>
+                  <p>{t('pdf_step3')}</p>
+                  <p>{t('pdf_step4')}</p>
+                  <p>{t('pdf_step5')}</p>
                 </div>
               </div>
             </div>
@@ -83,28 +244,28 @@ const PDFGeneration = () => {
           {payrolls.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">No hay nóminas guardadas</p>
-              <p className="text-gray-400 text-sm mt-2">Ve a "Nómina" para calcular y guardar una nómina primero</p>
+              <p className="text-gray-500 text-lg">{t('no_saved_payrolls')}</p>
+              <p className="text-gray-400 text-sm mt-2">{t('go_to_payroll_first')}</p>
             </div>
           ) : (
             <div className="space-y-4">
               <div>
                 <label htmlFor="payroll_select" className="block text-sm font-medium text-gray-700 mb-2">
-                  Seleccionar Nómina *
+                  {t('select_payroll_label')}
                 </label>
                 <select
                   id="payroll_select"
                   value={selectedPayrollId}
-                  onChange={(e) => setSelectedPayrollId(e.target.value)}
+                  onChange={(e) => handlePayrollSelect(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
                 >
-                  <option value="">-- Seleccione una nómina --</option>
+                  <option value="">{t('select_payroll_placeholder')}</option>
                   {payrolls.map((payroll) => (
                     <option key={payroll.id} value={payroll.id}>
                       📅 {payroll.period_start} - {payroll.period_end} | 
                       💰 ${payroll.total_gross_pay} | 
-                      👥 {payroll.total_employees} empleados | 
-                      📊 {payroll.status}
+                      👥 {payroll.total_employees} {t('employees_label')} | 
+                      📊 {t(payroll.status)}
                     </option>
                   ))}
                 </select>
@@ -114,28 +275,59 @@ const PDFGeneration = () => {
                 <button
                   type="button"
                   onClick={handleViewPrintable}
-                  disabled={!selectedPayrollId}
+                  disabled={!selectedPayrollId || checkingSignatures}
                   className="flex-1 bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg font-semibold"
+                  title={t('view_to_sign_title')}
                 >
                   <Eye className="w-6 h-6" />
-                  Ver Imprimible
+                  {t('view_to_sign')}
                 </button>
                 <button
                   type="button"
-                  onClick={handleViewPrintable}
-                  disabled={!selectedPayrollId}
+                  onClick={handlePrintOrSave}
+                  disabled={!selectedPayrollId || checkingSignatures || !hasSignatures}
                   className="flex-1 bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg font-semibold"
+                  title={!hasSignatures && selectedPayrollId ? t('print_save_pdf_title') : ''}
                 >
                   <Printer className="w-6 h-6" />
-                  Imprimir / Guardar PDF
+                  {t('print_save_pdf_btn')}
                 </button>
               </div>
 
-              {selectedPayrollId && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
-                  <p className="text-green-800 text-sm">
-                    ✅ Nómina seleccionada. Click en cualquiera de los botones para continuar.
+              {checkingSignatures && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4 flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  <p className="text-blue-800 text-sm">
+                    {t('checking_signatures')}
                   </p>
+                </div>
+              )}
+
+              {selectedPayrollId && !checkingSignatures && hasSignatures === true && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4 flex items-center gap-2">
+                  <span className="text-green-600">✅</span>
+                  <p className="text-green-800 text-sm">
+                    {t('payroll_signed_ready')}
+                  </p>
+                </div>
+              )}
+
+              {selectedPayrollId && !checkingSignatures && hasSignatures === false && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-medium text-yellow-800">
+                        {t('payroll_no_signatures')}
+                      </h4>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        {t('payroll_not_signed_message')}
+                      </p>
+                      <p className="text-sm text-yellow-700 mt-2">
+                        <strong>{t('must_sign_before_print')}</strong>
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -144,28 +336,28 @@ const PDFGeneration = () => {
           {/* Lista de nóminas */}
           {payrolls.length > 0 && (
             <div className="mt-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nóminas Disponibles</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('available_payrolls')}</h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Período
+                        {t('period_table')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Empleados
+                        {t('employees_table')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pago Bruto
+                        {t('gross_pay_table')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pago Neto
+                        {t('net_pay_table')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        {t('status_table')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Acciones
+                        {t('actions_table')}
                       </th>
                     </tr>
                   </thead>
@@ -185,22 +377,55 @@ const PDFGeneration = () => {
                           ${payroll.total_net_pay}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            payroll.status === 'paid' ? 'bg-green-100 text-green-800' :
-                            payroll.status === 'approved' ? 'bg-blue-100 text-blue-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {payroll.status}
-                          </span>
+                          {updatingStatus === payroll.id ? (
+                            <LoadingSpinner size="sm" />
+                          ) : (
+                            <select
+                              value={payroll.status}
+                              onChange={(e) => handleStatusChange(payroll.id, e.target.value)}
+                              className={`px-3 py-1 text-xs rounded-full border-0 font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${getStatusColor(payroll.status)}`}
+                            >
+                              <option value="draft">{t('draft')}</option>
+                              <option value="calculated">{t('calculated')}</option>
+                              <option value="approved">{t('approved')}</option>
+                              <option value="paid">{t('paid')}</option>
+                            </select>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => navigate(`/business/payroll/print/${payroll.id}`)}
-                            className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                          >
-                            <Printer className="w-4 h-4" />
-                            Imprimir
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => {
+                                // Siempre permitir ver la nómina (para que la firmen)
+                                navigate(`/business/payroll/print/${payroll.id}`);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                              title={t('view_to_sign_title')}
+                            >
+                              <Eye className="w-4 h-4" />
+                              {t('view_payroll')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleOpenDeleteModal(payroll.id, `${payroll.period_start} - ${payroll.period_end}`);
+                              }}
+                              disabled={deletingPayrollId === payroll.id}
+                              className="text-red-600 hover:text-red-800 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={t('delete_payroll_title')}
+                            >
+                              {deletingPayrollId === payroll.id ? (
+                                <span className="text-xs">{t('deleting')}</span>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-4 h-4" />
+                                  {t('delete_payroll')}
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -211,6 +436,34 @@ const PDFGeneration = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de confirmación para eliminar nómina */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={handleCloseDeleteModal}
+        title={t('delete_payroll_title')}
+      >
+        <div className="p-4">
+          <p className="text-gray-700 mb-4">
+            {t('confirm_delete_payroll', { period: payrollToDeletePeriod })}
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={handleCloseDeleteModal}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+            >
+              {t('cancel')}
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={deletingPayrollId !== null}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deletingPayrollId ? t('deleting') : t('delete')}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </Layout>
   );
 };

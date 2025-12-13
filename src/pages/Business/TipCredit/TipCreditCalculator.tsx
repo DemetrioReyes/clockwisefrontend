@@ -165,7 +165,7 @@ const TipCreditCalculator = () => {
                       Configuración Utilizada
                     </p>
                     <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
-                      <p><span className="font-medium">Nombre:</span> {result.config_used.config_name}</p>
+                      <p><span className="font-medium">Nombre:</span> {result.config_used.config_name.replace(/2025/g, '').replace(/\(Vigente desde Enero 1\)/g, '').replace(/\s*-\s*-/g, '-').replace(/\s+/g, ' ').replace(/\s*-\s*/g, ' - ').trim()}</p>
                       <p><span className="font-medium">Salario Mínimo:</span> ${result.config_used.minimum_wage.toFixed(2)}/hr</p>
                       <p><span className="font-medium">Cash Wage:</span> ${result.config_used.cash_wage.toFixed(2)}/hr</p>
                       <p><span className="font-medium">Tip Credit:</span> ${result.config_used.tip_credit_amount.toFixed(2)}/hr</p>

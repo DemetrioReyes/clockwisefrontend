@@ -30,14 +30,14 @@ const SuperAdminLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center px-4 pt-16">
       <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-blue-600 p-3 rounded-full mb-4">
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Super Admin Login</h1>
-          <p className="text-gray-600 mt-2">ClockWise Payroll System</p>
+          <p className="text-gray-600 mt-2">Smart Punch Payroll System</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -51,7 +51,7 @@ const SuperAdminLogin: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="admin@clockwise.com"
+              placeholder="admin@smartpunch.com"
               required
             />
           </div>
@@ -85,7 +85,7 @@ const SuperAdminLogin: React.FC = () => {
             onClick={() => navigate('/')}
             className="text-sm text-blue-600 hover:text-blue-800"
           >
-            Back to Login Selection
+            Volver al inicio
           </button>
         </div>
       </div>

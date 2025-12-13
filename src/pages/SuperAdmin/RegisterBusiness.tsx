@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatErrorMessage } from '../../services/api';
 import Layout from '../../components/Layout/Layout';
-import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import { useToast } from '../../components/Common/Toast';
 import businessService from '../../services/business.service';
 import { BusinessRegisterData } from '../../types';
+import { Building2 } from 'lucide-react';
+import LoadingSpinner from '../../components/Common/LoadingSpinner';
 
 const RegisterBusiness: React.FC = () => {
   const navigate = useNavigate();
@@ -48,12 +49,18 @@ const RegisterBusiness: React.FC = () => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Register New Business</h1>
-          <p className="text-gray-600 mt-2">Add a new business to the ClockWise platform</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl shadow-lg">
+              <Building2 className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Register New Business</h1>
+          </div>
+          <p className="text-gray-600 ml-14">Add a new business to the Smart Punch platform</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white shadow-xl rounded-lg p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="bg-white shadow-xl rounded-xl border border-gray-200 p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -64,7 +71,7 @@ const RegisterBusiness: React.FC = () => {
                 name="company_name"
                 value={formData.company_name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -78,7 +85,7 @@ const RegisterBusiness: React.FC = () => {
                 name="business_name"
                 value={formData.business_name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -93,7 +100,7 @@ const RegisterBusiness: React.FC = () => {
                 value={formData.rfc}
                 onChange={handleChange}
                 placeholder="RSL980515ABC"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -107,7 +114,7 @@ const RegisterBusiness: React.FC = () => {
                 name="contact_first_name"
                 value={formData.contact_first_name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -121,7 +128,7 @@ const RegisterBusiness: React.FC = () => {
                 name="contact_last_name"
                 value={formData.contact_last_name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -135,7 +142,7 @@ const RegisterBusiness: React.FC = () => {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -149,7 +156,7 @@ const RegisterBusiness: React.FC = () => {
                 name="contact_phone"
                 value={formData.contact_phone}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -163,7 +170,7 @@ const RegisterBusiness: React.FC = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -177,7 +184,7 @@ const RegisterBusiness: React.FC = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               />
             </div>
@@ -190,7 +197,7 @@ const RegisterBusiness: React.FC = () => {
                 name="billing_cycle"
                 value={formData.billing_cycle}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all shadow-sm"
                 required
               >
                 <option value="weekly">Weekly</option>
@@ -225,9 +232,19 @@ const RegisterBusiness: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 transition-all transform hover:scale-105 disabled:transform-none font-semibold flex items-center gap-2"
             >
-              {loading ? 'Registering...' : 'Register Business'}
+              {loading ? (
+                <>
+                  <LoadingSpinner />
+                  <span>Registering...</span>
+                </>
+              ) : (
+                <>
+                  <Building2 className="w-5 h-5" />
+                  <span>Register Business</span>
+                </>
+              )}
             </button>
           </div>
         </form>

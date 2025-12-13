@@ -35,4 +35,8 @@ export const payratesService = {
   const response = await api.put(`${API_ENDPOINTS.UPDATE_PAY_RATE}/${payRateId}`, data);
   return response.data;
   },
+
+  deletePayRate: async (payRateId: string): Promise<void> => {
+    await api.delete(`${API_ENDPOINTS.PAY_RATES}${payRateId}`);
+  },
 };

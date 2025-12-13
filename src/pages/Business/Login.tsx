@@ -30,14 +30,14 @@ const BusinessLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 to-green-700 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-900 to-green-700 flex items-center justify-center px-4 pt-16">
       <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-green-600 p-3 rounded-full mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Business Login</h1>
-          <p className="text-gray-600 mt-2">ClockWise Payroll System</p>
+          <p className="text-gray-600 mt-2">Smart Punch Payroll System</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -85,7 +85,7 @@ const BusinessLogin: React.FC = () => {
             onClick={() => navigate('/')}
             className="text-sm text-green-600 hover:text-green-800"
           >
-            Back to Login Selection
+            Volver al inicio
           </button>
         </div>
       </div>
