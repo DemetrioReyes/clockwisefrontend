@@ -76,6 +76,20 @@ class PayrollService {
     const response = await api.put(`${API_ENDPOINTS.PAYROLL_BY_ID}/${payrollId}`, data);
     return response.data;
   }
+
+  /**
+   * Obtener desglose diario correcto de registros de tiempo para un empleado
+   */
+  async getEmployeeDailyBreakdown(
+    employeeId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<any> {
+    const response = await api.get(`/api/payroll/employee/${employeeId}/daily-breakdown`, {
+      params: { start_date: startDate, end_date: endDate }
+    });
+    return response.data;
+  }
 }
 
 const payrollServiceInstance = new PayrollService();

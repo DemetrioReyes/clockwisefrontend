@@ -40,6 +40,7 @@ const PayrollPrintView: React.FC = () => {
   const signatureRefs = useRef<Record<string, any>>({});
   const employeePdfRef = useRef<HTMLDivElement | null>(null);
   const [employeeTimeEntries, setEmployeeTimeEntries] = useState<Record<string, any[]>>({});
+  const [employeeDaysWorked, setEmployeeDaysWorked] = useState<Record<string, number>>({});
   const [invoiceIds, setInvoiceIds] = useState<Record<string, string>>({});
   const [selectedSignedFiles, setSelectedSignedFiles] = useState<Record<string, File | null>>({});
   const [uploadingSignedPdf, setUploadingSignedPdf] = useState<Record<string, boolean>>({});
@@ -137,15 +138,46 @@ const PayrollPrintView: React.FC = () => {
     
     for (const calc of calculations) {
       try {
-        const entries = await employeeService.listTimeEntries(calc.employee_id, startDate, endDate);
-        const entriesArray = Array.isArray(entries) ? entries : [];
+        // Usar el endpoint del backend que calcula correctamente el desglose diario
+        const breakdownData = await payrollService.getEmployeeDailyBreakdown(
+          calc.employee_id,
+          startDate,
+          endDate
+        );
         
-        // Procesar y agrupar por día
-        const processedEntries = processTimeEntriesByDay(entriesArray);
-        timeEntriesMap[calc.employee_id] = processedEntries;
+        if (breakdownData && breakdownData.daily_breakdown) {
+          // Transformar los datos del backend al formato esperado por el frontend
+          const processedEntries = breakdownData.daily_breakdown.map((day: any) => ({
+            date: day.date,
+            checkIn: day.check_in || '',
+            checkOut: day.check_out || '',
+            breaks: day.breaks_formatted || '',
+            hoursWorked: typeof day.hours_worked === 'number' ? day.hours_worked.toFixed(2) : parseFloat(day.hours_worked || 0).toFixed(2),
+            dayName: day.day_name || '',
+          }));
+          
+          timeEntriesMap[calc.employee_id] = processedEntries;
+          
+          // Guardar días trabajados del backend
+          setEmployeeDaysWorked((prev) => ({
+            ...prev,
+            [calc.employee_id]: breakdownData.days_worked || 0
+          }));
+        } else {
+          timeEntriesMap[calc.employee_id] = [];
+        }
       } catch (error) {
-        console.error(`Error cargando time entries para empleado ${calc.employee_id}:`, error);
-        timeEntriesMap[calc.employee_id] = [];
+        console.error(`Error cargando daily breakdown para empleado ${calc.employee_id}:`, error);
+        // Fallback: intentar con el método anterior si el nuevo falla
+        try {
+          const entries = await employeeService.listTimeEntries(calc.employee_id, startDate, endDate);
+          const entriesArray = Array.isArray(entries) ? entries : [];
+          const processedEntries = processTimeEntriesByDay(entriesArray);
+          timeEntriesMap[calc.employee_id] = processedEntries;
+        } catch (fallbackError) {
+          console.error(`Error en fallback para empleado ${calc.employee_id}:`, fallbackError);
+          timeEntriesMap[calc.employee_id] = [];
+        }
       }
     }
     
@@ -1095,7 +1127,7 @@ const PayrollPrintView: React.FC = () => {
                 {/* Horas trabajadas */}
                 <div className="mb-4">
                   <h4 className="font-semibold text-lg mb-2 border-b pb-1">{t('hours_worked')}</h4>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="grid grid-cols-4 gap-4 mb-4">
                     <div>
                       <p className="text-sm text-gray-600">{t('regular')}</p>
                       <p className="text-lg font-bold">{calc.regular_hours}h</p>
@@ -1107,6 +1139,16 @@ const PayrollPrintView: React.FC = () => {
                     <div>
                       <p className="text-sm text-gray-600">{t('break')}</p>
                       <p className="text-lg font-bold">{calc.break_hours}h</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">{t('days_worked')}</p>
+                      <p className="text-lg font-bold">
+                        {employeeDaysWorked[calc.employee_id] !== undefined 
+                          ? employeeDaysWorked[calc.employee_id] 
+                          : (employeeTimeEntries[calc.employee_id] 
+                            ? employeeTimeEntries[calc.employee_id].filter((d: any) => d.checkIn && d.checkOut).length 
+                            : 0)} {t('days')}
+                      </p>
                     </div>
                   </div>
 
@@ -1129,14 +1171,49 @@ const PayrollPrintView: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {employeeTimeEntries[calc.employee_id].map((dayEntry: any, idx: number) => (
+                            {employeeTimeEntries[calc.employee_id].map((dayEntry: any, idx: number) => {
+                              // Formatear fecha correctamente - usar dayName del backend si está disponible
+                              let formattedDate = '';
+                              try {
+                                // Si tenemos dayName del backend, usarlo directamente
+                                if (dayEntry.dayName) {
+                                  // Parsear fecha para obtener mes y día
+                                  const dateParts = dayEntry.date.split('-');
+                                  if (dateParts.length === 3) {
+                                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                    const month = parseInt(dateParts[1], 10);
+                                    const day = parseInt(dateParts[2], 10);
+                                    const dayAbbr = dayEntry.dayName.substring(0, 3);
+                                    formattedDate = `${dayAbbr}, ${monthNames[month - 1]} ${day}`;
+                                  } else {
+                                    formattedDate = dayEntry.date;
+                                  }
+                                } else {
+                                  // Fallback: parsear fecha manualmente sin conversión de timezone
+                                  const dateParts = dayEntry.date.split('-');
+                                  if (dateParts.length === 3) {
+                                    const year = parseInt(dateParts[0], 10);
+                                    const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
+                                    const day = parseInt(dateParts[2], 10);
+                                    const dateObj = new Date(year, month, day);
+                                    formattedDate = dateObj.toLocaleDateString('en-US', {
+                                      weekday: 'short',
+                                      day: 'numeric',
+                                      month: 'short'
+                                    });
+                                  } else {
+                                    formattedDate = dayEntry.date;
+                                  }
+                                }
+                              } catch (e) {
+                                formattedDate = dayEntry.date;
+                              }
+                              
+                              return (
                               <tr key={idx} className="border-b border-gray-200">
                                 <td className="py-2 px-2">
-                                  {new Date(dayEntry.date).toLocaleDateString('en-US', {
-                                    weekday: 'short',
-                                    day: 'numeric',
-                                    month: 'short'
-                                  })}
+                                  {formattedDate}
                                 </td>
                                 <td className="py-2 px-2">
                                   {dayEntry.checkIn ? (
@@ -1163,7 +1240,8 @@ const PayrollPrintView: React.FC = () => {
                                   <span className="text-blue-700 font-bold">{dayEntry.hoursWorked}h</span>
                                 </td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>

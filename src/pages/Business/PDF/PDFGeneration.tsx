@@ -74,6 +74,7 @@ const PDFGeneration = () => {
       for (const pdf of pdfArray) {
         try {
           if (pdf.pdf_filename) {
+            // Verificar si existe firma (no necesitamos el resultado, solo verificar que no lance 404)
             await signaturesService.getPDFSignature(pdf.pdf_filename);
             hasAnySignature = true;
             break; // Si encontramos al menos una firma, no necesitamos seguir
