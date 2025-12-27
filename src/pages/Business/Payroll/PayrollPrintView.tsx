@@ -1675,6 +1675,7 @@ const PayrollPrintView: React.FC = () => {
                   <div className="text-xs text-gray-500">
                     <p className="font-semibold mb-1">{t('employer')}: {companyName}</p>
                     {businessAddress && <p>{businessAddress}</p>}
+                    {businessRfc && <p>EIN: {businessRfc}</p>}
                     <p className="mt-2 italic">{t('informational_receipt')}</p>
                     <p className="text-right mt-2">{t('generated')}: {new Date().toLocaleDateString('en-US', {
                       year: 'numeric',
