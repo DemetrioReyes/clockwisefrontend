@@ -772,7 +772,56 @@ const PayrollPrintView: React.FC = () => {
   const businessEmail = businessData?.email || '';
 
   const handlePrint = () => {
-    window.print();
+    // Guardar el título original
+    const originalTitle = document.title;
+    
+    // Cambiar el título a algo genérico y corto para minimizar lo que aparece en el header
+    document.title = 'Receipt';
+    
+    // Agregar estilos adicionales para eliminar headers/footers del navegador
+    const printStyle = document.createElement('style');
+    printStyle.id = 'print-hide-headers';
+    printStyle.innerHTML = `
+      @page {
+        margin: 0 !important;
+        size: auto;
+      }
+      @media print {
+        @page {
+          margin: 0 !important;
+          size: auto;
+        }
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+        }
+      }
+    `;
+    
+    // Remover estilo anterior si existe
+    const existingStyle = document.getElementById('print-hide-headers');
+    if (existingStyle) {
+      document.head.removeChild(existingStyle);
+    }
+    
+    document.head.appendChild(printStyle);
+    
+    // Pequeño delay para asegurar que los estilos se apliquen
+    setTimeout(() => {
+      // Imprimir
+      window.print();
+      
+      // Restaurar el título original después de imprimir
+      setTimeout(() => {
+        document.title = originalTitle;
+        const styleToRemove = document.getElementById('print-hide-headers');
+        if (styleToRemove) {
+          document.head.removeChild(styleToRemove);
+        }
+      }, 500);
+    }, 100);
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -924,15 +973,16 @@ const PayrollPrintView: React.FC = () => {
                 <Building2 className="w-10 h-10 text-blue-600" />
                 <h1 className="text-3xl font-bold text-gray-900">{companyName}</h1>
               </div>
+<<<<<<< HEAD
               {businessAddress && (
                 <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
               )}
-              {businessPhone && (
-                <p className="text-gray-600 text-sm">📞 {businessPhone}</p>
-              )}
-              {businessEmail && (
-                <p className="text-gray-600 text-sm">📧 {businessEmail}</p>
-              )}
+                    {businessAddress && (
+                      <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
+                    )}
+                    {businessRfc && (
+                      <p className="text-gray-600 text-sm">RFC/Tax ID: {businessRfc} *</p>
+                    )}
             </div>
             <div className="text-right">
               <h2 className="text-2xl font-bold text-blue-600 mb-2">{t('payroll_receipt')}</h2>
@@ -1071,11 +1121,8 @@ const PayrollPrintView: React.FC = () => {
                     {businessAddress && (
                       <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
                     )}
-                    {businessPhone && (
-                      <p className="text-gray-600 text-sm">📞 {businessPhone}</p>
-                    )}
-                    {businessEmail && (
-                      <p className="text-gray-600 text-sm">📧 {businessEmail}</p>
+                    {businessRfc && (
+                      <p className="text-gray-600 text-sm">RFC/Tax ID: {businessRfc} *</p>
                     )}
                   </div>
                   <div className="text-right">
@@ -1655,7 +1702,7 @@ const PayrollPrintView: React.FC = () => {
               <p className="font-bold text-gray-900 mb-2">{companyName}</p>
               {businessAddress && <p className="text-gray-600">{businessAddress}</p>}
               {businessPhone && <p className="text-gray-600">Tel: {businessPhone}</p>}
-              {businessEmail && <p className="text-gray-600">Email: {businessEmail}</p>}
+              {businessRfc && <p className="text-gray-600">RFC/Tax ID: {businessRfc} *</p>}
             </div>
             <div className="text-right">
               <p className="text-gray-500">{t('generated_by')}</p>
@@ -1674,7 +1721,33 @@ const PayrollPrintView: React.FC = () => {
 
       {/* Estilos para impresión */}
       <style>{`
+        @page {
+          margin: 0 !important;
+          size: auto;
+        }
+
         @media print {
+          /* Ocultar headers y footers del navegador */
+          @page {
+            margin: 0 !important;
+            size: auto;
+          }
+
+          /* Eliminar todos los márgenes y padding del body */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+          }
+
+          /* Ocultar título de la página y URL */
+          body::before,
+          body::after {
+            display: none !important;
+            content: none !important;
+          }
+
           /* Ocultar elementos marcados como no-print */
           .no-print,
           .no-print * {
@@ -1683,61 +1756,104 @@ const PayrollPrintView: React.FC = () => {
           }
 
           .page-break {
-            page-break-after: always !important;
+            page-break-after: auto !important;
+            page-break-before: auto !important;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+            break-after: auto !important;
+            break-before: auto !important;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+          }
+
+          /* Permitir que el contenido fluya naturalmente, evitando solo saltos dentro de elementos críticos */
+          .page-break > .mb-6.pb-4 {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
 
-          /* Configuración global compacta */
+          .page-break .border-2.rounded-lg {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+          }
+
+          /* Eliminar márgenes grandes que causan saltos */
+          .page-break.mb-8 {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+          }
+
+          /* Configuración global ultra compacta */
           body {
             margin: 0 !important;
             padding: 0 !important;
-            font-size: 9px !important;
+            font-size: 8px !important;
+            line-height: 1.2 !important;
           }
 
           .print-container {
-            padding: 8px !important;
-            font-size: 9px !important;
+            margin: 0 !important;
+            padding: 4px !important;
+            font-size: 8px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            line-height: 1.2 !important;
           }
 
           /* Header de empresa en cada comprobante - Ultra compacto */
+          .page-break {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
           .page-break > .mb-6.pb-4 {
             page-break-after: avoid !important;
             break-after: avoid !important;
-            margin-bottom: 3px !important;
-            padding-bottom: 2px !important;
+            page-break-before: auto !important;
+            break-before: auto !important;
+            margin-bottom: 2px !important;
+            padding-bottom: 1px !important;
+            border-bottom-width: 1px !important;
           }
 
           .page-break > .mb-6.pb-4 h1 {
-            font-size: 12px !important;
-            margin-bottom: 1px !important;
-            line-height: 1.2 !important;
-          }
-
-          .page-break > .mb-6.pb-4 h2 {
-            font-size: 11px !important;
-            margin-bottom: 1px !important;
-            line-height: 1.2 !important;
-          }
-
-          .page-break > .mb-6.pb-4 .text-sm {
-            font-size: 7px !important;
+            font-size: 10px !important;
+            margin-bottom: 0 !important;
             line-height: 1.1 !important;
           }
 
+          .page-break > .mb-6.pb-4 h2 {
+            font-size: 9px !important;
+            margin-bottom: 0 !important;
+            line-height: 1.1 !important;
+          }
+
+          .page-break > .mb-6.pb-4 .text-sm {
+            font-size: 6px !important;
+            line-height: 1.1 !important;
+            margin: 0 !important;
+          }
+
           .page-break > .mb-6.pb-4 .bg-gray-50 {
-            padding: 2px 4px !important;
-            margin-top: 2px !important;
+            padding: 1px 2px !important;
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
           }
 
           .page-break > .mb-6.pb-4 .text-xs {
-            font-size: 6px !important;
+            font-size: 5px !important;
             line-height: 1.1 !important;
           }
 
           .page-break > .mb-6.pb-4 .w-10 {
-            width: 16px !important;
-            height: 16px !important;
+            width: 12px !important;
+            height: 12px !important;
+          }
+
+          .page-break > .mb-6.pb-4 .flex {
+            gap: 4px !important;
           }
 
           .page-break > .mb-6.pb-4 .gap-3 {
@@ -1756,123 +1872,189 @@ const PayrollPrintView: React.FC = () => {
             gap: 2px !important;
           }
 
-          /* Tamaños de fuente reducidos */
+          /* Contenedor del empleado - Ultra compacto */
+          .page-break > .border-2 {
+            padding: 3px !important;
+            margin: 0 !important;
+            border-width: 1px !important;
+          }
+
+          /* Header del empleado - Ultra compacto */
+          .page-break .bg-gray-100 {
+            padding: 2px 3px !important;
+            margin: -3px -3px 2px -3px !important;
+          }
+
+          .page-break .bg-gray-100 h3 {
+            font-size: 9px !important;
+            margin: 0 !important;
+            line-height: 1.1 !important;
+          }
+
+          .page-break .bg-gray-100 .text-3xl {
+            font-size: 12px !important;
+            line-height: 1.1 !important;
+          }
+
+          /* Tamaños de fuente ultra reducidos */
           h1 {
-            font-size: 14px !important;
-            margin-bottom: 2px !important;
-            line-height: 1.2 !important;
+            font-size: 10px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.1 !important;
           }
 
           h2 {
-            font-size: 12px !important;
-            margin-bottom: 2px !important;
-            line-height: 1.2 !important;
+            font-size: 9px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.1 !important;
           }
 
           h3 {
-            font-size: 11px !important;
-            margin-bottom: 2px !important;
-            line-height: 1.2 !important;
+            font-size: 9px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.1 !important;
           }
 
           h4 {
-            font-size: 10px !important;
-            margin-bottom: 2px !important;
-            line-height: 1.2 !important;
+            font-size: 8px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.1 !important;
           }
 
           h5 {
-            font-size: 9px !important;
-            margin-bottom: 2px !important;
-            line-height: 1.2 !important;
+            font-size: 7px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.1 !important;
           }
 
           .text-3xl {
-            font-size: 16px !important;
-            line-height: 1.2 !important;
+            font-size: 12px !important;
+            line-height: 1.1 !important;
           }
 
           .text-2xl {
-            font-size: 14px !important;
-            line-height: 1.2 !important;
+            font-size: 10px !important;
+            line-height: 1.1 !important;
           }
 
           .text-xl {
-            font-size: 12px !important;
-            line-height: 1.2 !important;
+            font-size: 9px !important;
+            line-height: 1.1 !important;
           }
 
           .text-lg {
-            font-size: 10px !important;
-            line-height: 1.2 !important;
+            font-size: 8px !important;
+            line-height: 1.1 !important;
           }
 
           .text-base {
-            font-size: 9px !important;
-            line-height: 1.2 !important;
-          }
-
-          .text-sm {
-            font-size: 8px !important;
-            line-height: 1.2 !important;
-          }
-
-          .text-xs {
             font-size: 7px !important;
             line-height: 1.1 !important;
           }
 
-          /* Padding y márgenes reducidos */
+          .text-sm {
+            font-size: 6px !important;
+            line-height: 1.1 !important;
+          }
+
+          .text-xs {
+            font-size: 5px !important;
+            line-height: 1.1 !important;
+          }
+
+          /* Padding y márgenes ultra reducidos */
           .p-6 {
-            padding: 6px !important;
-          }
-
-          .p-4 {
-            padding: 4px !important;
-          }
-
-          .p-3 {
             padding: 3px !important;
           }
 
+          .p-4 {
+            padding: 2px !important;
+          }
+
+          .p-3 {
+            padding: 2px !important;
+          }
+
           .mb-8 {
-            margin-bottom: 6px !important;
+            margin-bottom: 0 !important;
+          }
+
+          /* Eliminar cualquier espacio entre comprobantes en impresión */
+          @media print {
+            .page-break {
+              margin-top: 0 !important;
+              margin-bottom: 0 !important;
+              padding-top: 0 !important;
+              padding-bottom: 0 !important;
+              height: auto !important;
+              min-height: 0 !important;
+            }
+            
+            .page-break + .page-break {
+              margin-top: 0 !important;
+              padding-top: 0 !important;
+            }
+
+            /* Eliminar espacios vacíos que puedan causar páginas en blanco */
+            .page-break:empty {
+              display: none !important;
+              height: 0 !important;
+            }
+
+            /* Asegurar que no haya alturas mínimas que fuercen saltos */
+            .print-container {
+              min-height: auto !important;
+            }
           }
 
           .mb-6 {
-            margin-bottom: 4px !important;
+            margin-bottom: 2px !important;
           }
 
           .mb-4 {
-            margin-bottom: 3px !important;
+            margin-bottom: 2px !important;
           }
 
           .mb-3 {
-            margin-bottom: 2px !important;
+            margin-bottom: 1px !important;
           }
 
           .mb-2 {
-            margin-bottom: 2px !important;
+            margin-bottom: 1px !important;
           }
 
           .mt-4 {
-            margin-top: 3px !important;
+            margin-top: 2px !important;
           }
 
           .mt-3 {
-            margin-top: 2px !important;
+            margin-top: 1px !important;
           }
 
           .mt-2 {
-            margin-top: 2px !important;
+            margin-top: 1px !important;
           }
 
           .pt-4 {
-            padding-top: 3px !important;
+            padding-top: 2px !important;
           }
 
           .pt-2 {
-            padding-top: 2px !important;
+            padding-top: 1px !important;
+          }
+
+          /* Secciones específicas */
+          .page-break .space-y-2 > * {
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
+          }
+
+          .page-break .grid {
+            gap: 2px !important;
+          }
+
+          .page-break .grid-cols-4 {
+            gap: 2px !important;
           }
 
           .pb-1 {
@@ -1891,14 +2073,14 @@ const PayrollPrintView: React.FC = () => {
             margin-top: 2px !important;
           }
 
-          /* Header del empleado compacto */
-          .bg-gray-100 {
+          /* Header del empleado ultra compacto - sobrescribir estilos anteriores */
+          .page-break .bg-gray-100 {
             overflow: visible !important;
-            padding: 4px 8px !important;
-            margin-left: -8px !important;
-            margin-right: -8px !important;
-            margin-top: -8px !important;
-            margin-bottom: 3px !important;
+            padding: 2px 3px !important;
+            margin-left: -3px !important;
+            margin-right: -3px !important;
+            margin-top: -3px !important;
+            margin-bottom: 1px !important;
           }
 
           .bg-gray-100 > div {
@@ -1930,10 +2112,10 @@ const PayrollPrintView: React.FC = () => {
             min-width: 100px !important;
           }
 
-          /* Contenedor principal */
-          .border-2.rounded-lg {
-            padding: 6px 8px !important;
-            margin-bottom: 4px !important;
+          /* Contenedor principal - ya optimizado arriba, sobrescribir */
+          .page-break .border-2.rounded-lg {
+            padding: 3px !important;
+            margin-bottom: 2px !important;
           }
 
           /* Secciones */
@@ -1974,29 +2156,30 @@ const PayrollPrintView: React.FC = () => {
             max-width: 100% !important;
           }
 
-          /* Ingresos y deducciones */
-          .flex.justify-between {
-            padding: 1px 0 !important;
-            font-size: 8px !important;
-            line-height: 1.3 !important;
+          /* Ingresos y deducciones ultra compactas */
+          .page-break .flex.justify-between {
+            padding: 0 !important;
+            font-size: 6px !important;
+            line-height: 1.1 !important;
+            margin: 0 !important;
           }
 
-          /* Pago neto destacado */
-          .bg-green-50 {
+          /* Pago neto destacado - compacto */
+          .page-break .bg-green-50 {
             background-color: #eff6ff !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-            padding: 4px 6px !important;
-            margin-top: 3px !important;
-            margin-bottom: 3px !important;
+            padding: 2px 3px !important;
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
           }
 
-          .bg-green-50 .text-xl {
-            font-size: 11px !important;
+          .page-break .bg-green-50 .text-xl {
+            font-size: 8px !important;
           }
 
-          .bg-green-50 .text-3xl {
-            font-size: 18px !important;
+          .page-break .bg-green-50 .text-3xl {
+            font-size: 10px !important;
           }
 
           .border-green-400 {
@@ -2008,21 +2191,27 @@ const PayrollPrintView: React.FC = () => {
 
           /* Tabla de desglose diario ultra compacta */
           .desglose-dia-table {
-            font-size: 7px !important;
-            margin-top: 2px !important;
-            margin-bottom: 2px !important;
+            font-size: 5px !important;
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
           }
 
           .desglose-dia-table th,
           .desglose-dia-table td {
-            padding: 2px 1px !important;
-            font-size: 7px !important;
-            line-height: 1.2 !important;
+            padding: 1px !important;
+            font-size: 5px !important;
+            line-height: 1.1 !important;
           }
 
           .desglose-dia-table thead th {
-            padding: 2px 1px !important;
+            padding: 1px !important;
             font-weight: 600 !important;
+            font-size: 5px !important;
+          }
+
+          .desglose-dia-table tbody td {
+            padding: 1px !important;
+            font-size: 5px !important;
           }
 
           table {
@@ -2044,42 +2233,53 @@ const PayrollPrintView: React.FC = () => {
             break-inside: avoid !important;
           }
 
-          /* Sección de firma compacta */
+          /* Sección de firma ultra compacta */
           .bg-blue-50 {
             background-color: #eff6ff !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-            padding: 4px 6px !important;
-            margin-top: 3px !important;
+            padding: 2px 3px !important;
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
           }
 
           .bg-blue-50 h4 {
-            font-size: 9px !important;
-            margin-bottom: 2px !important;
+            font-size: 6px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.1 !important;
           }
 
           .bg-blue-50 .text-sm {
-            font-size: 7px !important;
-            margin-bottom: 2px !important;
+            font-size: 5px !important;
+            margin-bottom: 1px !important;
+            line-height: 1.1 !important;
           }
 
           .bg-white.border-2 {
-            padding: 3px !important;
-            margin: 2px 0 !important;
+            padding: 2px !important;
+            margin: 1px 0 !important;
           }
 
           img[alt="Firma del empleado"] {
-            max-height: 60px !important;
+            max-height: 40px !important;
             display: block !important;
-            margin: 2px auto !important;
+            margin: 1px auto !important;
           }
 
-          /* Información adicional compacta */
-          .border-t.border-gray-200 {
-            padding-top: 2px !important;
+          /* Información adicional ultra compacta */
+          .page-break .border-t.border-gray-200 {
+            padding-top: 1px !important;
+            margin-top: 1px !important;
+            font-size: 5px !important;
+            line-height: 1.1 !important;
+          }
+
+          /* Footer del comprobante - ultra compacto */
+          .page-break .mt-8.pt-6 {
             margin-top: 2px !important;
-            font-size: 7px !important;
-            line-height: 1.2 !important;
+            padding-top: 1px !important;
+            font-size: 5px !important;
+            line-height: 1.1 !important;
           }
 
           /* Prevenir que el texto se corte horizontalmente */
