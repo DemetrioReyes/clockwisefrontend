@@ -973,16 +973,12 @@ const PayrollPrintView: React.FC = () => {
                 <Building2 className="w-10 h-10 text-blue-600" />
                 <h1 className="text-3xl font-bold text-gray-900">{companyName}</h1>
               </div>
-<<<<<<< HEAD
               {businessAddress && (
                 <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
               )}
-                    {businessAddress && (
-                      <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
-                    )}
-                    {businessRfc && (
-                      <p className="text-gray-600 text-sm">RFC/Tax ID: {businessRfc} *</p>
-                    )}
+              {businessRfc && (
+                <p className="text-gray-600 text-sm">RFC/Tax ID: {businessRfc} *</p>
+              )}
             </div>
             <div className="text-right">
               <h2 className="text-2xl font-bold text-blue-600 mb-2">{t('payroll_receipt')}</h2>
@@ -1980,31 +1976,29 @@ const PayrollPrintView: React.FC = () => {
           }
 
           /* Eliminar cualquier espacio entre comprobantes en impresión */
-          @media print {
-            .page-break {
-              margin-top: 0 !important;
-              margin-bottom: 0 !important;
-              padding-top: 0 !important;
-              padding-bottom: 0 !important;
-              height: auto !important;
-              min-height: 0 !important;
-            }
-            
-            .page-break + .page-break {
-              margin-top: 0 !important;
-              padding-top: 0 !important;
-            }
+          .page-break {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+          
+          .page-break + .page-break {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+          }
 
-            /* Eliminar espacios vacíos que puedan causar páginas en blanco */
-            .page-break:empty {
-              display: none !important;
-              height: 0 !important;
-            }
+          /* Eliminar espacios vacíos que puedan causar páginas en blanco */
+          .page-break:empty {
+            display: none !important;
+            height: 0 !important;
+          }
 
-            /* Asegurar que no haya alturas mínimas que fuercen saltos */
-            .print-container {
-              min-height: auto !important;
-            }
+          /* Asegurar que no haya alturas mínimas que fuercen saltos */
+          .print-container {
+            min-height: auto !important;
           }
 
           .mb-6 {
@@ -2297,11 +2291,11 @@ const PayrollPrintView: React.FC = () => {
           .rounded {
             border-radius: 2px !important;
           }
-        }
 
-        /* Estilos para el canvas de firma */
-        .signature-canvas {
-          touch-action: none;
+          /* Estilos para el canvas de firma */
+          .signature-canvas {
+            touch-action: none;
+          }
         }
       `}</style>
     </>
