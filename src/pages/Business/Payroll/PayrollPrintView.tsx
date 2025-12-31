@@ -15,6 +15,7 @@ import { pdfService } from '../../../services/pdf.service';
 import employeeService from '../../../services/employee.service';
 import { Calendar } from 'lucide-react';
 import { UploadSignedPayrollResponse } from '../../../types';
+import businessService from '../../../services/business.service';
 
 interface EmployeeSignature {
   employeeId: string;
@@ -47,6 +48,7 @@ const PayrollPrintView: React.FC = () => {
   const [uploadedSignedPdfs, setUploadedSignedPdfs] = useState<Record<string, UploadSignedPayrollResponse | null>>({});
   const [activeEmployeeIndex, setActiveEmployeeIndex] = useState(0);
   const [employeePaymentInfo, setEmployeePaymentInfo] = useState<Record<string, { payment_method?: string; bank_account_number?: string; bank_routing_number?: string }>>({});
+  const [businessFullData, setBusinessFullData] = useState<any>(null);
 
   const locale = language === 'es' ? 'es-ES' : 'en-US';
 
@@ -109,12 +111,34 @@ const PayrollPrintView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payrollId]);
 
+  const loadBusinessFullData = async () => {
+    try {
+      const businessData = user as any;
+      // Intentar obtener el business_id del objeto user (puede estar en id o business_id)
+      const businessId = businessData?.id || businessData?.business_id;
+      
+      if (businessId) {
+        try {
+          const fullBusinessData = await businessService.getBusinessById(businessId);
+          setBusinessFullData(fullBusinessData);
+        } catch (error) {
+          // Si falla, simplemente no cargamos los datos completos
+        }
+      }
+    } catch (error) {
+      // Error silencioso - no afecta la funcionalidad principal
+    }
+  };
+
   const loadPayrollData = async () => {
     try {
       if (!payrollId) return;
       const data = await payrollService.getPayrollById(payrollId);
       setPayrollData(data);
       setActiveEmployeeIndex(0);
+
+      // Cargar datos completos del negocio para obtener el RFC
+      await loadBusinessFullData();
 
       // Cargar PDFs y firmas existentes
       await loadEmployeeSignatures(data.calculations, data.payroll);
@@ -375,7 +399,7 @@ const PayrollPrintView: React.FC = () => {
               signatures: Array.isArray(employeeSignatures) ? employeeSignatures : [],
             };
           } catch (error) {
-            console.warn(`Error obteniendo firmas para empleado ${calc.employee_id}:`, error);
+            // Error obteniendo firmas para empleado (silencioso)
             return {
               employeeId: calc.employee_id,
               signatures: [],
@@ -555,7 +579,7 @@ const PayrollPrintView: React.FC = () => {
 
     const element = employeePdfRef.current;
     if (!element) {
-      console.warn(`No se encontró el contenedor del comprobante para ${employeeId}`);
+      // No se encontró el contenedor del comprobante
       return;
     }
 
@@ -681,7 +705,7 @@ const PayrollPrintView: React.FC = () => {
             pdfFilename = employeePdf.pdf_filename;
           }
         } catch (error) {
-          console.log('Error buscando PDF existente:', error);
+          // Error silencioso al buscar PDF existente
         }
       }
 
@@ -699,7 +723,7 @@ const PayrollPrintView: React.FC = () => {
           pdfFilename = pdfResponse.pdf_filename;
         } catch (error: any) {
           // Si falla la generación del PDF, intentar crear uno local
-          console.warn('No se pudo generar PDF en el backend, usando nombre local:', error);
+          // No se pudo generar PDF en el backend, usando nombre local
           const timestamp = new Date().getTime();
           pdfFilename = `local_payroll_${payrollId}_emp_${employeeCode}_${timestamp}.pdf`;
         }
@@ -766,10 +790,13 @@ const PayrollPrintView: React.FC = () => {
 
   // Obtener datos de la empresa
   const businessData = user as any;
-  const companyName = businessData?.company_name || 'Empresa';
-  const businessAddress = businessData?.address || '';
-  const businessPhone = businessData?.phone || '';
-  const businessEmail = businessData?.email || '';
+  // Usar datos completos del negocio si están disponibles, sino usar datos del user
+  const fullBusinessInfo = businessFullData || businessData;
+  const companyName = fullBusinessInfo?.company_name || businessData?.company_name || 'Empresa';
+  const businessAddress = fullBusinessInfo?.address || businessData?.address || '';
+  const businessPhone = fullBusinessInfo?.phone || businessData?.phone || '';
+  // Obtener RFC - usar datos completos primero, luego fallback a user data
+  const businessRfc = fullBusinessInfo?.rfc || businessData?.rfc || businessData?.tax_id || '';
 
   const handlePrint = () => {
     // Guardar el título original
