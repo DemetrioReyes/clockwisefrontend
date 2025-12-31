@@ -770,7 +770,6 @@ const PayrollPrintView: React.FC = () => {
   const businessAddress = businessData?.address || '';
   const businessPhone = businessData?.phone || '';
   const businessEmail = businessData?.email || '';
-  const businessRfc = businessData?.rfc || '';
 
   const handlePrint = () => {
     window.print();
@@ -926,7 +925,7 @@ const PayrollPrintView: React.FC = () => {
                 <h1 className="text-3xl font-bold text-gray-900">{companyName}</h1>
               </div>
               {businessAddress && (
-                <p className="text-gray-600 text-sm">{businessAddress}</p>
+                <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
               )}
               {businessPhone && (
                 <p className="text-gray-600 text-sm">📞 {businessPhone}</p>
@@ -1070,13 +1069,13 @@ const PayrollPrintView: React.FC = () => {
                       <h1 className="text-3xl font-bold text-gray-900">{companyName}</h1>
                     </div>
                     {businessAddress && (
-                      <p className="text-gray-600 text-sm">{businessAddress}</p>
+                      <p className="text-gray-600 text-sm">📍 {businessAddress}</p>
                     )}
                     {businessPhone && (
                       <p className="text-gray-600 text-sm">📞 {businessPhone}</p>
                     )}
-                    {businessRfc && (
-                      <p className="text-gray-600 text-sm">EIN: {businessRfc}</p>
+                    {businessEmail && (
+                      <p className="text-gray-600 text-sm">📧 {businessEmail}</p>
                     )}
                   </div>
                   <div className="text-right">
@@ -1632,7 +1631,6 @@ const PayrollPrintView: React.FC = () => {
                   <div className="text-xs text-gray-500">
                     <p className="font-semibold mb-1">{t('employer')}: {companyName}</p>
                     {businessAddress && <p>{businessAddress}</p>}
-                    {businessRfc && <p>EIN: {businessRfc}</p>}
                     <p className="mt-2 italic">{t('informational_receipt')}</p>
                     <p className="text-right mt-2">{t('generated')}: {new Date().toLocaleDateString('en-US', {
                       year: 'numeric',
