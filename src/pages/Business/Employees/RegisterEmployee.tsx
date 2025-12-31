@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatErrorMessage } from '../../../services/api';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../../components/Layout/Layout';
 import LoadingSpinner from '../../../components/Common/LoadingSpinner';
 import { useToast } from '../../../components/Common/Toast';
 import employeeService from '../../../services/employee.service';
+import { tipcreditService } from '../../../services/tipcredit.service';
 import { EmployeeRegisterData, EmployeeType, PayFrequency, PaymentMethod } from '../../../types';
 import { Camera } from 'lucide-react';
 
@@ -30,7 +31,7 @@ const RegisterEmployee: React.FC = () => {
     zip_code: '',
     employee_type: 'hourly_fixed' as EmployeeType,
     position: '',
-    hourly_rate: 16.50,
+    hourly_rate: 17.00, // Valor por defecto actualizado (se ajustará según región)
     pay_frequency: 'weekly' as PayFrequency,
     regular_shift: '',
     department: '',
@@ -38,9 +39,50 @@ const RegisterEmployee: React.FC = () => {
     bank_account_number: '',
     bank_routing_number: '',
     bank_account_type: 'checking',
-    state_minimum_wage: 16.50,
+    state_minimum_wage: 17.00, // Valor por defecto actualizado (se ajustará según región)
     receives_meal_benefit: false,
   });
+  const [defaultMinimumWage, setDefaultMinimumWage] = useState<number>(17.00);
+  const [defaultMinimumWageYear, setDefaultMinimumWageYear] = useState<string>('2026');
+
+  // Cargar configuración de tip credit para obtener el mínimo salarial vigente según región
+  useEffect(() => {
+    const loadMinimumWage = async () => {
+      try {
+        // Obtener configuración de 2026 (fecha efectiva del 1 de enero de 2026)
+        // El backend selecciona automáticamente la configuración correcta según región
+        const effectiveDate2026 = '2026-01-01';
+        const tipCreditConfig = await tipcreditService.getCurrentConfig(effectiveDate2026);
+        
+        if (tipCreditConfig?.config?.minimum_wage) {
+          const minimumWage = typeof tipCreditConfig.config.minimum_wage === 'number' 
+            ? tipCreditConfig.config.minimum_wage 
+            : parseFloat(String(tipCreditConfig.config.minimum_wage));
+          
+          setDefaultMinimumWage(minimumWage);
+          
+          // Determinar el año de la configuración
+          if (tipCreditConfig.config.effective_date) {
+            const effectiveDate = new Date(tipCreditConfig.config.effective_date);
+            const year = effectiveDate.getFullYear();
+            setDefaultMinimumWageYear(String(year));
+          }
+          
+          // Actualizar valores por defecto del formulario si aún no han sido modificados
+          setFormData(prev => ({
+            ...prev,
+            hourly_rate: prev.hourly_rate === 17.00 || prev.hourly_rate === 16.50 ? minimumWage : prev.hourly_rate,
+            state_minimum_wage: prev.state_minimum_wage === 17.00 || prev.state_minimum_wage === 16.50 ? minimumWage : prev.state_minimum_wage,
+          }));
+        }
+      } catch (error) {
+        // Si hay error, mantener valores por defecto (17.00 para NYC/Downstate)
+        console.warn('No se pudo cargar la configuración de tip credit, usando valores por defecto:', error);
+      }
+    };
+
+    loadMinimumWage();
+  }, []);
 
   // Formatear teléfono automáticamente a XXX-XXX-XXXX
   const formatPhoneNumber = (value: string): string => {
@@ -586,7 +628,9 @@ const RegisterEmployee: React.FC = () => {
                     step="0.01"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Por defecto: $16.50/hr (NY 2025)</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Por defecto: ${defaultMinimumWage.toFixed(2)}/hr (NY {defaultMinimumWageYear})
+                  </p>
                 </div>
                 <div className="bg-purple-100 p-4 rounded">
                   <p className="text-sm text-purple-800 font-semibold">Tip Credit Automático:</p>

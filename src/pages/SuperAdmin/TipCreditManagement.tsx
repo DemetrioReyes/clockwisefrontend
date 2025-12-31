@@ -5,8 +5,7 @@ import { formatErrorMessage } from '../../services/api';
 import { superAdminTipCreditService } from '../../services/superAdminTipCredit.service';
 import businessService from '../../services/business.service';
 import { TipCreditConfig, TipCreditConfigCreate, Business } from '../../types';
-import { DollarSign, Edit2, Trash2, Plus, Search, Building2, Globe, Settings, Filter, X, ChevronDown, ChevronUp, MapPin, Calendar, CheckCircle2 } from 'lucide-react';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { DollarSign, Edit2, Trash2, Plus, Search, Building2, Globe, Settings, Filter, X, ChevronDown, ChevronUp, MapPin, Calendar } from 'lucide-react';
 import Modal from '../../components/Common/Modal';
 import { formatDateUS } from '../../utils/dateFormat';
 import Header from '../../components/Layout/Header';
@@ -53,7 +52,6 @@ const TipCreditManagement = () => {
   });
 
   const { showToast } = useToast();
-  const { t } = useLanguage();
 
   const parseNumber = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
@@ -70,6 +68,7 @@ const TipCreditManagement = () => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeOnly]);
 
   const loadData = async () => {

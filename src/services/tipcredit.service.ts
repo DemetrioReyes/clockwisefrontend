@@ -2,8 +2,12 @@ import api from './api';
 import { TipCreditConfig, TipCreditConfigCreate, TipCreditConfigResponse, TipCreditShortfall } from '../types';
 
 export const tipcreditService = {
-  getCurrentConfig: async (): Promise<TipCreditConfigResponse> => {
-    const response = await api.get('/api/tip-credit/current');
+  getCurrentConfig: async (effectiveDate?: string): Promise<TipCreditConfigResponse> => {
+    const params: any = {};
+    if (effectiveDate) {
+      params.effective_date = effectiveDate;
+    }
+    const response = await api.get('/api/tip-credit/current', { params });
     return response.data;
   },
 

@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { formatErrorMessage } from '../../services/api';
 import { Link } from 'react-router-dom';
-import Layout from '../../components/Layout/Layout';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import { useToast } from '../../components/Common/Toast';
 import businessService from '../../services/business.service';
 import { Business, BusinessRegisterData } from '../../types';
-import { Building2, Search, Plus, Edit2, X, Lock, Unlock, Key, Trash2, AlertTriangle, Users, Settings, Mail, Phone, Calendar, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { Building2, Search, Plus, Edit2, X, Lock, Unlock, Key, Trash2, Users, Settings, Mail, Phone, Calendar, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDateUS } from '../../utils/dateFormat';
 import Modal from '../../components/Common/Modal';
 
@@ -124,10 +123,6 @@ const BusinessList: React.FC = () => {
     }
   };
 
-  const handleResetPasswordClick = (business: Business) => {
-    setShowResetPasswordModal({ show: true, business });
-    setNewPassword('');
-  };
 
   const handleConfirmResetPassword = async () => {
     if (!showResetPasswordModal.business || !newPassword.trim()) {
