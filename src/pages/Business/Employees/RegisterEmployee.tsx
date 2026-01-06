@@ -102,14 +102,22 @@ const RegisterEmployee: React.FC = () => {
           const tipCreditConfigResponse = await tipcreditService.getCurrentConfig(effectiveDate2026, formData.employee_type);
           
           if (tipCreditConfigResponse?.config) {
-            setTipCreditConfig(tipCreditConfigResponse.config);
+            // Verificar si la configuración es de 2026 o posterior
+            const configDate = new Date(tipCreditConfigResponse.config.effective_date);
+            const is2026OrLater = configDate >= new Date('2026-01-01');
             
-            // Determinar el año de la configuración
-            if (tipCreditConfigResponse.config.effective_date) {
-              const effectiveDate = new Date(tipCreditConfigResponse.config.effective_date);
-              const year = effectiveDate.getFullYear();
-              setTipCreditYear(String(year));
+            if (is2026OrLater) {
+              // Usar configuración del backend si es de 2026 o posterior
+              setTipCreditConfig(tipCreditConfigResponse.config);
+              setTipCreditYear(String(configDate.getFullYear()));
             } else {
+              // Si es configuración antigua (2024-2025), usar valores por defecto de NY 2026
+              setTipCreditConfig({
+                minimum_wage: 17.00,
+                cash_wage: 11.35,
+                tip_credit_amount: 5.65,
+                effective_date: '2026-01-01'
+              });
               setTipCreditYear('2026');
             }
           } else {
