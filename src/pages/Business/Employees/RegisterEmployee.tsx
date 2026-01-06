@@ -31,7 +31,7 @@ const RegisterEmployee: React.FC = () => {
     zip_code: '',
     employee_type: 'hourly_fixed' as EmployeeType,
     position: '',
-    hourly_rate: 17.00, // Valor por defecto actualizado (se ajustará según región)
+    hourly_rate: 17.00, // Valor por defecto NY 2026 (se ajustará según región)
     pay_frequency: 'weekly' as PayFrequency,
     regular_shift: '',
     department: '',
@@ -39,11 +39,13 @@ const RegisterEmployee: React.FC = () => {
     bank_account_number: '',
     bank_routing_number: '',
     bank_account_type: 'checking',
-    state_minimum_wage: 17.00, // Valor por defecto actualizado (se ajustará según región)
+    state_minimum_wage: 17.00, // Valor por defecto NY 2026 (se ajustará según región)
     receives_meal_benefit: false,
   });
   const [defaultMinimumWage, setDefaultMinimumWage] = useState<number>(17.00);
   const [defaultMinimumWageYear, setDefaultMinimumWageYear] = useState<string>('2026');
+  const [tipCreditConfig, setTipCreditConfig] = useState<any>(null);
+  const [tipCreditYear, setTipCreditYear] = useState<string>('2026');
 
   // Cargar configuración de tip credit para obtener el mínimo salarial vigente según región
   useEffect(() => {
@@ -52,18 +54,18 @@ const RegisterEmployee: React.FC = () => {
         // Obtener configuración de 2026 (fecha efectiva del 1 de enero de 2026)
         // El backend selecciona automáticamente la configuración correcta según región
         const effectiveDate2026 = '2026-01-01';
-        const tipCreditConfig = await tipcreditService.getCurrentConfig(effectiveDate2026);
+        const tipCreditConfigResponse = await tipcreditService.getCurrentConfig(effectiveDate2026);
         
-        if (tipCreditConfig?.config?.minimum_wage) {
-          const minimumWage = typeof tipCreditConfig.config.minimum_wage === 'number' 
-            ? tipCreditConfig.config.minimum_wage 
-            : parseFloat(String(tipCreditConfig.config.minimum_wage));
+        if (tipCreditConfigResponse?.config?.minimum_wage) {
+          const minimumWage = typeof tipCreditConfigResponse.config.minimum_wage === 'number' 
+            ? tipCreditConfigResponse.config.minimum_wage 
+            : parseFloat(String(tipCreditConfigResponse.config.minimum_wage));
           
           setDefaultMinimumWage(minimumWage);
           
           // Determinar el año de la configuración
-          if (tipCreditConfig.config.effective_date) {
-            const effectiveDate = new Date(tipCreditConfig.config.effective_date);
+          if (tipCreditConfigResponse.config.effective_date) {
+            const effectiveDate = new Date(tipCreditConfigResponse.config.effective_date);
             const year = effectiveDate.getFullYear();
             setDefaultMinimumWageYear(String(year));
           }
@@ -71,18 +73,73 @@ const RegisterEmployee: React.FC = () => {
           // Actualizar valores por defecto del formulario si aún no han sido modificados
           setFormData(prev => ({
             ...prev,
-            hourly_rate: prev.hourly_rate === 17.00 || prev.hourly_rate === 16.50 ? minimumWage : prev.hourly_rate,
-            state_minimum_wage: prev.state_minimum_wage === 17.00 || prev.state_minimum_wage === 16.50 ? minimumWage : prev.state_minimum_wage,
+            hourly_rate: prev.hourly_rate === 17.00 ? minimumWage : prev.hourly_rate,
+            state_minimum_wage: prev.state_minimum_wage === 17.00 ? minimumWage : prev.state_minimum_wage,
           }));
+        } else {
+          // Si no hay configuración, usar valores por defecto de NY 2026
+          setDefaultMinimumWage(17.00);
+          setDefaultMinimumWageYear('2026');
         }
       } catch (error) {
-        // Si hay error, mantener valores por defecto (17.00 para NYC/Downstate)
-        console.warn('No se pudo cargar la configuración de tip credit, usando valores por defecto:', error);
+        // Si hay error, usar valores por defecto de NY 2026
+        console.warn('No se pudo cargar la configuración de tip credit, usando valores por defecto NY 2026:', error);
+        setDefaultMinimumWage(17.00);
+        setDefaultMinimumWageYear('2026');
       }
     };
 
     loadMinimumWage();
   }, []);
+
+  // Cargar configuración de tip credit cuando se selecciona un tipo de empleado con propina
+  useEffect(() => {
+    const loadTipCreditConfig = async () => {
+      if (formData.employee_type === 'hourly_tipped_waiter' || formData.employee_type === 'hourly_tipped_delivery') {
+        try {
+          const effectiveDate2026 = '2026-01-01';
+          // Pasar employee_type para obtener la configuración correcta
+          const tipCreditConfigResponse = await tipcreditService.getCurrentConfig(effectiveDate2026, formData.employee_type);
+          
+          if (tipCreditConfigResponse?.config) {
+            setTipCreditConfig(tipCreditConfigResponse.config);
+            
+            // Determinar el año de la configuración
+            if (tipCreditConfigResponse.config.effective_date) {
+              const effectiveDate = new Date(tipCreditConfigResponse.config.effective_date);
+              const year = effectiveDate.getFullYear();
+              setTipCreditYear(String(year));
+            } else {
+              setTipCreditYear('2026');
+            }
+          } else {
+            // Si no hay configuración del backend, usar valores por defecto de NY 2026
+            setTipCreditConfig({
+              minimum_wage: 17.00,
+              cash_wage: 11.35,
+              tip_credit_amount: 5.65,
+              effective_date: '2026-01-01'
+            });
+            setTipCreditYear('2026');
+          }
+        } catch (error) {
+          console.warn('No se pudo cargar la configuración de tip credit, usando valores por defecto NY 2026:', error);
+          // Usar valores por defecto de NY 2026 cuando hay error
+          setTipCreditConfig({
+            minimum_wage: 17.00,
+            cash_wage: 11.35,
+            tip_credit_amount: 5.65,
+            effective_date: '2026-01-01'
+          });
+          setTipCreditYear('2026');
+        }
+      } else {
+        setTipCreditConfig(null);
+      }
+    };
+
+    loadTipCreditConfig();
+  }, [formData.employee_type]);
 
   // Formatear teléfono automáticamente a XXX-XXX-XXXX
   const formatPhoneNumber = (value: string): string => {
@@ -616,7 +673,9 @@ const RegisterEmployee: React.FC = () => {
           {/* Configuración de Tip Credit */}
           {(formData.employee_type === 'hourly_tipped_waiter' || formData.employee_type === 'hourly_tipped_delivery') && (
             <div className="bg-purple-50 border-l-4 border-purple-400 p-6 rounded">
-              <h3 className="text-lg font-semibold mb-4 text-purple-900">Configuración de Tip Credit (NY State 2025)</h3>
+              <h3 className="text-lg font-semibold mb-4 text-purple-900">
+                Configuración de Tip Credit (NY State {tipCreditYear || '2026'})
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Salario Mínimo del Estado</label>
@@ -634,8 +693,30 @@ const RegisterEmployee: React.FC = () => {
                 </div>
                 <div className="bg-purple-100 p-4 rounded">
                   <p className="text-sm text-purple-800 font-semibold">Tip Credit Automático:</p>
-                  <p className="text-xs text-purple-600 mt-1">• Cash Wage: $11.00/hr</p>
-                  <p className="text-xs text-purple-600">• Tip Credit: $5.50/hr</p>
+                  {tipCreditConfig ? (
+                    <>
+                      <p className="text-xs text-purple-600 mt-1">
+                        • Cash Wage: ${typeof tipCreditConfig.cash_wage === 'number' 
+                          ? tipCreditConfig.cash_wage.toFixed(2) 
+                          : parseFloat(String(tipCreditConfig.cash_wage || 0)).toFixed(2)}/hr
+                      </p>
+                      <p className="text-xs text-purple-600">
+                        • Tip Credit: ${typeof tipCreditConfig.tip_credit_amount === 'number' 
+                          ? tipCreditConfig.tip_credit_amount.toFixed(2) 
+                          : parseFloat(String(tipCreditConfig.tip_credit_amount || 0)).toFixed(2)}/hr
+                      </p>
+                      <p className="text-xs text-purple-600 mt-1">
+                        • Salario Mínimo: ${typeof tipCreditConfig.minimum_wage === 'number' 
+                          ? tipCreditConfig.minimum_wage.toFixed(2) 
+                          : parseFloat(String(tipCreditConfig.minimum_wage || 0)).toFixed(2)}/hr
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-purple-600 mt-1">• Cash Wage: Cargando...</p>
+                      <p className="text-xs text-purple-600">• Tip Credit: Cargando...</p>
+                    </>
+                  )}
                   <p className="text-xs text-purple-600 mt-2 italic">El sistema calcula automáticamente el tip credit shortfall</p>
                 </div>
               </div>

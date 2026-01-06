@@ -165,7 +165,7 @@ const TipCreditCalculator = () => {
                       Configuración Utilizada
                     </p>
                     <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
-                      <p><span className="font-medium">Nombre:</span> {result.config_used.config_name.replace(/2025/g, '').replace(/\(Vigente desde Enero 1\)/g, '').replace(/\s*-\s*-/g, '-').replace(/\s+/g, ' ').replace(/\s*-\s*/g, ' - ').trim()}</p>
+                      <p><span className="font-medium">Nombre:</span> {result.config_used.config_name.replace(/2024/g, '').replace(/2025/g, '').replace(/\(Vigente desde Enero 1\)/g, '').replace(/\s*-\s*-/g, '-').replace(/\s+/g, ' ').replace(/\s*-\s*/g, ' - ').trim()}</p>
                       <p><span className="font-medium">Salario Mínimo:</span> ${result.config_used.minimum_wage.toFixed(2)}/hr</p>
                       <p><span className="font-medium">Cash Wage:</span> ${result.config_used.cash_wage.toFixed(2)}/hr</p>
                       <p><span className="font-medium">Tip Credit:</span> ${result.config_used.tip_credit_amount.toFixed(2)}/hr</p>
@@ -183,14 +183,14 @@ const TipCreditCalculator = () => {
           <div className="space-y-3 text-sm text-gray-700">
             <p className="font-medium">Escenario: Empleado trabaja 40 horas en la semana</p>
             <div className="pl-4 space-y-1">
-              <p>• Propinas requeridas: 40 × $5.50 = <span className="font-semibold">$220.00</span></p>
+              <p>• Propinas requeridas: 40 × $5.65 = <span className="font-semibold">$226.00</span></p>
               <p>• Propinas reportadas: <span className="font-semibold">$150.00</span></p>
               <p>• <span className="text-red-600 font-semibold">Shortfall: $70.00</span> (el empleador paga esto)</p>
             </div>
             <div className="border-t pt-3 mt-3">
               <p className="font-medium">Pago Total al Empleado:</p>
               <div className="pl-4 space-y-1">
-                <p>• Cash wage: 40 × $11.00 = $440.00</p>
+                <p>• Cash wage: 40 × $11.35 = $454.00</p>
                 <p>• Shortfall compensation: $70.00</p>
                 <p>• Propinas: $150.00</p>
                 <p className="text-green-600 font-bold">━━━━━━━━━━━━━━━</p>

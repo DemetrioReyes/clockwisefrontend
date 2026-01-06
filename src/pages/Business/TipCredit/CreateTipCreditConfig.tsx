@@ -13,14 +13,14 @@ const CreateTipCreditConfig = () => {
   const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
-    config_name: 'Mi Negocio - NY 2025',
+    config_name: 'Mi Negocio - NY 2026',
     state: 'NY',
     city: '',
-    minimum_wage: '16.50',
-    cash_wage: '11.00',
-    tip_credit_amount: '5.50',
+    minimum_wage: '17.00',
+    cash_wage: '11.35',
+    tip_credit_amount: '5.65',
     minimum_tips_threshold: '',
-    effective_date: new Date().toISOString().split('T')[0],
+    effective_date: '2026-01-01',
     end_date: '',
     notes: '',
   });
@@ -110,7 +110,7 @@ const CreateTipCreditConfig = () => {
               value={formData.config_name}
               onChange={(e) => setFormData({ ...formData, config_name: e.target.value })}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="Ej: Mi Restaurante - NY 2025"
+              placeholder="Ej: Mi Restaurante - NY 2026"
             />
           </div>
 
