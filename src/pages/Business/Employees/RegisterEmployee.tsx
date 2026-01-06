@@ -98,8 +98,8 @@ const RegisterEmployee: React.FC = () => {
       if (formData.employee_type === 'hourly_tipped_waiter' || formData.employee_type === 'hourly_tipped_delivery') {
         try {
           const effectiveDate2026 = '2026-01-01';
-          // Pasar employee_type para obtener la configuración correcta
-          const tipCreditConfigResponse = await tipcreditService.getCurrentConfig(effectiveDate2026, formData.employee_type);
+          // Obtener la configuración vigente para la fecha 2026
+          const tipCreditConfigResponse = await tipcreditService.getCurrentConfig(effectiveDate2026);
           
           if (tipCreditConfigResponse?.config) {
             // Verificar si la configuración es de 2026 o posterior

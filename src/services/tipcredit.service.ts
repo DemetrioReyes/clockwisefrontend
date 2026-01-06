@@ -1,8 +1,14 @@
 import api from './api';
 import { TipCreditConfig, TipCreditConfigCreate, TipCreditConfigResponse, TipCreditShortfall } from '../types';
 
+export interface CurrentTipCreditResponse {
+  config: TipCreditConfig;
+  is_global: boolean;
+  source: string;
+}
+
 export const tipcreditService = {
-  getCurrentConfig: async (effectiveDate?: string): Promise<TipCreditConfigResponse> => {
+  getCurrentConfig: async (effectiveDate?: string): Promise<CurrentTipCreditResponse> => {
     const params: any = {};
     if (effectiveDate) {
       params.effective_date = effectiveDate;
