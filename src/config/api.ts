@@ -112,4 +112,16 @@ export const API_ENDPOINTS = {
   MEAL_BENEFIT_BY_ID: '/api/meal-benefit',
   MEAL_BENEFIT_UPDATE: '/api/meal-benefit',
   MEAL_BENEFIT_DELETE: '/api/meal-benefit',
+
+  // Pay Notices (LS 59)
+  NOTICES_SAVE: '/api/notices/save',
+  NOTICES_GENERATE_PDF: '/api/notices',
+  NOTICES_GENERATE: '/api/notices/generate',
+  NOTICES_BY_ID: '/api/notices',
+  NOTICES_EMPLOYEE: '/api/notices/employee',
+  NOTICES_LIST: '/api/notices/',
+  NOTICES_DOWNLOAD: '/api/notices',
+  NOTICES_SIGN: '/api/notices',
+  NOTICES_SEND: '/api/notices',
+  NOTICES_DELETE: '/api/notices',
 };

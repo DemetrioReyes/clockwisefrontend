@@ -7,7 +7,7 @@ import { useToast } from '../../../components/Common/Toast';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import employeeService from '../../../services/employee.service';
 import { Employee } from '../../../types';
-import { Users, Search, Plus, Mail, Phone, Edit2, X, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, Search, Plus, Mail, Phone, Edit2, X, Trash2, AlertTriangle, FileCheck } from 'lucide-react';
 import { EmployeeType, PayFrequency, PaymentMethod, BankAccountType } from '../../../types';
 
 const EmployeeList: React.FC = () => {
@@ -351,6 +351,14 @@ const EmployeeList: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-3">
+                            <Link
+                              to={`/business/notices/employee/${employee.id}`}
+                              className="text-purple-600 hover:text-purple-900 flex items-center gap-1"
+                              title="Ver Notices"
+                            >
+                              <FileCheck className="w-4 h-4" />
+                              Notices
+                            </Link>
                             <button
                               onClick={() => handleEditClick(employee)}
                               className="text-blue-600 hover:text-blue-900 flex items-center gap-1"

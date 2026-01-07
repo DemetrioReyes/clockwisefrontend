@@ -52,9 +52,10 @@ const TipCreditConfig = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Función helper para eliminar "2025" y "(Vigente desde Enero 1)" del nombre de configuración
+  // Función helper para eliminar "2024", "2025" y "(Vigente desde Enero 1)" del nombre de configuración
   const formatConfigName = (name: string): string => {
     return name
+      .replace(/2024/g, '')
       .replace(/2025/g, '')
       .replace(/\(Vigente desde Enero 1\)/g, '') // Eliminar texto de vigencia
       .replace(/\s*-\s*-/g, '-') // Eliminar guiones dobles

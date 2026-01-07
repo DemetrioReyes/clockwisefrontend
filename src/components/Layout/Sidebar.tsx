@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Heart,
   UtensilsCrossed,
+  FileCheck,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -48,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userType }) => {
     { path: '/business/sick-leave', label: t('sick_leave'), icon: Heart },
     { path: '/business/tip-credit', label: t('tip_credit_config'), icon: DollarSign },
     { path: '/business/meal-benefit', label: t('meal_benefit_menu'), icon: UtensilsCrossed },
+    { path: '/business/notices', label: 'Notices (LS 59)', icon: FileCheck },
     { path: '/business/reports', label: t('reports'), icon: FileText },
   ];
 

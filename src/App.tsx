@@ -48,6 +48,11 @@ const TipCreditCalculator = lazy(() => import('./pages/Business/TipCredit/TipCre
 const MealBenefitConfig = lazy(() => import('./pages/Business/MealBenefit/MealBenefitConfig'));
 const CreateMealBenefitConfig = lazy(() => import('./pages/Business/MealBenefit/CreateMealBenefitConfig'));
 
+// Notices (LS 59)
+const NoticesManagement = lazy(() => import('./pages/Business/Notices/NoticesManagement'));
+const EmployeeNotices = lazy(() => import('./pages/Business/Notices/EmployeeNotices'));
+const CreateNoticeForm = lazy(() => import('./pages/Business/Notices/CreateNoticeForm'));
+
 function App() {
   return (
     <BrowserRouter>
@@ -292,6 +297,32 @@ function App() {
               element={
                 <ProtectedRoute requiredUserType="business">
                   <CreateMealBenefitConfig />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Notices Routes */}
+            <Route
+              path="/business/notices"
+              element={
+                <ProtectedRoute requiredUserType="business">
+                  <NoticesManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/business/notices/employee/:employeeId"
+              element={
+                <ProtectedRoute requiredUserType="business">
+                  <EmployeeNotices />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/business/notices/create/:employeeId"
+              element={
+                <ProtectedRoute requiredUserType="business">
+                  <CreateNoticeForm />
                 </ProtectedRoute>
               }
             />
