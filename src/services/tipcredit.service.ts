@@ -1,5 +1,5 @@
 import api from './api';
-import { TipCreditConfig, TipCreditConfigCreate, TipCreditConfigResponse, TipCreditShortfall } from '../types';
+import { TipCreditConfig, TipCreditConfigCreate, TipCreditShortfall } from '../types';
 
 export interface CurrentTipCreditResponse {
   config: TipCreditConfig;

@@ -512,10 +512,26 @@ const TimeEntry: React.FC = () => {
 
     setSaving(true);
     try {
-      const recordTime = new Date(manualForm.record_time).toISOString();
+      // NO usar toISOString() porque convierte la hora local a UTC
+      // En su lugar, usar la fecha exacta que el usuario ingresó
+      // El input datetime-local devuelve formato "YYYY-MM-DDTHH:mm"
+      // Necesitamos agregar ":00" para los segundos si no están presentes
+      let recordTime = manualForm.record_time;
+      if (!recordTime.includes(':')) {
+        recordTime = recordTime + ':00';
+      }
+      // Si no tiene segundos, agregarlos
+      const timeParts = recordTime.split('T')[1];
+      if (timeParts && timeParts.split(':').length === 2) {
+        recordTime = recordTime + ':00';
+      }
+      // Asegurar formato ISO sin timezone: "YYYY-MM-DDTHH:mm:ss"
+      console.log('DEBUG handleAddManualEntry: Fecha ingresada por usuario:', manualForm.record_time);
+      console.log('DEBUG handleAddManualEntry: Fecha que se enviará al backend:', recordTime);
+      
       await employeeService.createManualTimeEntry({
         ...manualForm,
-        record_time: recordTime,
+        record_time: recordTime, // Enviar exactamente como el usuario lo ingresó, sin conversión de timezone
       });
       showToast(t('record_added_successfully') || 'Registro agregado exitosamente', 'success');
       handleCloseAddModal();
@@ -555,10 +571,22 @@ const TimeEntry: React.FC = () => {
 
     setSaving(true);
     try {
-      const newTime = new Date(editForm.new_record_time).toISOString();
+      // NO usar toISOString() porque convierte la hora local a UTC
+      // En su lugar, usar la fecha exacta que el usuario ingresó
+      let newTime = editForm.new_record_time;
+      // El input datetime-local devuelve formato "YYYY-MM-DDTHH:mm"
+      // Necesitamos agregar ":00" para los segundos si no están presentes
+      const timeParts = newTime.split('T')[1];
+      if (timeParts && timeParts.split(':').length === 2) {
+        newTime = newTime + ':00';
+      }
+      // Asegurar formato ISO sin timezone: "YYYY-MM-DDTHH:mm:ss"
+      console.log('DEBUG handleUpdateEntry: Fecha ingresada por usuario:', editForm.new_record_time);
+      console.log('DEBUG handleUpdateEntry: Fecha que se enviará al backend:', newTime);
+      
       await employeeService.updateTimeEntry(editingEntry.id, {
         ...editForm,
-        new_record_time: newTime,
+        new_record_time: newTime, // Enviar exactamente como el usuario lo ingresó, sin conversión de timezone
       });
       showToast(t('record_updated_successfully') || 'Registro actualizado exitosamente', 'success');
       handleCloseEditModal();

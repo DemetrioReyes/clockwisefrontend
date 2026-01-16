@@ -5,7 +5,7 @@ import { useToast } from '../../../components/Common/Toast';
 import { formatErrorMessage } from '../../../services/api';
 import noticesService, { PayNotice } from '../../../services/notices.service';
 import employeeService from '../../../services/employee.service';
-import { FileText, Download, CheckCircle2, Clock, Search, Filter, User, Trash2 } from 'lucide-react';
+import { FileText, Download, CheckCircle2, Clock, Search, User, Trash2 } from 'lucide-react';
 import SignNoticeModal from './SignNoticeModal';
 
 const NoticesManagement: React.FC = () => {
@@ -17,28 +17,25 @@ const NoticesManagement: React.FC = () => {
   const [signedFilter, setSignedFilter] = useState<string>('all');
   const [selectedNotice, setSelectedNotice] = useState<PayNotice | null>(null);
   const [showSignModal, setShowSignModal] = useState(false);
-  const [employees, setEmployees] = useState<any[]>([]);
   const { showToast } = useToast();
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     filterNotices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, statusFilter, signedFilter, notices]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [noticesData, employeesData] = await Promise.all([
-        noticesService.listNotices(undefined, undefined, undefined, undefined, undefined, 100),
-        employeeService.listEmployees(true)
-      ]);
+      const noticesData = await noticesService.listNotices(undefined, undefined, undefined, undefined, undefined, 100);
       
       setNotices(noticesData.notices);
       setFilteredNotices(noticesData.notices);
-      setEmployees(employeesData);
     } catch (error: any) {
       showToast(formatErrorMessage(error), 'error');
     } finally {

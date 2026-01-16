@@ -164,6 +164,23 @@ const RegisterEmployee: React.FC = () => {
     }
   };
 
+  const formatSSN = (value: string): string => {
+    // Remover todo excepto dígitos
+    const digits = value.replace(/\D/g, '');
+    
+    // Limitar a 9 dígitos máximo
+    const limitedDigits = digits.slice(0, 9);
+    
+    // Formatear a XXX-XX-XXXX
+    if (limitedDigits.length <= 3) {
+      return limitedDigits;
+    } else if (limitedDigits.length <= 5) {
+      return `${limitedDigits.slice(0, 3)}-${limitedDigits.slice(3)}`;
+    } else {
+      return `${limitedDigits.slice(0, 3)}-${limitedDigits.slice(3, 5)}-${limitedDigits.slice(5, 9)}`;
+    }
+  };
+
   // Comprimir imagen para reducir el tamaño del archivo
   const compressImage = (file: File, maxSizeMB: number = 1): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -258,6 +275,10 @@ const RegisterEmployee: React.FC = () => {
     // Formatear teléfono automáticamente
     if (name === 'phone') {
       const formatted = formatPhoneNumber(value);
+      setFormData(prev => ({ ...prev, [name]: formatted }));
+    } else if (name === 'ssn') {
+      // Formatear SSN automáticamente a XXX-XX-XXXX
+      const formatted = formatSSN(value);
       setFormData(prev => ({ ...prev, [name]: formatted }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -434,9 +455,11 @@ const RegisterEmployee: React.FC = () => {
                   value={formData.ssn}
                   onChange={handleChange}
                   placeholder="XXX-XX-XXXX"
+                  maxLength={11}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">✨ Formato automático: XXX-XX-XXXX (escriba solo números)</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Nacimiento *</label>

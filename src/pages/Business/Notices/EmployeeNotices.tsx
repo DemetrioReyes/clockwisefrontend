@@ -23,6 +23,7 @@ const EmployeeNotices: React.FC = () => {
     if (employeeId) {
       loadData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId]);
 
   const loadData = async () => {

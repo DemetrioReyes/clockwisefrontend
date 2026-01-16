@@ -7,7 +7,7 @@ import { formatErrorMessage } from '../../../services/api';
 import noticesService, { PayNoticeSaveRequest } from '../../../services/notices.service';
 import employeeService from '../../../services/employee.service';
 import SignatureCanvas from 'react-signature-canvas';
-import { ArrowLeft, Save, FileText, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Save, RotateCcw } from 'lucide-react';
 
 const CreateNoticeForm: React.FC = () => {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -53,6 +53,7 @@ const CreateNoticeForm: React.FC = () => {
     if (employeeId) {
       loadEmployee();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId]);
 
   const loadEmployee = async () => {

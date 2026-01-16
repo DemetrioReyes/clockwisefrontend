@@ -4,7 +4,7 @@ import { useToast } from '../../../components/Common/Toast';
 import { formatErrorMessage } from '../../../services/api';
 import noticesService, { PayNotice } from '../../../services/notices.service';
 import SignatureCanvas from 'react-signature-canvas';
-import { X, Check, RotateCcw } from 'lucide-react';
+import { Check, RotateCcw } from 'lucide-react';
 
 interface SignNoticeModalProps {
   notice: PayNotice;
